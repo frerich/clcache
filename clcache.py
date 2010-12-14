@@ -90,7 +90,12 @@ if cmdline.calledForLink():
 
 ppoutput = getPreprocessedOutput(realCmdline)
 
-cache = ObjectCache(os.path.join(os.path.expanduser("~"), "clcache"))
+try:
+    cachedir = os.environ["CLCACHE_DIR"]
+except KeyError:
+    cachedir = os.path.join(os.path.expanduser("~"), "clcache")
+
+cache = ObjectCache(cachedir)
 cachekey = generateHash(compiler, realCmdline, ppoutput)
 if cache.hasEntry(cachekey):
     printTraceStatement("Reusing cached object for key " + cachekey + " for output file " + cmdline.outputFileName())
