@@ -48,7 +48,7 @@ class ObjectCache:
         try:
             self.dir = os.environ["CLCACHE_DIR"]
         except KeyError:
-            self.dir = os.path.join(os.path.expanduser("~"), "clcache")
+            self.dir = os.path.join(os.path.expanduser("~"), ".clcache")
         if not os.path.exists(self.dir):
             os.mkdir(self.dir)
 
@@ -114,7 +114,7 @@ realCmdline = [compiler] + sys.argv[1:]
 if "CLCACHE_DISABLE" in os.environ:
     sys.exit(subprocess.call(realCmdline))
 
-if cmdline.appropriateForCaching():
+if not cmdline.appropriateForCaching():
     printTraceStatement("Command line " + ' '.join(realCmdline) + " is not appropriate for caching, forwarding to real compiler.")
     sys.exit(subprocess.call(realCmdline))
 
