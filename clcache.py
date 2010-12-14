@@ -23,7 +23,7 @@ class CommandLine:
     def appropriateForCaching(self):
         foundCompileOnlySwitch = False
         foundSourceFile = False
-        for arg in self.cmdline:
+        for arg in self.cmdline[1:]:
             if arg == "/link":
                 return False
             if arg == "/c":
