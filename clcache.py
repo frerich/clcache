@@ -69,12 +69,19 @@ def getPreprocessedOutput(cmdline):
     return subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=open(os.devnull, 'w')).communicate()[0]
 
 def generateHash(compiler, cmdline, ppoutput):
+    def isRelevantArgument(arg):
+        for preprocessorArg in [ "/AI", "/C", "/E", "/P", "/FI", "/u", "/X",
+                                 "/FU", "/D", "/EP", "/Fx", "/U", "/I" ]:
+            if arg[:len(preprocessorArg)] == preprocessorArg:
+                return False
+        return True
+
     import hashlib
-    import time
     sha = hashlib.sha1()
     sha.update(str(long(os.path.getmtime(compiler))))
     sha.update(str(os.path.getsize(compiler)))
-    sha.update(' '.join(cmdline))
+    normalizedCmdLine = filter(isRelevantArgument, cmdline)
+    sha.update(' '.join(normalizedCmdLine))
     sha.update(ppoutput)
     return sha.hexdigest()
 
