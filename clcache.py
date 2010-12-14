@@ -125,7 +125,7 @@ if cache.hasEntry(cachekey):
     import shutil
     shutil.copyfile(cache.cachedObjectName(cachekey),
                     cmdline.outputFileName())
-    print(cache.cachedCompilerOutput(cachekey))
+    sys.stdout.write(cache.cachedCompilerOutput(cachekey))
     sys.exit(0)
 
 printTraceStatement("Invoking real compiler as " + ' '.join(realCmdline))
@@ -139,7 +139,7 @@ if returnCode == 0:
     printTraceStatement("Adding file " + cmdline.outputFileName() + " to cache using key " + cachekey)
     cache.setEntry(cachekey, cmdline.outputFileName(), compilerOutput)
 
-print(compilerOutput)
+sys.stdout.write(compilerOutput)
 sys.exit(returnCode)
 
 
