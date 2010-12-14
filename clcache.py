@@ -20,8 +20,19 @@ class CommandLine:
     def __init__(self, args):
         self.cmdline = args
 
-    def calledForLink(self):
-        return (not "/c" in self.cmdline) or ("/link" in self.cmdline)
+    def appropriateForCaching(self):
+        foundCompileOnlySwitch = False
+        foundSourceFile = False
+        for arg in self.cmdline:
+            if arg == "/link":
+                return False
+            if arg == "/c":
+                foundCompileOnlySwitch = True
+            if arg[0] != '/':
+                if foundSourceFile == True:
+                    return False
+                foundSourceFile = True
+        return foundSourceFile and foundCompileOnlySwitch
 
     def outputFileName(self):
         srcFile = ""
@@ -103,8 +114,8 @@ realCmdline = [compiler] + sys.argv[1:]
 if "CLCACHE_DISABLE" in os.environ:
     sys.exit(subprocess.call(realCmdline))
 
-if cmdline.calledForLink():
-    printTraceStatement("Command line " + ' '.join(realCmdline) + " called for linking, forwarding...")
+if cmdline.appropriateForCaching():
+    printTraceStatement("Command line " + ' '.join(realCmdline) + " is not appropriate for caching, forwarding to real compiler.")
     sys.exit(subprocess.call(realCmdline))
 
 cache = ObjectCache()
