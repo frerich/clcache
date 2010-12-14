@@ -33,10 +33,32 @@ class CommandLine:
         return os.path.join(os.getcwd(), os.path.splitext(srcFile)[0] + ".obj")
 
 class ObjectCache:
-    def __init__(self, dir):
-        self.dir = dir
+    def __init__(self):
+        try:
+            self.dir = os.environ["CLCACHE_DIR"]
+        except KeyError:
+            self.dir = os.path.join(os.path.expanduser("~"), "clcache")
         if not os.path.exists(self.dir):
             os.mkdir(self.dir)
+
+    def computeKey(self, commandLine):
+        compilerBinary = commandLine[0]
+
+        ppcmd = list(commandLine)
+        ppcmd.remove("/c")
+        ppcmd.append("/EP")
+        preprocessedSourceCode = subprocess.Popen(ppcmd,
+                                                  stdout=subprocess.PIPE,
+                                                  stderr=open(os.devnull, 'w')).communicate()[0]
+        normalizedCmdLine = self.__normalizedCommandLine(commandLine[1:])
+
+        import hashlib
+        sha = hashlib.sha1()
+        sha.update(str(long(os.path.getmtime(compilerBinary))))
+        sha.update(str(os.path.getsize(compilerBinary)))
+        sha.update(' '.join(normalizedCmdLine))
+        sha.update(preprocessedSourceCode)
+        return sha.hexdigest()
 
     def hasEntry(self, key):
         return os.path.exists(self.cachedObjectName(key))
@@ -60,30 +82,15 @@ class ObjectCache:
     def __cachedCompilerOutputName(self, key):
         return os.path.join(self.__cacheEntryDir(key), "output.txt")
 
+    def __normalizedCommandLine(self, cmdline):
+        def isRelevantArgument(arg):
+            for preprocessorArg in [ "/AI", "/C", "/E", "/P", "/FI", "/u", "/X",
+                                     "/FU", "/D", "/EP", "/Fx", "/U", "/I" ]:
+                if arg[:len(preprocessorArg)] == preprocessorArg:
+                    return False
+            return True
+        return filter(isRelevantArgument, cmdline)
 
-def getPreprocessedOutput(cmdline):
-    cmd = list(cmdline)
-    cmd.remove("/c")
-    cmd.append("/EP")
-
-    return subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=open(os.devnull, 'w')).communicate()[0]
-
-def generateHash(compiler, cmdline, ppoutput):
-    def isRelevantArgument(arg):
-        for preprocessorArg in [ "/AI", "/C", "/E", "/P", "/FI", "/u", "/X",
-                                 "/FU", "/D", "/EP", "/Fx", "/U", "/I" ]:
-            if arg[:len(preprocessorArg)] == preprocessorArg:
-                return False
-        return True
-
-    import hashlib
-    sha = hashlib.sha1()
-    sha.update(str(long(os.path.getmtime(compiler))))
-    sha.update(str(os.path.getsize(compiler)))
-    normalizedCmdLine = filter(isRelevantArgument, cmdline)
-    sha.update(' '.join(normalizedCmdLine))
-    sha.update(ppoutput)
-    return sha.hexdigest()
 
 def printTraceStatement(msg):
     if "CLCACHE_LOG" in os.environ:
@@ -100,15 +107,8 @@ if cmdline.calledForLink():
     printTraceStatement("Command line " + ' '.join(realCmdline) + " called for linking, forwarding...")
     sys.exit(subprocess.call(realCmdline))
 
-ppoutput = getPreprocessedOutput(realCmdline)
-
-try:
-    cachedir = os.environ["CLCACHE_DIR"]
-except KeyError:
-    cachedir = os.path.join(os.path.expanduser("~"), "clcache")
-
-cache = ObjectCache(cachedir)
-cachekey = generateHash(compiler, realCmdline, ppoutput)
+cache = ObjectCache()
+cachekey = cache.computeKey(realCmdline)
 if cache.hasEntry(cachekey):
     printTraceStatement("Reusing cached object for key " + cachekey + " for output file " + cmdline.outputFileName())
     import shutil
