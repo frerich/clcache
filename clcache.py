@@ -74,8 +74,8 @@ def generateHash(compiler, cmdline, ppoutput):
     return sha.hexdigest()
 
 def printTraceStatement(msg):
-    return
-    print "*** clcache.py: " + msg
+    if "CLCACHE_LOG" in os.environ:
+        print "*** clcache.py: " + msg
 
 compiler = findCompilerBinary()
 cmdline = CommandLine(sys.argv)
