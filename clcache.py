@@ -81,6 +81,9 @@ compiler = findCompilerBinary()
 cmdline = CommandLine(sys.argv)
 realCmdline = [compiler] + sys.argv[1:]
 
+if "CLCACHE_DISABLE" in os.environ:
+    sys.exit(subprocess.call(realCmdline))
+
 if cmdline.calledForLink():
     printTraceStatement("Command line " + ' '.join(realCmdline) + " called for linking, forwarding...")
     sys.exit(subprocess.call(realCmdline))
