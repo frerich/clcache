@@ -48,7 +48,7 @@ class ObjectCache:
         try:
             self.dir = os.environ["CLCACHE_DIR"]
         except KeyError:
-            self.dir = os.path.join(os.path.expanduser("~"), ".clcache")
+            self.dir = os.path.join(os.path.expanduser("~"), "clcache")
         if not os.path.exists(self.dir):
             os.mkdir(self.dir)
 
