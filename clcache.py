@@ -5,10 +5,15 @@ import subprocess
 import sys
 
 def findCompilerBinary():
-    for dir in os.environ["PATH"].split(os.pathsep):
-        path = os.path.join(dir, "cl.exe")
+    try:
+        path = os.environ["CLCACHE_CL"]
         if os.path.exists(path):
             return path
+    except KeyError:
+        for dir in os.environ["PATH"].split(os.pathsep):
+            path = os.path.join(dir, "cl.exe")
+            if os.path.exists(path):
+                return path
     return None
 
 class CommandLine:
