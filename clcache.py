@@ -55,6 +55,30 @@ class ObjectCache:
     def cacheDirectory(self):
         return self.dir
 
+    def clean(self, stats, maximumSize):
+        currentSize = stats.currentCacheSize()
+        if currentSize < maximumSize:
+            return
+
+        objects = [os.path.join(root, "object")
+                   for root, folder, files in os.walk(self.dir)
+                   if "object" in files]
+
+        objectInfos = [(os.path.getatime(fn), fn) for fn in objects]
+
+        objectsByATime = sorted(objectInfos, key=lambda t: t[0], reverse=True)
+
+        import shutil
+        for atime, fn in objectsByATime:
+            objectSize = os.path.getsize(fn)
+            cacheDir, fileName = os.path.split( fn )
+            shutil.rmtree(cacheDir)
+            currentSize -= objectSize
+            if currentSize < maximumSize:
+                break
+
+        stats.setCacheSize(currentSize)
+
     def computeKey(self, commandLine):
         compilerBinary = commandLine[0]
 
@@ -158,6 +182,9 @@ class CacheStatistics:
 
     def currentCacheSize(self):
         return self.stats[4]
+
+    def setCacheSize(self, size):
+        self.stats[4] = size
         self.statsDirty = True
 
     def numCacheHits(self):
@@ -252,6 +279,9 @@ if returnCode == 0:
     printTraceStatement("Adding file " + outputFileName + " to cache using key " + cachekey)
     cache.setEntry(cachekey, outputFileName, compilerOutput)
     stats.registerCacheEntry(os.path.getsize(outputFileName))
+
+    cfg = Configuration(cache)
+    cache.clean(stats, cfg.maximumCacheSize())
 
 sys.stdout.write(compilerOutput)
 sys.exit(returnCode)
