@@ -105,6 +105,32 @@ class ObjectCache:
             return True
         return filter(isRelevantArgument, cmdline)
 
+class Configuration:
+    def __init__(self, objectCache):
+        self.configFile = os.path.join(objectCache.cacheDirectory(), "config.txt")
+        self.__readConfiguration()
+        self.configDirty = False
+
+    def __del__(self):
+        if self.configDirty:
+            self.__writeConfiguration()
+
+    def maximumCacheSize(self):
+        return self.maximumSize
+
+    def setMaximumCacheSize(self, size):
+        self.maximumSize = size
+        self.configDirty = True
+
+    def __readConfiguration(self):
+        try:
+            self.maximumSize = int(open(self.configFile, 'r').read().strip())
+        except:
+            self.maximumSize = 1024 * 1024 * 1000
+
+    def __writeConfiguration(self):
+        open(self.configFile, 'w').write(str(self.maximumSize))
+
 class CacheStatistics:
     def __init__(self, objectCache):
         self.cacheFile = os.path.join(objectCache.cacheDirectory(), "stats.txt")
@@ -171,13 +197,21 @@ def printTraceStatement(msg):
 if len(sys.argv) == 2 and sys.argv[1] == "-s":
     cache = ObjectCache()
     stats = CacheStatistics(cache)
+    cfg = Configuration(cache)
     print "clcache statistics:"
     print "  current cache dir  : " + cache.cacheDirectory()
     print "  cache size         : " + str(stats.currentCacheSize()) + " bytes"
+    print "  maximum cache size : " + str(cfg.maximumCacheSize()) + " bytes"
     print "  cache entries      : " + str(stats.numCacheEntries())
     print "  cache hits         : " + str(stats.numCacheHits())
     print "  cache misses       : " + str(stats.numCacheMisses())
     print "  inappr. invocations: " + str(stats.numInappropriateInvocations())
+    sys.exit(0)
+
+if len(sys.argv) == 3 and sys.argv[1] == "-M":
+    cache = ObjectCache()
+    cfg = Configuration(cache)
+    cfg.setMaximumCacheSize(int(sys.argv[2]))
     sys.exit(0)
 
 compiler = findCompilerBinary()
