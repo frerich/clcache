@@ -125,8 +125,13 @@ class CacheStatistics:
     def numCacheEntries(self):
         return self.stats[1]
 
-    def registerCacheEntry(self):
+    def registerCacheEntry(self, size):
         self.stats[1] += 1
+        self.stats[4] += size
+        self.statsDirty = True
+
+    def currentCacheSize(self):
+        return self.stats[4]
         self.statsDirty = True
 
     def numCacheHits(self):
@@ -150,7 +155,7 @@ class CacheStatistics:
         except:
             self.stats = []
 
-        while len(self.stats) < 4:
+        while len(self.stats) < 5:
             self.stats.append(0)
 
         return self.stats
@@ -168,6 +173,7 @@ if len(sys.argv) == 2 and sys.argv[1] == "-s":
     stats = CacheStatistics(cache)
     print "clcache statistics:"
     print "  current cache dir  : " + cache.cacheDirectory()
+    print "  cache size         : " + str(stats.currentCacheSize()) + " bytes"
     print "  cache entries      : " + str(stats.numCacheEntries())
     print "  cache hits         : " + str(stats.numCacheHits())
     print "  cache misses       : " + str(stats.numCacheMisses())
@@ -210,7 +216,7 @@ printTraceStatement("Real compiler finished with exit code " + str(returnCode) +
 if returnCode == 0:
     printTraceStatement("Adding file " + cmdline.outputFileName() + " to cache using key " + cachekey)
     cache.setEntry(cachekey, cmdline.outputFileName(), compilerOutput)
-    stats.registerCacheEntry()
+    stats.registerCacheEntry(os.path.getsize(cmdline.outputFileName()))
 
 sys.stdout.write(compilerOutput)
 sys.exit(returnCode)
