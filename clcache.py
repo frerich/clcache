@@ -194,13 +194,14 @@ if not cmdline.appropriateForCaching():
     printTraceStatement("Command line " + ' '.join(realCmdline) + " is not appropriate for caching, forwarding to real compiler.")
     sys.exit(subprocess.call(realCmdline))
 
+outputFileName = cmdline.outputFileName()
 cachekey = cache.computeKey(realCmdline)
 if cache.hasEntry(cachekey):
     stats.registerCacheHit()
     printTraceStatement("Reusing cached object for key " + cachekey + " for output file " + cmdline.outputFileName())
     import shutil
     shutil.copyfile(cache.cachedObjectName(cachekey),
-                    cmdline.outputFileName())
+                    outputFileName)
     sys.stdout.write(cache.cachedCompilerOutput(cachekey))
     sys.exit(0)
 else:
@@ -211,12 +212,12 @@ compilerProcess = subprocess.Popen(realCmdline, stdout=subprocess.PIPE, stderr=s
 compilerOutput = compilerProcess.communicate()[0]
 
 returnCode = compilerProcess.returncode
-printTraceStatement("Real compiler finished with exit code " + str(returnCode) + ", object should be in " + cmdline.outputFileName())
+printTraceStatement("Real compiler finished with exit code " + str(returnCode) + ", object should be in " + outputFileName)
 
 if returnCode == 0:
-    printTraceStatement("Adding file " + cmdline.outputFileName() + " to cache using key " + cachekey)
-    cache.setEntry(cachekey, cmdline.outputFileName(), compilerOutput)
-    stats.registerCacheEntry(os.path.getsize(cmdline.outputFileName()))
+    printTraceStatement("Adding file " + outputFileName + " to cache using key " + cachekey)
+    cache.setEntry(cachekey, outputFileName, compilerOutput)
+    stats.registerCacheEntry(os.path.getsize(outputFileName))
 
 sys.stdout.write(compilerOutput)
 sys.exit(returnCode)
