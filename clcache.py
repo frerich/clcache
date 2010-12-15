@@ -52,6 +52,9 @@ class ObjectCache:
         if not os.path.exists(self.dir):
             os.mkdir(self.dir)
 
+    def cacheDirectory(self):
+        return self.dir
+
     def computeKey(self, commandLine):
         compilerBinary = commandLine[0]
 
@@ -102,10 +105,74 @@ class ObjectCache:
             return True
         return filter(isRelevantArgument, cmdline)
 
+class CacheStatistics:
+    def __init__(self, objectCache):
+        self.cacheFile = os.path.join(objectCache.cacheDirectory(), "stats.txt")
+        self.stats = self.__readStatistics()
+        self.statsDirty = False
+
+    def __del__(self):
+        if self.statsDirty:
+            self.__writeStatistics()
+
+    def numInappropriateInvocations(self):
+        return self.stats[0]
+
+    def registerInappropriateInvocation(self):
+        self.stats[0] += 1
+        self.statsDirty = True
+
+    def numCacheEntries(self):
+        return self.stats[1]
+
+    def registerCacheEntry(self):
+        self.stats[1] += 1
+        self.statsDirty = True
+
+    def numCacheHits(self):
+        return self.stats[2]
+
+    def registerCacheHit(self):
+        self.stats[2] += 1
+        self.statsDirty = True
+
+    def numCacheMisses(self):
+        return self.stats[3]
+
+    def registerCacheMiss(self):
+        self.stats[3] += 1
+        self.statsDirty = True
+
+    def __readStatistics(self):
+        try:
+            valueStrings = open(self.cacheFile, 'r').read().strip().split(',')
+            self.stats = [int(x) for x in valueStrings]
+        except:
+            self.stats = []
+
+        while len(self.stats) < 4:
+            self.stats.append(0)
+
+        return self.stats
+
+    def __writeStatistics(self):
+        valueString = ','.join([str(x) for x in self.stats])
+        open(self.cacheFile, 'w').write(valueString)
 
 def printTraceStatement(msg):
     if "CLCACHE_LOG" in os.environ:
         print "*** clcache.py: " + msg
+
+if len(sys.argv) == 2 and sys.argv[1] == "-s":
+    cache = ObjectCache()
+    stats = CacheStatistics(cache)
+    print "clcache statistics:"
+    print "  current cache dir  : " + cache.cacheDirectory()
+    print "  cache entries      : " + str(stats.numCacheEntries())
+    print "  cache hits         : " + str(stats.numCacheHits())
+    print "  cache misses       : " + str(stats.numCacheMisses())
+    print "  inappr. invocations: " + str(stats.numInappropriateInvocations())
+    sys.exit(0)
 
 compiler = findCompilerBinary()
 cmdline = CommandLine(sys.argv)
@@ -114,19 +181,24 @@ realCmdline = [compiler] + sys.argv[1:]
 if "CLCACHE_DISABLE" in os.environ:
     sys.exit(subprocess.call(realCmdline))
 
+cache = ObjectCache()
+stats = CacheStatistics(cache)
 if not cmdline.appropriateForCaching():
+    stats.registerInappropriateInvocation()
     printTraceStatement("Command line " + ' '.join(realCmdline) + " is not appropriate for caching, forwarding to real compiler.")
     sys.exit(subprocess.call(realCmdline))
 
-cache = ObjectCache()
 cachekey = cache.computeKey(realCmdline)
 if cache.hasEntry(cachekey):
+    stats.registerCacheHit()
     printTraceStatement("Reusing cached object for key " + cachekey + " for output file " + cmdline.outputFileName())
     import shutil
     shutil.copyfile(cache.cachedObjectName(cachekey),
                     cmdline.outputFileName())
     sys.stdout.write(cache.cachedCompilerOutput(cachekey))
     sys.exit(0)
+else:
+    stats.registerCacheMiss()
 
 printTraceStatement("Invoking real compiler as " + ' '.join(realCmdline))
 compilerProcess = subprocess.Popen(realCmdline, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
@@ -138,6 +210,7 @@ printTraceStatement("Real compiler finished with exit code " + str(returnCode) +
 if returnCode == 0:
     printTraceStatement("Adding file " + cmdline.outputFileName() + " to cache using key " + cachekey)
     cache.setEntry(cachekey, cmdline.outputFileName(), compilerOutput)
+    stats.registerCacheEntry()
 
 sys.stdout.write(compilerOutput)
 sys.exit(returnCode)
