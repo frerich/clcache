@@ -16,33 +16,6 @@ def findCompilerBinary():
                 return path
     return None
 
-class CommandLine:
-    def __init__(self, args):
-        self.cmdline = args
-
-    def appropriateForCaching(self):
-        foundCompileOnlySwitch = False
-        foundSourceFile = False
-        for arg in self.cmdline[1:]:
-            if arg == "/link":
-                return False
-            if arg == "/c":
-                foundCompileOnlySwitch = True
-            if arg[0] != '/':
-                if foundSourceFile == True:
-                    return False
-                foundSourceFile = True
-        return foundSourceFile and foundCompileOnlySwitch
-
-    def outputFileName(self):
-        srcFile = ""
-        for arg in self.cmdline:
-            if arg[:3] == "/Fo":
-                return arg[3:]
-            if arg[0] != '/':
-                srcFile = os.path.basename(arg)
-        return os.path.join(os.getcwd(), os.path.splitext(srcFile)[0] + ".obj")
-
 class ObjectCache:
     def __init__(self):
         try:
@@ -221,6 +194,40 @@ def printTraceStatement(msg):
     if "CLCACHE_LOG" in os.environ:
         print "*** clcache.py: " + msg
 
+def analyzeCommandLine(cmdline):
+    foundCompileOnlySwitch = False
+    sourceFile = None
+    outputFile = None
+    for arg in cmdline[1:]:
+        if arg == "/link":
+            return (False, None, None)
+        elif arg == "/c":
+            foundCompileOnlySwitch = True
+        elif arg[:3] == "/Fo":
+            outputFile = arg[3:]
+        elif arg[0] != '/':
+            if sourceFile:
+                return (False, None, None)
+            sourceFile = arg
+    if not outputFile:
+        srcFileName = os.path.basename(sourceFile)
+        outputFile = os.path.join(os.getcwd(), os.path.splitext(srcFileName)[0] + ".obj")
+    return (foundCompileOnlySwitch and sourceFile, sourceFile, outputFile)
+
+def invokeRealCompiler(compilerBinary, captureOutput):
+    realCmdline = [compilerBinary] + sys.argv[1:]
+    returnCode = None
+    output = None
+    if captureOutput:
+        compilerProcess = subprocess.Popen(realCmdline,
+                                           stdout=subprocess.PIPE,
+                                           stderr=subprocess.STDOUT)
+        output = compilerProcess.communicate()[0]
+        returnCode = compilerProcess.returncode
+    else:
+        returnCode = subprocess.call(realCmdline)
+    return returnCode, output
+
 if len(sys.argv) == 2 and sys.argv[1] == "-s":
     cache = ObjectCache()
     stats = CacheStatistics(cache)
@@ -242,48 +249,35 @@ if len(sys.argv) == 3 and sys.argv[1] == "-M":
     sys.exit(0)
 
 compiler = findCompilerBinary()
-cmdline = CommandLine(sys.argv)
-realCmdline = [compiler] + sys.argv[1:]
+appropriateForCaching, sourceFile, outputFile = analyzeCommandLine(sys.argv)
 
 if "CLCACHE_DISABLE" in os.environ:
-    sys.exit(subprocess.call(realCmdline))
+    sys.exit(invokeRealCompiler(compiler))
 
 cache = ObjectCache()
 stats = CacheStatistics(cache)
-if not cmdline.appropriateForCaching():
+if not appropriateForCaching:
     stats.registerInappropriateInvocation()
-    printTraceStatement("Command line " + ' '.join(realCmdline) + " is not appropriate for caching, forwarding to real compiler.")
-    sys.exit(subprocess.call(realCmdline))
+    sys.exit(invokeRealCompiler(compiler))
 
-outputFileName = cmdline.outputFileName()
 cachekey = cache.computeKey(realCmdline)
 if cache.hasEntry(cachekey):
     stats.registerCacheHit()
-    printTraceStatement("Reusing cached object for key " + cachekey + " for output file " + cmdline.outputFileName())
+    printTraceStatement("Reusing cached object for key " + cachekey + " for output file " + outputFile)
     import shutil
-    shutil.copyfile(cache.cachedObjectName(cachekey),
-                    outputFileName)
+    shutil.copyfile(cache.cachedObjectName(cachekey), outputFile)
     sys.stdout.write(cache.cachedCompilerOutput(cachekey))
     sys.exit(0)
 else:
     stats.registerCacheMiss()
-
-printTraceStatement("Invoking real compiler as " + ' '.join(realCmdline))
-compilerProcess = subprocess.Popen(realCmdline, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-compilerOutput = compilerProcess.communicate()[0]
-
-returnCode = compilerProcess.returncode
-printTraceStatement("Real compiler finished with exit code " + str(returnCode) + ", object should be in " + outputFileName)
-
-if returnCode == 0:
-    printTraceStatement("Adding file " + outputFileName + " to cache using key " + cachekey)
-    cache.setEntry(cachekey, outputFileName, compilerOutput)
-    stats.registerCacheEntry(os.path.getsize(outputFileName))
-
-    cfg = Configuration(cache)
-    cache.clean(stats, cfg.maximumCacheSize())
-
-sys.stdout.write(compilerOutput)
-sys.exit(returnCode)
+    returnCode, compilerOutput = invokeRealCompiler(compiler, True)
+    if returnCode == 0:
+        printTraceStatement("Adding file " + outputFile + " to cache using key " + cachekey)
+        cache.setEntry(cachekey, outputFile, compilerOutput)
+        stats.registerCacheEntry(os.path.getsize(outputFile))
+        cfg = Configuration(cache)
+        cache.clean(stats, cfg.maximumCacheSize())
+    sys.stdout.write(compilerOutput)
+    sys.exit(returnCode)
 
 
