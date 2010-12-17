@@ -236,12 +236,12 @@ def analyzeCommandLine(cmdline):
             if sourceFile:
                 return (False, None, None)
             sourceFile = arg
-    if not outputFile:
+    if not outputFile and sourceFile:
         srcFileName = os.path.basename(sourceFile)
         outputFile = os.path.join(os.getcwd(), os.path.splitext(srcFileName)[0] + ".obj")
-    return (foundCompileOnlySwitch and sourceFile, sourceFile, outputFile)
+    return foundCompileOnlySwitch and sourceFile, sourceFile, outputFile
 
-def invokeRealCompiler(compilerBinary, captureOutput):
+def invokeRealCompiler(compilerBinary, captureOutput=False):
     realCmdline = [compilerBinary] + sys.argv[1:]
     returnCode = None
     output = None
@@ -254,6 +254,13 @@ def invokeRealCompiler(compilerBinary, captureOutput):
     else:
         returnCode = subprocess.call(realCmdline)
     return returnCode, output
+
+if len(sys.argv) == 2 and sys.argv[1] == "--help":
+    print "clcache.py v0.1"
+    print "  --help   : show this help"
+    print "  -s       : print cache statistics"
+    print "  -M <size>: set maximum cache size (in bytes)"
+    sys.exit(0)
 
 if len(sys.argv) == 2 and sys.argv[1] == "-s":
     cache = ObjectCache()
@@ -279,13 +286,13 @@ compiler = findCompilerBinary()
 appropriateForCaching, sourceFile, outputFile = analyzeCommandLine(sys.argv)
 
 if "CLCACHE_DISABLE" in os.environ:
-    sys.exit(invokeRealCompiler(compiler))
+    sys.exit(invokeRealCompiler(compiler)[0])
 
 cache = ObjectCache()
 stats = CacheStatistics(cache)
 if not appropriateForCaching:
     stats.registerInappropriateInvocation()
-    sys.exit(invokeRealCompiler(compiler))
+    sys.exit(invokeRealCompiler(compiler)[0])
 
 cachekey = cache.computeKey(realCmdline)
 if cache.hasEntry(cachekey):
@@ -297,7 +304,7 @@ if cache.hasEntry(cachekey):
     sys.exit(0)
 else:
     stats.registerCacheMiss()
-    returnCode, compilerOutput = invokeRealCompiler(compiler, True)
+    returnCode, compilerOutput = invokeRealCompiler(compiler, captureOutput=True)
     if returnCode == 0:
         printTraceStatement("Adding file " + outputFile + " to cache using key " + cachekey)
         cache.setEntry(cachekey, outputFile, compilerOutput)
