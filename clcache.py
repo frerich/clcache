@@ -117,92 +117,83 @@ class ObjectCache:
             return True
         return filter(isRelevantArgument, cmdline)
 
-class Configuration:
-    def __init__(self, objectCache):
-        self.configFile = os.path.join(objectCache.cacheDirectory(),
-                                       "config.txt")
-        self.__readConfiguration()
-        self.configDirty = False
-
-    def __del__(self):
-        if self.configDirty:
-            self.__writeConfiguration()
-
-    def maximumCacheSize(self):
-        return self.maximumSize
-
-    def setMaximumCacheSize(self, size):
-        self.maximumSize = size
-        self.configDirty = True
-
-    def __readConfiguration(self):
+class PersistentJSONDict:
+    def __init__(self, fileName):
+        self._dirty = False
+        self._dict = {}
+        self._fileName = fileName
         try:
-            self.maximumSize = int(open(self.configFile, 'r').read().strip())
-        except:
-            self.maximumSize = 1024 * 1024 * 1000
-
-    def __writeConfiguration(self):
-        open(self.configFile, 'w').write(str(self.maximumSize))
-
-class CacheStatistics:
-    def __init__(self, objectCache):
-        self._statsDirty = False
-        self._stats = {}
-        self._cacheFile = os.path.join(objectCache.cacheDirectory(),
-                                       "stats.txt")
-        try:
-            self._stats = json.load(open(self._cacheFile, 'r'))
+            self._dict = json.load(open(self._fileName, 'r'))
         except:
             pass
 
     def __del__(self):
-        if self._statsDirty:
-            json.dump(self._stats, open(self._cacheFile, 'w'))
+        if self._dirty:
+            json.dump(self._dict, open(self._fileName, 'w'))
+
+    def __setitem__(self, key, value):
+        self._dict[key] = value
+        self._dirty = True
+
+    def __getitem__(self, key):
+        return self._dict[key]
+
+    def __contains__(self, key):
+        return key in self._dict
+
+class Configuration:
+    def __init__(self, objectCache):
+        self._cfg = PersistentJSONDict(os.path.join(objectCache.cacheDirectory(),
+                                                    "config.txt"))
+        for setting, defaultValue in {"MaximumCacheSize": 1024 * 1024 * 1000}.iteritems():
+            if not setting in self._cfg:
+                self._cfg[setting] = defaultValue
+
+    def maximumCacheSize(self):
+        return self._cfg["MaximumCacheSize"]
+
+    def setMaximumCacheSize(self, size):
+        self._cfg["MaximumCacheSize"] = size
+
+class CacheStatistics:
+    def __init__(self, objectCache):
+        self._stats = PersistentJSONDict(os.path.join(objectCache.cacheDirectory(),
+                                                      "stats.txt"))
+        for k in ["InappropriateInvocations", "CacheEntries", "CacheSize",
+                  "CacheHits", "CacheMisses"]:
+            if not k in self._stats:
+                self._stats[k] = 0
 
     def numInappropriateInvocations(self):
-        return self.__getValue("InappropriateInvocations")
+        return self._stats["InappropriateInvocations"]
 
     def registerInappropriateInvocation(self):
-        self.__increment("InappropriateInvocations")
+        self._stats["InappropriateInvocations"] += 1
 
     def numCacheEntries(self):
-        return self.__getValue("CacheEntries")
+        return self._stats["CacheEntries"]
 
     def registerCacheEntry(self, size):
-        self.__increment("CacheEntries")
-        self.__increment("CacheSize", value=size)
+        self._stats["CacheEntries"] += 1
+        self._stats["CacheSize"] += size
 
     def currentCacheSize(self):
-        return self.__getValue("CacheSize")
+        return self._stats["CacheSize"]
 
     def setCacheSize(self, size):
-        self.__setValue("CacheSize", size)
+        self._stats["CacheSize"] = size
 
     def numCacheHits(self):
-        return self.__getValue("CacheHits")
+        return self._stats["CacheHits"]
 
     def registerCacheHit(self):
-        self.__increment("CacheHits")
+        self._stats["CacheHits"] += 1
 
     def numCacheMisses(self):
-        return self.__getValue("CacheMisses")
+        return self._stats["CacheMisses"]
 
     def registerCacheMiss(self):
-        self.__increment("CacheMisses", 1)
-
-    def __increment(self, key, value=1):
-        self.__setValue(key, self.__getValue(key) + value)
-
-    def __setValue(self, key, value):
-        self._stats[key] = value
-        self._statsDirty = True
-
-    def __getValue(self, key):
-        try:
-            return self._stats[key]
-        except KeyError:
-            return 0
-
+        self._stats["CacheMisses"] += 1
 
 def findCompilerBinary():
     try:
