@@ -142,10 +142,12 @@ class PersistentJSONDict:
         return key in self._dict
 
 class Configuration:
+    _defaultValues = { "MaximumCacheSize": 1024 * 1024 * 1000 }
+
     def __init__(self, objectCache):
         self._cfg = PersistentJSONDict(os.path.join(objectCache.cacheDirectory(),
                                                     "config.txt"))
-        for setting, defaultValue in {"MaximumCacheSize": 1024 * 1024 * 1000}.iteritems():
+        for setting, defaultValue in self._defaultValues.iteritems():
             if not setting in self._cfg:
                 self._cfg[setting] = defaultValue
 
