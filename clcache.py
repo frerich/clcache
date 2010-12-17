@@ -28,20 +28,9 @@
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 import os
-import subprocess
+from shutil import copyfile, rmtree
+from subprocess import Popen, PIPE
 import sys
-
-def findCompilerBinary():
-    try:
-        path = os.environ["CLCACHE_CL"]
-        if os.path.exists(path):
-            return path
-    except KeyError:
-        for dir in os.environ["PATH"].split(os.pathsep):
-            path = os.path.join(dir, "cl.exe")
-            if os.path.exists(path):
-                return path
-    return None
 
 class ObjectCache:
     def __init__(self):
@@ -68,11 +57,10 @@ class ObjectCache:
 
         objectsByATime = sorted(objectInfos, key=lambda t: t[0], reverse=True)
 
-        import shutil
         for atime, fn in objectsByATime:
             objectSize = os.path.getsize(fn)
             cacheDir, fileName = os.path.split( fn )
-            shutil.rmtree(cacheDir)
+            rmtree(cacheDir)
             currentSize -= objectSize
             if currentSize < maximumSize:
                 break
@@ -85,9 +73,9 @@ class ObjectCache:
         ppcmd = list(commandLine)
         ppcmd.remove("/c")
         ppcmd.append("/EP")
-        preprocessedSourceCode = subprocess.Popen(ppcmd,
-                                                  stdout=subprocess.PIPE,
-                                                  stderr=open(os.devnull, 'w')).communicate()[0]
+        preprocessor = Popen(ppcmd, stdout=PIPE, stderr=open(os.devnull, 'w'))
+        preprocessedSourceCode = preprocessor.communicate()[0]
+
         normalizedCmdLine = self.__normalizedCommandLine(commandLine[1:])
 
         import hashlib
@@ -104,8 +92,7 @@ class ObjectCache:
     def setEntry(self, key, objectFileName, compilerOutput):
         if not os.path.exists(self.__cacheEntryDir(key)):
             os.makedirs(self.__cacheEntryDir(key))
-        import shutil
-        shutil.copyfile(objectFileName, self.cachedObjectName(key))
+        copyfile(objectFileName, self.cachedObjectName(key))
         open(self.__cachedCompilerOutputName(key), 'w').write(compilerOutput)
 
     def cachedObjectName(self, key):
@@ -131,7 +118,8 @@ class ObjectCache:
 
 class Configuration:
     def __init__(self, objectCache):
-        self.configFile = os.path.join(objectCache.cacheDirectory(), "config.txt")
+        self.configFile = os.path.join(objectCache.cacheDirectory(),
+                                       "config.txt")
         self.__readConfiguration()
         self.configDirty = False
 
@@ -157,7 +145,8 @@ class Configuration:
 
 class CacheStatistics:
     def __init__(self, objectCache):
-        self.cacheFile = os.path.join(objectCache.cacheDirectory(), "stats.txt")
+        self.cacheFile = os.path.join(objectCache.cacheDirectory(),
+                                      "stats.txt")
         self.stats = self.__readStatistics()
         self.statsDirty = False
 
@@ -207,19 +196,32 @@ class CacheStatistics:
             self.stats = [int(x) for x in valueStrings]
         except:
             self.stats = []
-
         while len(self.stats) < 5:
             self.stats.append(0)
-
         return self.stats
 
     def __writeStatistics(self):
         valueString = ','.join([str(x) for x in self.stats])
         open(self.cacheFile, 'w').write(valueString)
 
+
+def findCompilerBinary():
+    try:
+        path = os.environ["CLCACHE_CL"]
+        if os.path.exists(path):
+            return path
+    except KeyError:
+        for dir in os.environ["PATH"].split(os.pathsep):
+            path = os.path.join(dir, "cl.exe")
+            if os.path.exists(path):
+                return path
+    return None
+
+
 def printTraceStatement(msg):
     if "CLCACHE_LOG" in os.environ:
         print "*** clcache.py: " + msg
+
 
 def analyzeCommandLine(cmdline):
     foundCompileOnlySwitch = False
@@ -238,22 +240,23 @@ def analyzeCommandLine(cmdline):
             sourceFile = arg
     if not outputFile and sourceFile:
         srcFileName = os.path.basename(sourceFile)
-        outputFile = os.path.join(os.getcwd(), os.path.splitext(srcFileName)[0] + ".obj")
+        outputFile = os.path.join(os.getcwd(),
+                                  os.path.splitext(srcFileName)[0] + ".obj")
     return foundCompileOnlySwitch and sourceFile, sourceFile, outputFile
+
 
 def invokeRealCompiler(compilerBinary, captureOutput=False):
     realCmdline = [compilerBinary] + sys.argv[1:]
     returnCode = None
     output = None
     if captureOutput:
-        compilerProcess = subprocess.Popen(realCmdline,
-                                           stdout=subprocess.PIPE,
-                                           stderr=subprocess.STDOUT)
+        compilerProcess = Popen(realCmdline, stdout=PIPE, stderr=STDOUT)
         output = compilerProcess.communicate()[0]
         returnCode = compilerProcess.returncode
     else:
         returnCode = subprocess.call(realCmdline)
     return returnCode, output
+
 
 if len(sys.argv) == 2 and sys.argv[1] == "--help":
     print "clcache.py v0.1"
@@ -297,16 +300,17 @@ if not appropriateForCaching:
 cachekey = cache.computeKey(realCmdline)
 if cache.hasEntry(cachekey):
     stats.registerCacheHit()
-    printTraceStatement("Reusing cached object for key " + cachekey + " for output file " + outputFile)
-    import shutil
-    shutil.copyfile(cache.cachedObjectName(cachekey), outputFile)
+    printTraceStatement("Reusing cached object for key " + cachekey + " for " +
+                        "output file " + outputFile)
+    copyfile(cache.cachedObjectName(cachekey), outputFile)
     sys.stdout.write(cache.cachedCompilerOutput(cachekey))
     sys.exit(0)
 else:
     stats.registerCacheMiss()
     returnCode, compilerOutput = invokeRealCompiler(compiler, captureOutput=True)
     if returnCode == 0:
-        printTraceStatement("Adding file " + outputFile + " to cache using key " + cachekey)
+        printTraceStatement("Adding file " + outputFile + " to cache using " +
+                            "key " + cachekey)
         cache.setEntry(cachekey, outputFile, compilerOutput)
         stats.registerCacheEntry(os.path.getsize(outputFile))
         cfg = Configuration(cache)
