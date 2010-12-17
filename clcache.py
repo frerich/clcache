@@ -27,9 +27,11 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
+import json
 import os
 from shutil import copyfile, rmtree
-from subprocess import Popen, PIPE
+import subprocess
+from subprocess import Popen, PIPE, STDOUT
 import sys
 
 class ObjectCache:
@@ -67,10 +69,9 @@ class ObjectCache:
 
         stats.setCacheSize(currentSize)
 
-    def computeKey(self, commandLine):
-        compilerBinary = commandLine[0]
-
+    def computeKey(self, compilerBinary, commandLine):
         ppcmd = list(commandLine)
+        ppcmd[0] = compilerBinary
         ppcmd.remove("/c")
         ppcmd.append("/EP")
         preprocessor = Popen(ppcmd, stdout=PIPE, stderr=open(os.devnull, 'w'))
@@ -145,64 +146,62 @@ class Configuration:
 
 class CacheStatistics:
     def __init__(self, objectCache):
-        self.cacheFile = os.path.join(objectCache.cacheDirectory(),
-                                      "stats.txt")
-        self.stats = self.__readStatistics()
-        self.statsDirty = False
+        self._statsDirty = False
+        self._stats = {}
+        self._cacheFile = os.path.join(objectCache.cacheDirectory(),
+                                       "stats.txt")
+        try:
+            self._stats = json.load(open(self._cacheFile, 'r'))
+        except:
+            pass
 
     def __del__(self):
-        if self.statsDirty:
-            self.__writeStatistics()
+        if self._statsDirty:
+            json.dump(self._stats, open(self._cacheFile, 'w'))
 
     def numInappropriateInvocations(self):
-        return self.stats[0]
+        return self.__getValue("InappropriateInvocations")
 
     def registerInappropriateInvocation(self):
-        self.stats[0] += 1
-        self.statsDirty = True
+        self.__increment("InappropriateInvocations")
 
     def numCacheEntries(self):
-        return self.stats[1]
+        return self.__getValue("CacheEntries")
 
     def registerCacheEntry(self, size):
-        self.stats[1] += 1
-        self.stats[4] += size
-        self.statsDirty = True
+        self.__increment("CacheEntries")
+        self.__increment("CacheSize", value=size)
 
     def currentCacheSize(self):
-        return self.stats[4]
+        return self.__getValue("CacheSize")
 
     def setCacheSize(self, size):
-        self.stats[4] = size
-        self.statsDirty = True
+        self.__setValue("CacheSize", size)
 
     def numCacheHits(self):
-        return self.stats[2]
+        return self.__getValue("CacheHits")
 
     def registerCacheHit(self):
-        self.stats[2] += 1
-        self.statsDirty = True
+        self.__increment("CacheHits")
 
     def numCacheMisses(self):
-        return self.stats[3]
+        return self.__getValue("CacheMisses")
 
     def registerCacheMiss(self):
-        self.stats[3] += 1
-        self.statsDirty = True
+        self.__increment("CacheMisses", 1)
 
-    def __readStatistics(self):
+    def __increment(self, key, value=1):
+        self.__setValue(key, self.__getValue(key) + value)
+
+    def __setValue(self, key, value):
+        self._stats[key] = value
+        self._statsDirty = True
+
+    def __getValue(self, key):
         try:
-            valueStrings = open(self.cacheFile, 'r').read().strip().split(',')
-            self.stats = [int(x) for x in valueStrings]
-        except:
-            self.stats = []
-        while len(self.stats) < 5:
-            self.stats.append(0)
-        return self.stats
-
-    def __writeStatistics(self):
-        valueString = ','.join([str(x) for x in self.stats])
-        open(self.cacheFile, 'w').write(valueString)
+            return self._stats[key]
+        except KeyError:
+            return 0
 
 
 def findCompilerBinary():
@@ -297,7 +296,7 @@ if not appropriateForCaching:
     stats.registerInappropriateInvocation()
     sys.exit(invokeRealCompiler(compiler)[0])
 
-cachekey = cache.computeKey(realCmdline)
+cachekey = cache.computeKey(compiler, sys.argv)
 if cache.hasEntry(cachekey):
     stats.registerCacheHit()
     printTraceStatement("Reusing cached object for key " + cachekey + " for " +
