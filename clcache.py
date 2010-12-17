@@ -278,10 +278,11 @@ if len(sys.argv) == 3 and sys.argv[1] == "-M":
     sys.exit(0)
 
 compiler = findCompilerBinary()
-appropriateForCaching, sourceFile, outputFile = analyzeCommandLine(sys.argv)
 
 if "CLCACHE_DISABLE" in os.environ:
     sys.exit(invokeRealCompiler(compiler)[0])
+
+appropriateForCaching, sourceFile, outputFile = analyzeCommandLine(sys.argv)
 
 cache = ObjectCache()
 stats = CacheStatistics(cache)
