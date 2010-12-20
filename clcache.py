@@ -82,15 +82,10 @@ class ObjectCache:
 
         normalizedCmdLine = self.__normalizedCommandLine(commandLine[1:])
 
+        stat = os.stat(compilerBinary)
         sha = hashlib.sha1()
-### Again, I'd do one os.stat call; also I'd use % not conversions (untested):
-#        fileStat = os.stat(compilerBinary)
-#        sha.update("%d" % fileStat.st_mtime)
-#        sha.update("%d" % fileStat.st_size)
-# The above should replace the next 2 lines:
-
-        sha.update(str(long(os.path.getmtime(compilerBinary))))
-        sha.update(str(os.path.getsize(compilerBinary)))
+        sha.update(str(stat.st_mtime))
+        sha.update(str(stat.st_size))
         sha.update(' '.join(normalizedCmdLine))
         sha.update(preprocessedSourceCode)
         return sha.hexdigest()
