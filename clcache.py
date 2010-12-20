@@ -27,6 +27,7 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
+import hashlib # Don't import inside functions
 import json
 import os
 from shutil import copyfile, rmtree
@@ -41,7 +42,7 @@ class ObjectCache:
         except KeyError:
             self.dir = os.path.join(os.path.expanduser("~"), "clcache")
         if not os.path.exists(self.dir):
-            os.mkdir(self.dir)
+            os.makedirs(self.dir)
 
     def cacheDirectory(self):
         return self.dir
@@ -54,6 +55,21 @@ class ObjectCache:
         objects = [os.path.join(root, "object")
                    for root, folder, files in os.walk(self.dir)
                    if "object" in files]
+
+### The following lines do one stat call per "object" file to populate
+### objectInfos, then another stat call in the for loop; which looks a
+### bit expensive to me. I think the lines below (untested) should be
+### able to replace yours for the rest of the clean() method
+
+#        objectInfos = [(name, os.stat(name)) for name in objects]
+#        for name, fileStat in sorted(objectInfos, key=lambda t: t[1].st_atime, reverse=True):
+#            size = fileStat.st_size
+#            cacheDir, fileName = os.path.split(name)
+#            rmtree(cacheDir)
+#            currentSize -= objectSize
+#            if currentSize < maximumSize:
+#                break
+#        stats.setCacheSize(currentSize)
 
         objectInfos = [(os.path.getatime(fn), fn) for fn in objects]
 
@@ -72,15 +88,22 @@ class ObjectCache:
     def computeKey(self, compilerBinary, commandLine):
         ppcmd = list(commandLine)
         ppcmd[0] = compilerBinary
-        ppcmd.remove("/c")
+        ppcmd.remove("/c") ### Why not also ppcmd.remove("/C") -- or is that different?
         ppcmd.append("/EP")
+        ### Surprised you need to explicitly set devnull; would have
+        ### expected simply not mentioning stderr to be sufficient
         preprocessor = Popen(ppcmd, stdout=PIPE, stderr=open(os.devnull, 'w'))
         preprocessedSourceCode = preprocessor.communicate()[0]
 
         normalizedCmdLine = self.__normalizedCommandLine(commandLine[1:])
 
-        import hashlib
         sha = hashlib.sha1()
+### Again, I'd do one os.stat call; also I'd use % not conversions (untested):
+#        fileStat = os.stat(compilerBinary)
+#        sha.update("%d" % fileStat.st_mtime)
+#        sha.update("%d" % fileStat.st_size)
+# The above should replace the next 2 lines:
+
         sha.update(str(long(os.path.getmtime(compilerBinary))))
         sha.update(str(os.path.getsize(compilerBinary)))
         sha.update(' '.join(normalizedCmdLine))
@@ -109,9 +132,9 @@ class ObjectCache:
         return os.path.join(self.__cacheEntryDir(key), "output.txt")
 
     def __normalizedCommandLine(self, cmdline):
-        def isRelevantArgument(arg):
-            for preprocessorArg in [ "/AI", "/C", "/E", "/P", "/FI", "/u", "/X",
-                                     "/FU", "/D", "/EP", "/Fx", "/U", "/I" ]:
+        def isRelevantArgument(arg): ### tuples are faster than lists; save 0.001 nanosecond!
+            for preprocessorArg in ( "/AI", "/C", "/E", "/P", "/FI", "/u", "/X",
+                                     "/FU", "/D", "/EP", "/Fx", "/U", "/I" ):
                 if arg[:len(preprocessorArg)] == preprocessorArg:
                     return False
             return True
@@ -126,7 +149,11 @@ class PersistentJSONDict:
             self._dict = json.load(open(self._fileName, 'r'))
         except:
             pass
-
+### NEVER use __del__()! It may never be called! Have a save() function
+### instead and call that explicitly. So you'll need a
+### Configuration.save() method which calls PersistentJSONDict.save()
+### and then before pretty well every sys.exit() call you'll need to
+### call cfg.save()
     def __del__(self):
         if self._dirty:
             json.dump(self._dict, open(self._fileName, 'w'))
@@ -141,10 +168,12 @@ class PersistentJSONDict:
     def __contains__(self, key):
         return key in self._dict
 
+
 class Configuration:
     _defaultValues = { "MaximumCacheSize": 1024 * 1024 * 1000 }
 
     def __init__(self, objectCache):
+        ### Don't like the name much: why not clcache.conf or clcache_conf.txt?
         self._cfg = PersistentJSONDict(os.path.join(objectCache.cacheDirectory(),
                                                     "config.txt"))
         for setting, defaultValue in self._defaultValues.iteritems():
@@ -157,8 +186,10 @@ class Configuration:
     def setMaximumCacheSize(self, size):
         self._cfg["MaximumCacheSize"] = size
 
+
 class CacheStatistics:
     def __init__(self, objectCache):
+        ### Don't like the name much: why not clcache.stats or clcache_stats.txt?
         self._stats = PersistentJSONDict(os.path.join(objectCache.cacheDirectory(),
                                                       "stats.txt"))
         for k in ["InappropriateInvocations", "CacheEntries", "CacheSize",
@@ -249,26 +280,33 @@ def invokeRealCompiler(compilerBinary, captureOutput=False):
         returnCode = subprocess.call(realCmdline)
     return returnCode, output
 
-
+### Why not use optparse?
 if len(sys.argv) == 2 and sys.argv[1] == "--help":
-    print "clcache.py v0.1"
-    print "  --help   : show this help"
-    print "  -s       : print cache statistics"
-    print "  -M <size>: set maximum cache size (in bytes)"
+    print """\
+clcache.py v0.1"
+  --help   : show this help
+  -s       : print cache statistics
+  -M <size>: set maximum cache size (in bytes)
+"""
     sys.exit(0)
 
 if len(sys.argv) == 2 and sys.argv[1] == "-s":
     cache = ObjectCache()
     stats = CacheStatistics(cache)
     cfg = Configuration(cache)
-    print "clcache statistics:"
-    print "  current cache dir  : " + cache.cacheDirectory()
-    print "  cache size         : " + str(stats.currentCacheSize()) + " bytes"
-    print "  maximum cache size : " + str(cfg.maximumCacheSize()) + " bytes"
-    print "  cache entries      : " + str(stats.numCacheEntries())
-    print "  cache hits         : " + str(stats.numCacheHits())
-    print "  cache misses       : " + str(stats.numCacheMisses())
-    print "  inappr. invocations: " + str(stats.numInappropriateInvocations())
+    print """
+clcache statistics:
+  current cache dir  : %s
+  cache size         : %d bytes"
+  maximum cache size : %d bytes"
+  cache entries      : %d
+  cache hits         : %d
+  cache misses       : %d
+  inappr. invocations: %d
+""" % (cache.cacheDirectory(), stats.currentCacheSize(),
+cfg.maximumCacheSize(), stats.numCacheEntries(),
+stats.numCacheHits(), stats.numCacheMisses(),
+stats.numInappropriateInvocations())
     sys.exit(0)
 
 if len(sys.argv) == 3 and sys.argv[1] == "-M":
@@ -311,4 +349,4 @@ else:
     sys.stdout.write(compilerOutput)
     sys.exit(returnCode)
 
-
+### Really ought to have a main() function and put the above into functions
