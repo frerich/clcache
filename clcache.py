@@ -56,27 +56,12 @@ class ObjectCache:
                    for root, folder, files in os.walk(self.dir)
                    if "object" in files]
 
-### The following lines do one stat call per "object" file to populate
-### objectInfos, then another stat call in the for loop; which looks a
-### bit expensive to me. I think the lines below (untested) should be
-### able to replace yours for the rest of the clean() method
+        objectInfos = [(os.stat(fn), fn) for fn in objects]
 
-#        objectInfos = [(name, os.stat(name)) for name in objects]
-#        for name, fileStat in sorted(objectInfos, key=lambda t: t[1].st_atime, reverse=True):
-#            size = fileStat.st_size
-#            cacheDir, fileName = os.path.split(name)
-#            rmtree(cacheDir)
-#            currentSize -= objectSize
-#            if currentSize < maximumSize:
-#                break
-#        stats.setCacheSize(currentSize)
+        objectsByATime = sorted(objectInfos, key=lambda t: t[0].st_atime, reverse=True)
 
-        objectInfos = [(os.path.getatime(fn), fn) for fn in objects]
-
-        objectsByATime = sorted(objectInfos, key=lambda t: t[0], reverse=True)
-
-        for atime, fn in objectsByATime:
-            objectSize = os.path.getsize(fn)
+        for stat, fn in objectsByATime:
+            objectSize = stat.st_size
             cacheDir, fileName = os.path.split( fn )
             rmtree(cacheDir)
             currentSize -= objectSize
