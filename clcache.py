@@ -221,20 +221,20 @@ def analyzeCommandLine(cmdline):
     outputFile = None
     for arg in cmdline[1:]:
         if arg == "/link":
-            return (False, None, None)
+            return False, None, None
         elif arg == "/c":
             foundCompileOnlySwitch = True
         elif arg[:3] == "/Fo":
             outputFile = arg[3:]
         elif arg[0] != '/':
             if sourceFile:
-                return (False, None, None)
+                return False, None, None
             sourceFile = arg
     if not outputFile and sourceFile:
         srcFileName = os.path.basename(sourceFile)
         outputFile = os.path.join(os.getcwd(),
                                   os.path.splitext(srcFileName)[0] + ".obj")
-    return foundCompileOnlySwitch and sourceFile, sourceFile, outputFile
+    return foundCompileOnlySwitch and sourceFile != "", sourceFile, outputFile
 
 
 def invokeRealCompiler(compilerBinary, captureOutput=False):
