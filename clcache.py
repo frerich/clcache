@@ -60,10 +60,8 @@ class ObjectCache:
         objectInfos.sort(key=lambda t: t[0].st_atime, reverse=True)
 
         for stat, fn in objectInfos:
-            objectSize = stat.st_size
-            cacheDir, fileName = os.path.split( fn )
-            rmtree(cacheDir)
-            currentSize -= objectSize
+            rmtree(os.path.split(fn)[0])
+            currentSize -= stat.st_size
             if currentSize < maximumSize:
                 break
 
