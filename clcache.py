@@ -166,16 +166,31 @@ class CacheStatistics:
         ### Don't like the name much: why not clcache.stats or clcache_stats.txt?
         self._stats = PersistentJSONDict(os.path.join(objectCache.cacheDirectory(),
                                                       "stats.txt"))
-        for k in ["InappropriateInvocations", "CacheEntries", "CacheSize",
+        for k in ["CallsWithoutSourceFile",
+                  "CallsWithMultipleSourceFiles",
+                  "CallsForLinking",
+                  "CacheEntries", "CacheSize",
                   "CacheHits", "CacheMisses"]:
             if not k in self._stats:
                 self._stats[k] = 0
 
-    def numInappropriateInvocations(self):
-        return self._stats["InappropriateInvocations"]
+    def numCallsWithoutSourceFile(self):
+        return self._stats["CallsWithoutSourceFile"]
 
-    def registerInappropriateInvocation(self):
-        self._stats["InappropriateInvocations"] += 1
+    def registerCallWithoutSourceFile(self):
+        self._stats["CallsWithoutSourceFile"] += 1
+
+    def numCallsWithMultipleSourceFiles(self):
+        return self._stats["CallsWithMultipleSourceFiles"]
+
+    def registerCallWithMultipleSourceFiles(self):
+        self._stats["CallsWithMultipleSourceFiles"] += 1
+
+    def numCallsForLinking(self):
+        return self._stats["CallsForLinking"]
+
+    def registerCallForLinking(self):
+        self._stats["CallsForLinking"] += 1
 
     def numCacheEntries(self):
         return self._stats["CacheEntries"]
@@ -205,6 +220,9 @@ class CacheStatistics:
     def save(self):
         self._stats.save()
 
+class AnalysisResult:
+    Ok, NoSourceFile, MultipleSourceFiles, CalledForLink = range(4)
+
 def findCompilerBinary():
     try:
         path = os.environ["CLCACHE_CL"]
@@ -229,20 +247,24 @@ def analyzeCommandLine(cmdline):
     outputFile = None
     for arg in cmdline[1:]:
         if arg == "/link":
-            return False, None, None
+            return AnalysisResult.CalledForLink, None, None
         elif arg == "/c":
             foundCompileOnlySwitch = True
         elif arg[:3] == "/Fo":
             outputFile = arg[3:]
         elif arg[0] != '/':
             if sourceFile:
-                return False, None, None
+                return AnalysisResult.MultipleSourceFiles, None, None
             sourceFile = arg
     if not outputFile and sourceFile:
         srcFileName = os.path.basename(sourceFile)
         outputFile = os.path.join(os.getcwd(),
                                   os.path.splitext(srcFileName)[0] + ".obj")
-    return foundCompileOnlySwitch and sourceFile != "", sourceFile, outputFile
+    if not foundCompileOnlySwitch:
+        return AnalysisResult.CalledForLink, None, None
+    if sourceFile == "":
+        return AnalysisResult.NoSourceFile, None, None
+    return AnalysisResult.Ok, sourceFile, outputFile
 
 
 def invokeRealCompiler(compilerBinary, captureOutput=False):
@@ -262,20 +284,24 @@ def printStatistics():
     stats = CacheStatistics(cache)
     cfg = Configuration(cache)
     print """clcache statistics:
-  current cache dir  : %s
-  cache size         : %d bytes
-  maximum cache size : %d bytes
-  cache entries      : %d
-  cache hits         : %d
-  cache misses       : %d
-  inappr. invocations: %d
-""" % (cache.cacheDirectory(),
+  current cache dir        : %s
+  cache size               : %d bytes
+  maximum cache size       : %d bytes
+  cache entries            : %d
+  cache hits               : %d
+  cache misses             : %d
+  called for linking       : %d
+  called w/o sources       : %d
+  calls w/ multiple sources: %d""" % (
+       cache.cacheDirectory(),
        stats.currentCacheSize(),
        cfg.maximumCacheSize(),
        stats.numCacheEntries(),
        stats.numCacheHits(),
        stats.numCacheMisses(),
-       stats.numInappropriateInvocations())
+       stats.numCallsForLinking(),
+       stats.numCallsWithoutSourceFile(),
+       stats.numCallsWithMultipleSourceFiles())
 
 ### Why not use optparse?
 if len(sys.argv) == 2 and sys.argv[1] == "--help":
@@ -303,12 +329,17 @@ compiler = findCompilerBinary()
 if "CLCACHE_DISABLE" in os.environ:
     sys.exit(invokeRealCompiler(compiler)[0])
 
-appropriateForCaching, sourceFile, outputFile = analyzeCommandLine(sys.argv)
+analysisResult, sourceFile, outputFile = analyzeCommandLine(sys.argv)
 
 cache = ObjectCache()
 stats = CacheStatistics(cache)
-if not appropriateForCaching:
-    stats.registerInappropriateInvocation()
+if analysisResult != AnalysisResult.Ok:
+    if analysisResult == AnalysisResult.NoSourceFile:
+        stats.registerCallWithoutSourceFile()
+    elif analysisResult == AnalysisResult.MultipleSourceFiles:
+        stats.registerCallWithMultipleSourceFiles()
+    elif analysisResult == AnalysisResult.CalledForLink:
+        stats.registerCallForLinking()
     stats.save()
     sys.exit(invokeRealCompiler(compiler)[0])
 
