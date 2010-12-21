@@ -257,6 +257,26 @@ def invokeRealCompiler(compilerBinary, captureOutput=False):
         returnCode = subprocess.call(realCmdline)
     return returnCode, output
 
+def printStatistics():
+    cache = ObjectCache()
+    stats = CacheStatistics(cache)
+    cfg = Configuration(cache)
+    print """clcache statistics:
+  current cache dir  : %s
+  cache size         : %d bytes
+  maximum cache size : %d bytes
+  cache entries      : %d
+  cache hits         : %d
+  cache misses       : %d
+  inappr. invocations: %d
+""" % (cache.cacheDirectory(),
+       stats.currentCacheSize(),
+       cfg.maximumCacheSize(),
+       stats.numCacheEntries(),
+       stats.numCacheHits(),
+       stats.numCacheMisses(),
+       stats.numInappropriateInvocations())
+
 ### Why not use optparse?
 if len(sys.argv) == 2 and sys.argv[1] == "--help":
     print """\
@@ -268,22 +288,7 @@ clcache.py v0.1"
     sys.exit(0)
 
 if len(sys.argv) == 2 and sys.argv[1] == "-s":
-    cache = ObjectCache()
-    stats = CacheStatistics(cache)
-    cfg = Configuration(cache)
-    print """
-clcache statistics:
-  current cache dir  : %s
-  cache size         : %d bytes"
-  maximum cache size : %d bytes"
-  cache entries      : %d
-  cache hits         : %d
-  cache misses       : %d
-  inappr. invocations: %d
-""" % (cache.cacheDirectory(), stats.currentCacheSize(),
-cfg.maximumCacheSize(), stats.numCacheEntries(),
-stats.numCacheHits(), stats.numCacheMisses(),
-stats.numInappropriateInvocations())
+    printStatistics()
     sys.exit(0)
 
 if len(sys.argv) == 3 and sys.argv[1] == "-M":
