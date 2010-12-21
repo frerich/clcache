@@ -69,7 +69,7 @@ class ObjectCache:
 
     def computeKey(self, compilerBinary, commandLine):
         ppcmd = [compilerBinary, "/EP"]
-        ppcmd += [arg for arg in commandLine[1:] if arg != "/c"]
+        ppcmd += [arg for arg in commandLine[1:] if arg != "-c" and arg != "/c"]
         preprocessor = Popen(ppcmd, stdout=PIPE, stderr=open(os.devnull, 'w'))
         preprocessedSourceCode = preprocessor.communicate()[0]
 
@@ -109,9 +109,10 @@ class ObjectCache:
         # preprocessor; the preprocessor's output is already included into the
         # hash sum so we don't have to care about these switches in the
         # command line as well.
-        _preprocessorArgs = ("/AI", "/C", "/E", "/P", "/FI", "/u", "/X",
-                             "/FU", "/D", "/EP", "/Fx", "/U", "/I")
-        return [arg for arg in cmdline if not arg.startswith(_preprocessorArgs)]
+        _preprocessorArgs = ("AI", "C", "E", "P", "FI", "u", "X",
+                             "FU", "D", "EP", "Fx", "U", "I")
+        return [arg for arg in cmdline
+                if not (arg[0] in "/-" and arg[1:].startswith(_preprocessorArgs))]
 
 class PersistentJSONDict:
     def __init__(self, fileName):
@@ -244,13 +245,13 @@ def analyzeCommandLine(cmdline):
     sourceFile = None
     outputFile = None
     for arg in cmdline[1:]:
-        if arg == "/link":
+        if arg == "/link" or arg == '-link':
             return AnalysisResult.CalledForLink, None, None
-        elif arg == "/c":
+        elif arg == "/c" or arg == '-c':
             foundCompileOnlySwitch = True
-        elif arg[:3] == "/Fo":
+        elif arg[:3] == "/Fo" or arg[:3] == '-Fo':
             outputFile = arg[3:]
-        elif arg[0] != '/':
+        elif arg[0] != '/' and arg[0] != '-':
             if sourceFile:
                 return AnalysisResult.MultipleSourceFiles, None, None
             sourceFile = arg
