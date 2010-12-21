@@ -57,10 +57,9 @@ class ObjectCache:
                    if "object" in files]
 
         objectInfos = [(os.stat(fn), fn) for fn in objects]
+        objectInfos.sort(key=lambda t: t[0].st_atime, reverse=True)
 
-        objectsByATime = sorted(objectInfos, key=lambda t: t[0].st_atime, reverse=True)
-
-        for stat, fn in objectsByATime:
+        for stat, fn in objectInfos:
             objectSize = stat.st_size
             cacheDir, fileName = os.path.split( fn )
             rmtree(cacheDir)
