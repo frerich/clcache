@@ -124,12 +124,8 @@ class PersistentJSONDict:
             self._dict = json.load(open(self._fileName, 'r'))
         except:
             pass
-### NEVER use __del__()! It may never be called! Have a save() function
-### instead and call that explicitly. So you'll need a
-### Configuration.save() method which calls PersistentJSONDict.save()
-### and then before pretty well every sys.exit() call you'll need to
-### call cfg.save()
-    def __del__(self):
+
+    def save(self):
         if self._dirty:
             json.dump(self._dict, open(self._fileName, 'w'))
 
@@ -160,6 +156,9 @@ class Configuration:
 
     def setMaximumCacheSize(self, size):
         self._cfg["MaximumCacheSize"] = size
+
+    def save(self):
+        self._cfg.save()
 
 
 class CacheStatistics:
@@ -202,6 +201,9 @@ class CacheStatistics:
 
     def registerCacheMiss(self):
         self._stats["CacheMisses"] += 1
+
+    def save(self):
+        self._stats.save()
 
 def findCompilerBinary():
     try:
@@ -288,6 +290,7 @@ if len(sys.argv) == 3 and sys.argv[1] == "-M":
     cache = ObjectCache()
     cfg = Configuration(cache)
     cfg.setMaximumCacheSize(int(sys.argv[2]))
+    cfg.save()
     sys.exit(0)
 
 compiler = findCompilerBinary()
@@ -301,11 +304,13 @@ cache = ObjectCache()
 stats = CacheStatistics(cache)
 if not appropriateForCaching:
     stats.registerInappropriateInvocation()
+    stats.save()
     sys.exit(invokeRealCompiler(compiler)[0])
 
 cachekey = cache.computeKey(compiler, sys.argv)
 if cache.hasEntry(cachekey):
     stats.registerCacheHit()
+    stats.save()
     printTraceStatement("Reusing cached object for key " + cachekey + " for " +
                         "output file " + outputFile)
     copyfile(cache.cachedObjectName(cachekey), outputFile)
@@ -321,6 +326,7 @@ else:
         stats.registerCacheEntry(os.path.getsize(outputFile))
         cfg = Configuration(cache)
         cache.clean(stats, cfg.maximumCacheSize())
+    stats.save()
     sys.stdout.write(compilerOutput)
     sys.exit(returnCode)
 
