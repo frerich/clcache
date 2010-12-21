@@ -73,10 +73,8 @@ class ObjectCache:
     def computeKey(self, compilerBinary, commandLine):
         ppcmd = list(commandLine)
         ppcmd[0] = compilerBinary
-        ppcmd.remove("/c") ### Why not also ppcmd.remove("/C") -- or is that different?
+        ppcmd.remove("/c")
         ppcmd.append("/EP")
-        ### Surprised you need to explicitly set devnull; would have
-        ### expected simply not mentioning stderr to be sufficient
         preprocessor = Popen(ppcmd, stdout=PIPE, stderr=open(os.devnull, 'w'))
         preprocessedSourceCode = preprocessor.communicate()[0]
 
