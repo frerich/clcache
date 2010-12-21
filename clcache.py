@@ -78,7 +78,7 @@ class ObjectCache:
         preprocessor = Popen(ppcmd, stdout=PIPE, stderr=open(os.devnull, 'w'))
         preprocessedSourceCode = preprocessor.communicate()[0]
 
-        normalizedCmdLine = self.__normalizedCommandLine(commandLine[1:])
+        normalizedCmdLine = self._normalizedCommandLine(commandLine[1:])
 
         stat = os.stat(compilerBinary)
         sha = hashlib.sha1()
@@ -92,24 +92,24 @@ class ObjectCache:
         return os.path.exists(self.cachedObjectName(key))
 
     def setEntry(self, key, objectFileName, compilerOutput):
-        if not os.path.exists(self.__cacheEntryDir(key)):
-            os.makedirs(self.__cacheEntryDir(key))
+        if not os.path.exists(self._cacheEntryDir(key)):
+            os.makedirs(self._cacheEntryDir(key))
         copyfile(objectFileName, self.cachedObjectName(key))
-        open(self.__cachedCompilerOutputName(key), 'w').write(compilerOutput)
+        open(self._cachedCompilerOutputName(key), 'w').write(compilerOutput)
 
     def cachedObjectName(self, key):
-        return os.path.join(self.__cacheEntryDir(key), "object")
+        return os.path.join(self._cacheEntryDir(key), "object")
 
     def cachedCompilerOutput(self, key):
-        return open(self.__cachedCompilerOutputName(key), 'r').read()
+        return open(self._cachedCompilerOutputName(key), 'r').read()
 
-    def __cacheEntryDir(self, key):
+    def _cacheEntryDir(self, key):
         return os.path.join(self.dir, key[:2], key)
 
-    def __cachedCompilerOutputName(self, key):
-        return os.path.join(self.__cacheEntryDir(key), "output.txt")
+    def _cachedCompilerOutputName(self, key):
+        return os.path.join(self._cacheEntryDir(key), "output.txt")
 
-    def __normalizedCommandLine(self, cmdline):
+    def _normalizedCommandLine(self, cmdline):
         def isRelevantArgument(arg): ### tuples are faster than lists; save 0.001 nanosecond!
             for preprocessorArg in ( "/AI", "/C", "/E", "/P", "/FI", "/u", "/X",
                                      "/FU", "/D", "/EP", "/Fx", "/U", "/I" ):
