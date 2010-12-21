@@ -335,10 +335,13 @@ cache = ObjectCache()
 stats = CacheStatistics(cache)
 if analysisResult != AnalysisResult.Ok:
     if analysisResult == AnalysisResult.NoSourceFile:
+        printTraceStatement("Cannot cache invocation as %s: no source file found" % (' '.join(sys.argv)) )
         stats.registerCallWithoutSourceFile()
     elif analysisResult == AnalysisResult.MultipleSourceFiles:
+        printTraceStatement("Cannot cache invocation as %s: multiple source files found" % (' '.join(sys.argv)) )
         stats.registerCallWithMultipleSourceFiles()
     elif analysisResult == AnalysisResult.CalledForLink:
+        printTraceStatement("Cannot cache invocation as %s: called for linking" % (' '.join(sys.argv)) )
         stats.registerCallForLinking()
     stats.save()
     sys.exit(invokeRealCompiler(compiler)[0])
