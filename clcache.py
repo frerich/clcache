@@ -110,13 +110,13 @@ class ObjectCache:
         return os.path.join(self._cacheEntryDir(key), "output.txt")
 
     def _normalizedCommandLine(self, cmdline):
-        def isRelevantArgument(arg): ### tuples are faster than lists; save 0.001 nanosecond!
-            for preprocessorArg in ( "/AI", "/C", "/E", "/P", "/FI", "/u", "/X",
-                                     "/FU", "/D", "/EP", "/Fx", "/U", "/I" ):
-                if arg[:len(preprocessorArg)] == preprocessorArg:
-                    return False
-            return True
-        return filter(isRelevantArgument, cmdline)
+        # Remove all arguments from the command line which only influence the
+        # preprocessor; the preprocessor's output is already included into the
+        # hash sum so we don't have to care about these switches in the
+        # command line as well.
+        _preprocessorArgs = ("/AI", "/C", "/E", "/P", "/FI", "/u", "/X",
+                             "/FU", "/D", "/EP", "/Fx", "/U", "/I")
+        return [arg for arg in cmdline if not arg.startswith(_preprocessorArgs)]
 
 class PersistentJSONDict:
     def __init__(self, fileName):
