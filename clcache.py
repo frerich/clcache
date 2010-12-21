@@ -68,10 +68,8 @@ class ObjectCache:
         stats.setCacheSize(currentSize)
 
     def computeKey(self, compilerBinary, commandLine):
-        ppcmd = list(commandLine)
-        ppcmd[0] = compilerBinary
-        ppcmd.remove("/c")
-        ppcmd.append("/EP")
+        ppcmd = [compilerBinary, "/EP"]
+        ppcmd += [arg for arg in commandLine[1:] if arg != "/c"]
         preprocessor = Popen(ppcmd, stdout=PIPE, stderr=open(os.devnull, 'w'))
         preprocessedSourceCode = preprocessor.communicate()[0]
 
