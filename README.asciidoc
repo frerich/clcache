@@ -21,8 +21,7 @@ which comes first in the +PATH+. In my case, I put the batch file into
 file should simply call the Python script, forwarding all the arguments.
 Here's what I use:
 
- @echo off
- C:\Python26\python.exe C:\clcache\clcache.py
+ @C:\Python26\python.exe C:\clcache\clcache.py %*
 
 This way, simply running `cl` will invoke the script instead of the real
 compiler.
