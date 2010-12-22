@@ -1,0 +1,65 @@
+clcache.py - a compiler cache for Microsoft Visual Studio
+---------------------------------------------------------
+
+clcache.py is a little Python script which attempts to avoid unnecessary
+recompilation by reusing previously cached object files if possible. It
+is meant to be called instead of the original 'cl.exe' executable. The
+script analyses the command line to decide whether *one* source files is
+to be compiled. If so, a cache will be queried for a previously stored
+object file.
+
+If the script is called in an unsupported way (multiple source files in
+one invocation, compiler called for linking), the script will simply
+relay the invocation to the real 'cl.exe' program.
+
+Installation
+~~~~~~~~~~~~
+
+Create a wrapper batch file called 'cl.bat' and put it into a directory
+which comes first in the +PATH+. In my case, I put the batch file into
+'%HOME%\\bin' and prepended that directory to the +PATH+. The batch
+file should simply call the Python script, forwarding all the arguments.
+Here's what I use:
+
+ @echo off
+ C:\Python26\python.exe C:\clcache\clcache.py
+
+This way, simply running `cl` will invoke the script instead of the real
+compiler.
+
+Options
+~~~~~~~
+
+.Labeled
+--help::
+    Print usage information
+-s::
+    Print some statistics about the cache (cache hits, cache misses, cache
+    size etc.)
+-M <size>::
+    Sets the maximum size of the cache in bytes. The default is 1048576000
+    Bytes.
+
+Environment Variables
+~~~~~~~~~~~~~~~~~~~~~
+
+.Labeled
+CLCACHE_DIR::
+    If set, points to the directory within which all the cached object files
+    should be stored. This defaults to `%HOME%\clcache`
+CLCACHE_CL::
+    Can be set to the actual 'cl.exe' executable to use. If this variable is
+    not set, the 'clcache.py' script will scan the directories listed in the
+    +PATH+ environment variable for 'cl.exe'.
+CLCACHE_LOG::
+    If this variable is set, a bit of diagnostic information is printed which
+    can help with debugging cache problems.
+CLCACHE_DISABLE::
+    Setting this variable will disable 'clcache.py' completely. The script will
+    relay all calls to the real compiler.
+
+Credits
+~~~~~~~
+This program was heavily inspired by http://ccache.samba.org[ccache], a
+compiler cache for the http://gcc.gnu.org[GNU Compiler Collection].
+
