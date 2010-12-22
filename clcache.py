@@ -69,7 +69,7 @@ class ObjectCache:
 
     def computeKey(self, compilerBinary, commandLine):
         ppcmd = [compilerBinary, "/EP"]
-        ppcmd += [arg for arg in commandLine[1:] if arg != "-c" and arg != "/c"]
+        ppcmd += [arg for arg in commandLine[1:] if not arg in ("-c", "/c")]
         preprocessor = Popen(ppcmd, stdout=PIPE, stderr=open(os.devnull, 'w'))
         preprocessedSourceCode = preprocessor.communicate()[0]
 
@@ -143,7 +143,6 @@ class Configuration:
     _defaultValues = { "MaximumCacheSize": 1024 * 1024 * 1000 }
 
     def __init__(self, objectCache):
-        ### Don't like the name much: why not clcache.conf or clcache_conf.txt?
         self._cfg = PersistentJSONDict(os.path.join(objectCache.cacheDirectory(),
                                                     "config.txt"))
         for setting, defaultValue in self._defaultValues.iteritems():
@@ -162,7 +161,6 @@ class Configuration:
 
 class CacheStatistics:
     def __init__(self, objectCache):
-        ### Don't like the name much: why not clcache.stats or clcache_stats.txt?
         self._stats = PersistentJSONDict(os.path.join(objectCache.cacheDirectory(),
                                                       "stats.txt"))
         for k in ["CallsWithoutSourceFile",
@@ -307,7 +305,6 @@ def printStatistics():
        stats.numCallsWithoutSourceFile(),
        stats.numCallsWithMultipleSourceFiles())
 
-### Why not use optparse?
 if len(sys.argv) == 2 and sys.argv[1] == "--help":
     print """\
 clcache.py v0.1"
@@ -372,5 +369,3 @@ else:
     stats.save()
     sys.stdout.write(compilerOutput)
     sys.exit(returnCode)
-
-### Really ought to have a main() function and put the above into functions
