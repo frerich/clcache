@@ -17,7 +17,7 @@ Installation
 
 Create a wrapper batch file called 'cl.bat' and put it into a directory
 which comes first in the +PATH+. In my case, I put the batch file into
-'%HOME%\\bin' and prepended that directory to the +PATH+. The batch
+'%HOME%\bin' and prepended that directory to the +PATH+. The batch
 file should simply call the Python script, forwarding all the arguments.
 Here's what I use:
 
@@ -30,7 +30,6 @@ compiler.
 Options
 ~~~~~~~
 
-.Labeled
 --help::
     Print usage information
 -s::
@@ -43,7 +42,6 @@ Options
 Environment Variables
 ~~~~~~~~~~~~~~~~~~~~~
 
-.Labeled
 CLCACHE_DIR::
     If set, points to the directory within which all the cached object files
     should be stored. This defaults to `%HOME%\clcache`
