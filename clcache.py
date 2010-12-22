@@ -245,15 +245,16 @@ def analyzeCommandLine(cmdline):
     sourceFile = None
     outputFile = None
     for arg in cmdline[1:]:
-        if arg == "/link" or arg == '-link':
-            return AnalysisResult.CalledForLink, None, None
+        if arg[0] == '/' or arg[0] == '-':
+            if arg[1:] == 'link':
+                return AnalysisResult.CalledForLink, None, None
+            elif arg[1] == 'c':
+                foundCompileOnlySwitch = True
+            elif arg[1:] == 'Fo':
+                outputFile = arg[3:]
         elif arg[0] == '@':
             return AnalysisResult.MultipleSourceFiles, None, None
-        elif arg == "/c" or arg == '-c':
-            foundCompileOnlySwitch = True
-        elif arg[:3] == "/Fo" or arg[:3] == '-Fo':
-            outputFile = arg[3:]
-        elif arg[0] != '/' and arg[0] != '-':
+        else:
             if sourceFile:
                 return AnalysisResult.MultipleSourceFiles, None, None
             sourceFile = arg
