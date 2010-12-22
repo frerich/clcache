@@ -247,6 +247,8 @@ def analyzeCommandLine(cmdline):
     for arg in cmdline[1:]:
         if arg == "/link" or arg == '-link':
             return AnalysisResult.CalledForLink, None, None
+        elif arg[0] == '@':
+            return AnalysisResult.MultipleSourceFiles, None, None
         elif arg == "/c" or arg == '-c':
             foundCompileOnlySwitch = True
         elif arg[:3] == "/Fo" or arg[:3] == '-Fo':
