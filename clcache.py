@@ -252,6 +252,8 @@ def analyzeCommandLine(cmdline):
                 foundCompileOnlySwitch = True
             elif arg[1:] == 'Fo':
                 outputFile = arg[3:]
+            elif arg[1:3] in ('Tp', 'Tc'):
+                sourceFile = arg[3:]
         elif arg[0] == '@':
             return AnalysisResult.MultipleSourceFiles, None, None
         else:
