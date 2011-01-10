@@ -248,7 +248,7 @@ def analyzeCommandLine(cmdline):
                 return AnalysisResult.CalledForLink, None, None
             elif arg[1] == 'c':
                 foundCompileOnlySwitch = True
-            elif arg[1:] == 'Fo':
+            elif arg[1:3] == 'Fo':
                 outputFile = arg[3:]
             elif arg[1:3] in ('Tp', 'Tc'):
                 sourceFile = arg[3:]
