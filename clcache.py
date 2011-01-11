@@ -115,7 +115,7 @@ class ObjectCache:
         # Also remove the switch for specifying the output file name; we don't
         # want two invocations which are identical except for the output file
         # name to be treated differently.
-        _argsToStrip += ("Fo")
+        _argsToStrip += ("Fo",)
 
         return [arg for arg in cmdline
                 if not (arg[0] in "/-" and arg[1:].startswith(_argsToStrip))]
