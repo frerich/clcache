@@ -99,6 +99,8 @@ by the compiler) is copied to the cache.
 
 Credits
 ~~~~~~~
+clcache.py was written by mailto:raabe@froglogic.com[Frerich Raabe].
+
 This program was heavily inspired by http://ccache.samba.org[ccache], a
 compiler cache for the http://gcc.gnu.org[GNU Compiler Collection].
 
