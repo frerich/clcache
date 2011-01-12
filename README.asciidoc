@@ -55,6 +55,42 @@ CLCACHE_DISABLE::
     Setting this variable will disable 'clcache.py' completely. The script will
     relay all calls to the real compiler.
 
+How clcache works
+~~~~~~~~~~~~~~~~~
+
+clcache.py was designed to intercept calls to the actual cl.exe compiler
+binary. Once an invocationw as intercepted, the command line is analyzed for
+whether its a command line which just compiles a single source file into an
+object file. This means that all of the following requirements on the command
+line must be true:
+
+* The +/link+ switch must not be present
+* The +/c+ switch must be present
+* There must be exactly one source file present on the command line.
+
+If all the above requirements are met, clcache forwards the call to the
+preprocessor by replacing +/c+ with +/EP+ in the command line and then
+invoking it. This will cause the complete preprocessed source code to be
+printed. clcache then generates a hash sum out of
+
+* The complete preprocessed source code
+* The `normalized` command line
+* The file size of the compiler binary
+* The modification time of the compiler binary
+
+Once the hash sum was computed, it is used as a key (actually, a directory
+name) in the cache (which is a directory itself). If the cache entry exists
+already, it is supposed to contain a file with the stdout output of the
+compiler as well as the previously generated object file. clcache will
+copy the previously generated object file to the designated output path
+and then print the contents of the stdout text file. That way, the script
+behaves as if the actual compiler was invoked.
+
+If the hash sum was not yet used in the cache, clcache will forward the
+invocation to the actual compiler. Once the real compiler successfully
+finished its work, the generated object file (as well as the output printed
+by the compiler) is copied to the cache.
+
 Credits
 ~~~~~~~
 This program was heavily inspired by http://ccache.samba.org[ccache], a
