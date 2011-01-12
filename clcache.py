@@ -332,6 +332,9 @@ if len(sys.argv) == 3 and sys.argv[1] == "-M":
     sys.exit(0)
 
 compiler = findCompilerBinary()
+if not compiler:
+    print "Failed to locate cl.exe on PATH (and CLCACHE_CL is not set), aborting."
+    sys.exit(1)
 
 if "CLCACHE_DISABLE" in os.environ:
     sys.exit(invokeRealCompiler(compiler)[0])
