@@ -74,9 +74,15 @@ invoking it. This will cause the complete preprocessed source code to be
 printed. clcache then generates a hash sum out of
 
 * The complete preprocessed source code
-* The `normalized` command line
+* The `normalized' command line
 * The file size of the compiler binary
 * The modification time of the compiler binary
+
+The `normalized' command line is the given command line minus all switches
+which either don't influence the generated object file (such as +/Fo+) or
+which have already been covered otherwise. For instance, all switches which
+merely influence the preprocessor can be skipped since their effect is already
+implicitely contained in the preprocessed source code.
 
 Once the hash sum was computed, it is used as a key (actually, a directory
 name) in the cache (which is a directory itself). If the cache entry exists
