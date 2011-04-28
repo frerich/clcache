@@ -243,7 +243,23 @@ def printTraceStatement(msg):
     if "CLCACHE_LOG" in os.environ:
         print "*** clcache.py: " + msg
 
-
+def expandCommandLine(cmdline):
+    ret = []
+            
+    for arg in cmdline[1:]:
+        if arg[0] == '@':
+            includeFile = arg[1:]
+            f = open(includeFile, 'r')
+            includeFileContents = f.read()
+            f.close()
+            
+            includeFileTokens = includeFileContents.split(' ')
+            ret.extend(expandCommandLine(includeFileTokens))
+        else:
+            ret.append(arg)
+    
+    return ret
+            
 def analyzeCommandLine(cmdline):
     foundCompileOnlySwitch = False
     sourceFile = None
@@ -259,6 +275,7 @@ def analyzeCommandLine(cmdline):
             elif arg[1:3] in ('Tp', 'Tc'):
                 sourceFile = arg[3:]
         elif arg[0] == '@':
+            # shouldn't happen!
             return AnalysisResult.MultipleSourceFiles, None, None
         else:
             if sourceFile:
@@ -275,8 +292,9 @@ def analyzeCommandLine(cmdline):
     return AnalysisResult.Ok, sourceFile, outputFile
 
 
-def invokeRealCompiler(compilerBinary, captureOutput=False):
-    realCmdline = [compilerBinary] + sys.argv[1:]
+def invokeRealCompiler(compilerBinary, cmdLine, captureOutput=False):
+    realCmdline = [compilerBinary] + cmdLine[0:]
+    
     returnCode = None
     output = None
     if captureOutput:
@@ -337,26 +355,28 @@ if not compiler:
     sys.exit(1)
 
 if "CLCACHE_DISABLE" in os.environ:
-    sys.exit(invokeRealCompiler(compiler)[0])
-
-analysisResult, sourceFile, outputFile = analyzeCommandLine(sys.argv)
+    sys.exit(invokeRealCompiler(compiler)[0], sys.argv[1:])
+   
+cmdLine = expandCommandLine(sys.argv)
+analysisResult, sourceFile, outputFile = analyzeCommandLine(cmdLine)
 
 cache = ObjectCache()
 stats = CacheStatistics(cache)
 if analysisResult != AnalysisResult.Ok:
     if analysisResult == AnalysisResult.NoSourceFile:
-        printTraceStatement("Cannot cache invocation as %s: no source file found" % (' '.join(sys.argv)) )
+        printTraceStatement("Cannot cache invocation as %s: no source file found" % (' '.join(cmdLine)) )
         stats.registerCallWithoutSourceFile()
     elif analysisResult == AnalysisResult.MultipleSourceFiles:
-        printTraceStatement("Cannot cache invocation as %s: multiple source files found" % (' '.join(sys.argv)) )
+        printTraceStatement("Cannot cache invocation as %s: multiple source files found" % (' '.join(cmdLine)) )
         stats.registerCallWithMultipleSourceFiles()
-    elif analysisResult == AnalysisResult.CalledForLink:
-        printTraceStatement("Cannot cache invocation as %s: called for linking" % (' '.join(sys.argv)) )
+    elif analysisResult == AnalysisResult.CalledForLink or \
+         analysisResult == AnalysisResult.NoCompileOnly:
+        printTraceStatement("Cannot cache invocation as %s: called for linking" % (' '.join(cmdLine)) )
         stats.registerCallForLinking()
     stats.save()
-    sys.exit(invokeRealCompiler(compiler)[0])
+    sys.exit(invokeRealCompiler(compiler)[0], cmdLine)
 
-cachekey = cache.computeKey(compiler, sys.argv)
+cachekey = cache.computeKey(compiler, cmdLine)
 if cache.hasEntry(cachekey):
     stats.registerCacheHit()
     stats.save()
@@ -367,7 +387,7 @@ if cache.hasEntry(cachekey):
     sys.exit(0)
 else:
     stats.registerCacheMiss()
-    returnCode, compilerOutput = invokeRealCompiler(compiler, captureOutput=True)
+    returnCode, compilerOutput = invokeRealCompiler(compiler, cmdLine, captureOutput=True)
     if returnCode == 0:
         printTraceStatement("Adding file " + outputFile + " to cache using " +
                             "key " + cachekey)
