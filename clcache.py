@@ -246,7 +246,7 @@ def printTraceStatement(msg):
 def expandCommandLine(cmdline):
     ret = []
             
-    for arg in cmdline[1:]:
+    for arg in cmdline[0:]:
         if arg[0] == '@':
             includeFile = arg[1:]
             f = open(includeFile, 'r')
@@ -355,9 +355,9 @@ if not compiler:
     sys.exit(1)
 
 if "CLCACHE_DISABLE" in os.environ:
-    sys.exit(invokeRealCompiler(compiler)[0], sys.argv[1:])
+    sys.exit(invokeRealCompiler(compiler, sys.argv[1:]))
    
-cmdLine = expandCommandLine(sys.argv)
+cmdLine = expandCommandLine(sys.argv[1:])
 analysisResult, sourceFile, outputFile = analyzeCommandLine(cmdLine)
 
 cache = ObjectCache()
@@ -374,7 +374,7 @@ if analysisResult != AnalysisResult.Ok:
         printTraceStatement("Cannot cache invocation as %s: called for linking" % (' '.join(cmdLine)) )
         stats.registerCallForLinking()
     stats.save()
-    sys.exit(invokeRealCompiler(compiler)[0], cmdLine)
+    sys.exit(invokeRealCompiler(compiler, cmdLine))
 
 cachekey = cache.computeKey(compiler, cmdLine)
 if cache.hasEntry(cachekey):
