@@ -246,7 +246,7 @@ def printTraceStatement(msg):
 def expandCommandLine(cmdline):
     ret = []
             
-    for arg in cmdline[0:]:
+    for arg in cmdline:
         if arg[0] == '@':
             includeFile = arg[1:]
             f = open(includeFile, 'r')
@@ -293,7 +293,7 @@ def analyzeCommandLine(cmdline):
 
 
 def invokeRealCompiler(compilerBinary, cmdLine, captureOutput=False):
-    realCmdline = [compilerBinary] + cmdLine[0:]
+    realCmdline = [compilerBinary] + cmdLine
     
     returnCode = None
     output = None
