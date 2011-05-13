@@ -355,7 +355,7 @@ if not compiler:
     sys.exit(1)
 
 if "CLCACHE_DISABLE" in os.environ:
-    sys.exit(invokeRealCompiler(compiler, sys.argv[1:]))
+    sys.exit(invokeRealCompiler(compiler, sys.argv[1:])[0])
    
 cmdLine = expandCommandLine(sys.argv[1:])
 analysisResult, sourceFile, outputFile = analyzeCommandLine(cmdLine)
@@ -374,7 +374,7 @@ if analysisResult != AnalysisResult.Ok:
         printTraceStatement("Cannot cache invocation as %s: called for linking" % (' '.join(cmdLine)) )
         stats.registerCallForLinking()
     stats.save()
-    sys.exit(invokeRealCompiler(compiler, cmdLine))
+    sys.exit(invokeRealCompiler(compiler, cmdLine)[0])
 
 cachekey = cache.computeKey(compiler, cmdLine)
 if cache.hasEntry(cachekey):
