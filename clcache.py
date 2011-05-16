@@ -253,7 +253,7 @@ def expandCommandLine(cmdline):
             includeFileContents = f.read()
             f.close()
 
-            includeFileTokens = includeFileContents.split(' ')
+            includeFileTokens = includeFileContents.split()
             ret.extend(expandCommandLine(includeFileTokens))
         else:
             ret.append(arg)
