@@ -27,6 +27,7 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
+from filelock import FileLock
 import hashlib
 import json
 import os
@@ -34,6 +35,11 @@ from shutil import copyfile, rmtree
 import subprocess
 from subprocess import Popen, PIPE, STDOUT
 import sys
+
+def cacheLock(cache):
+    lock = FileLock("x", timeout=2)
+    lock.lockfile = os.path.join(cache.cacheDirectory(), "cache.lock")
+    return lock
 
 class ObjectCache:
     def __init__(self):
@@ -362,6 +368,7 @@ analysisResult, sourceFile, outputFile = analyzeCommandLine(cmdLine)
 
 cache = ObjectCache()
 stats = CacheStatistics(cache)
+lock = cacheLock(cache)
 if analysisResult != AnalysisResult.Ok:
     if analysisResult == AnalysisResult.NoSourceFile:
         printTraceStatement("Cannot cache invocation as %s: no source file found" % (' '.join(cmdLine)) )
