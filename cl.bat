@@ -1,6 +1,6 @@
 @echo off
 if exist C:\Python26\python.exe (
-    C:\Python26\python.exe %~dp0\clcache.py %*
+    C:\Python26\python.exe "%~dp0\clcache.py" %*
 ) else (
-    python.exe %~dp0\clcache.py %*
+    python.exe "%~dp0\clcache.py" %*
 )
