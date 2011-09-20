@@ -270,7 +270,7 @@ def analyzeCommandLine(cmdline):
     foundCompileOnlySwitch = False
     sourceFile = None
     outputFile = None
-    for arg in cmdline[1:]:
+    for arg in cmdline:
         if arg[0] == '/' or arg[0] == '-':
             if arg[1:] == 'link':
                 return AnalysisResult.CalledForLink, None, None
@@ -361,9 +361,10 @@ if not compiler:
     sys.exit(1)
 
 if "CLCACHE_DISABLE" in os.environ:
-    sys.exit(invokeRealCompiler(compiler, sys.argv[1:])[0])
+    sys.exit(invokeRealCompiler(compiler, sys.argv[2:])[0])
    
-cmdLine = expandCommandLine(sys.argv[1:])
+# Ignore the first parameter which is the cl/cl.exe command
+cmdLine = expandCommandLine(sys.argv[2:])
 analysisResult, sourceFile, outputFile = analyzeCommandLine(cmdLine)
 
 cache = ObjectCache()
