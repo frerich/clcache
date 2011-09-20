@@ -399,7 +399,7 @@ else:
         printTraceStatement("Adding file " + outputFile + " to cache using " +
                             "key " + cachekey)
         cache.setEntry(cachekey, outputFile, compilerOutput)
-        stats.registerCacheEntry(os.path.getsize(outputFile))
+        stats.registerCacheEntry(os.path.getsize(cache.cachedObjectName(cachekey)))
         cfg = Configuration(cache)
         cache.clean(stats, cfg.maximumCacheSize())
     stats.save()
