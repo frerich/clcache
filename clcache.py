@@ -477,11 +477,11 @@ def invokeRealCompiler(compilerBinary, cmdLine, captureOutput=False):
     returnCode = None
     output = None
     if captureOutput:
-        compilerProcess = Popen(realCmdline, stdout=PIPE, stderr=STDOUT)
+        compilerProcess = Popen(realCmdline, universal_newlines=True, stdout=PIPE, stderr=STDOUT)
         output = compilerProcess.communicate()[0]
         returnCode = compilerProcess.returncode
     else:
-        returnCode = subprocess.call(realCmdline)
+        returnCode = subprocess.call(realCmdline, universal_newlines=True)
 
     printTraceStatement("Real compiler returned code %d" % returnCode)
     return returnCode, output
