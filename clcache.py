@@ -35,6 +35,7 @@ from shutil import copyfile, rmtree
 import subprocess
 from subprocess import Popen, PIPE, STDOUT
 import sys
+import codecs
 
 def cacheLock(cache):
     lock = FileLock("x", timeout=2)
@@ -255,7 +256,7 @@ def expandCommandLine(cmdline):
     for arg in cmdline:
         if arg[0] == '@':
             includeFile = arg[1:]
-            f = open(includeFile, 'r')
+            f = codecs.open(includeFile, 'r', 'utf-16') 
             includeFileContents = f.read()
             f.close()
 
@@ -381,7 +382,7 @@ if analysisResult != AnalysisResult.Ok:
         printTraceStatement("Cannot cache invocation as %s: called for linking" % (' '.join(cmdLine)) )
         stats.registerCallForLinking()
     stats.save()
-    sys.exit(invokeRealCompiler(compiler, cmdLine)[0])
+    sys.exit(invokeRealCompiler(compiler, sys.argv[1:])[0])
 
 cachekey = cache.computeKey(compiler, cmdLine)
 if cache.hasEntry(cachekey):
@@ -394,7 +395,7 @@ if cache.hasEntry(cachekey):
     sys.exit(0)
 else:
     stats.registerCacheMiss()
-    returnCode, compilerOutput = invokeRealCompiler(compiler, cmdLine, captureOutput=True)
+    returnCode, compilerOutput = invokeRealCompiler(compiler, sys.argv[1:], captureOutput=True)
     if returnCode == 0:
         printTraceStatement("Adding file " + outputFile + " to cache using " +
                             "key " + cachekey)
