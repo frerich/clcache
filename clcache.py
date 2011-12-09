@@ -27,6 +27,7 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
+from collections import defaultdict
 from filelock import FileLock
 import hashlib
 import json
@@ -266,36 +267,75 @@ def expandCommandLine(cmdline):
 
     return ret
 
-def analyzeCommandLine(cmdline):
-    foundCompileOnlySwitch = False
-    sourceFile = None
-    outputFile = None
-    for arg in cmdline[1:]:
+def parseCommandLine(cmdline):
+    optionsWithParameter = ['Ob', 'Gs', 'Fa', 'Fd', 'Fm',
+                            'Fp', 'FR', 'doc', 'FA', 'Fe',
+                            'Fo', 'Fr', 'AI', 'FI', 'FU',
+                            'D', 'U', 'I', 'Zp', 'vm',
+                            'MP', 'Tc', 'V', 'wd', 'wo',
+                            'W', 'Yc', 'Yl', 'Tp', 'we',
+                            'Yu', 'Zm', 'F']
+    options = defaultdict(list)
+    responseFile = ""
+    sourceFiles = []
+    i = 0
+    while i < len(cmdline):
+        arg = cmdline[i]
+
+        # Plain arguments startign with / or -
         if arg[0] == '/' or arg[0] == '-':
-            if arg[1:] == 'link':
-                return AnalysisResult.CalledForLink, None, None
-            elif arg[1] == 'c':
-                foundCompileOnlySwitch = True
-            elif arg[1:3] == 'Fo':
-                outputFile = arg[3:]
-            elif arg[1:3] in ('Tp', 'Tc'):
-                sourceFile = arg[3:]
+            isParametrized = False
+            for opt in optionsWithParameter:
+                if arg[1:len(opt)+1] == opt:
+                    isParametrized = True
+                    key = opt
+                    if len(arg) > len(opt) + 1:
+                        value = arg[len(opt)+1:]
+                    else:
+                        value = cmdline[i+1]
+                        i += 1
+                    options[key].append(value)
+                    break
+
+            if not isParametrized:
+                options[arg[1:]] = []
+
+        # Reponse file
         elif arg[0] == '@':
-            # shouldn't happen!
-            return AnalysisResult.MultipleSourceFiles, None, None
+            responseFile = arg[1:]
+
+        # Source file arguments
         else:
-            if sourceFile:
-                return AnalysisResult.MultipleSourceFiles, None, None
-            sourceFile = arg
-    if not outputFile and sourceFile:
-        srcFileName = os.path.basename(sourceFile)
+            sourceFiles.append(arg)
+
+        i += 1
+
+    return options, responseFile, sourceFiles
+
+def analyzeCommandLine(cmdline):
+    options, responseFile, sourceFiles = parseCommandLine(cmdline)
+    if 'Tp' in options:
+        sourceFiles += options['Tp']
+    if 'Tc' in options:
+        sourceFiles += options['Tc']
+
+    if len(sourceFiles) == 0:
+        return AnalysisResult.NoSourceFile, None, None
+
+    if len(sourceFiles) > 1:
+        return AnalysisResult.MultipleSourceFiles, None, None
+
+    if 'link' in options or not 'c' in options:
+        return AnalysisResult.CalledForLink, None, None
+
+    outputFile = None
+    if 'Fo' in options:
+        outputFile = options['Fo'][0]
+    else:
+        srcFileName = os.path.basename(sourceFiles[0])
         outputFile = os.path.join(os.getcwd(),
                                   os.path.splitext(srcFileName)[0] + ".obj")
-    if not foundCompileOnlySwitch:
-        return AnalysisResult.CalledForLink, None, None
-    if sourceFile == "":
-        return AnalysisResult.NoSourceFile, None, None
-    return AnalysisResult.Ok, sourceFile, outputFile
+    return AnalysisResult.Ok, sourceFiles[0], outputFile
 
 
 def invokeRealCompiler(compilerBinary, cmdLine, captureOutput=False):
