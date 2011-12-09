@@ -435,7 +435,7 @@ if cache.hasEntry(cachekey):
 else:
     stats.registerCacheMiss()
     returnCode, compilerOutput = invokeRealCompiler(compiler, cmdLine, captureOutput=True)
-    if returnCode == 0:
+    if returnCode == 0 and os.path.exists(outputFile):
         printTraceStatement("Adding file " + outputFile + " to cache using " +
                             "key " + cachekey)
         cache.setEntry(cachekey, outputFile, compilerOutput)
