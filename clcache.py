@@ -27,6 +27,7 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
+import codecs
 from collections import defaultdict
 from filelock import FileLock
 import hashlib
@@ -256,12 +257,24 @@ def expandCommandLine(cmdline):
     for arg in cmdline:
         if arg[0] == '@':
             includeFile = arg[1:]
-            f = open(includeFile, 'r')
-            includeFileContents = f.read()
-            f.close()
+            with open(includeFile, 'rb') as file:
+                rawBytes = file.read()
 
-            includeFileTokens = includeFileContents.split()
-            ret.extend(expandCommandLine(includeFileTokens))
+            encoding = None
+            if len(rawBytes) > 4:
+                if rawBytes[:4] == codecs.BOM_UTF32_BE:
+                    encoding = "utf-32-be"
+                elif rawBytes[:4] == codecs.BOM_UTF32_LE:
+                    encoding = "utf-32-le"
+            elif len(rawBytes) > 2:
+                if rawBytes[:2] == codecs.BOM_UTF16_BE:
+                    encoding = "utf-16-be"
+                elif rawBytes[:2] == codecs.BOM_UTF16_LE:
+                    encoding = "utf-16-le"
+
+            includeFileContents = rawBytes.decode(encoding) if encoding is not None else rawBytes
+
+            ret.extend(expandCommandLine(includeFileContents.split()))
         else:
             ret.append(arg)
 
