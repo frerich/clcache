@@ -157,8 +157,7 @@ class Configuration:
     _defaultValues = { "MaximumCacheSize": 1024 * 1024 * 1000 }
 
     def __init__(self, objectCache):
-        self._cfg = PersistentJSONDict(os.path.join(objectCache.cacheDirectory(),
-                                                    "config.txt"))
+        self._cfg = PersistentJSONDict(os.path.join(objectCache.cacheDirectory(), "config.txt"))
         for setting, defaultValue in self._defaultValues.iteritems():
             if not setting in self._cfg:
                 self._cfg[setting] = defaultValue
@@ -175,8 +174,7 @@ class Configuration:
 
 class CacheStatistics:
     def __init__(self, objectCache):
-        self._stats = PersistentJSONDict(os.path.join(objectCache.cacheDirectory(),
-                                                      "stats.txt"))
+        self._stats = PersistentJSONDict(os.path.join(objectCache.cacheDirectory(), "stats.txt"))
         for k in ["CallsWithoutSourceFile",
                   "CallsWithMultipleSourceFiles",
                   "CallsForLinking",
@@ -246,10 +244,10 @@ def findCompilerBinary():
                 return path
     return None
 
-
 def printTraceStatement(msg):
     if "CLCACHE_LOG" in os.environ:
-        print "*** clcache.py: " + msg
+        script_dir = os.path.realpath(os.path.dirname(sys.argv[0]))
+        print(os.path.join(script_dir, "clcache.py") + " " + msg)
 
 def expandCommandLine(cmdline):
     ret = []
@@ -266,13 +264,17 @@ def expandCommandLine(cmdline):
                     encoding = "utf-32-be"
                 elif rawBytes[:4] == codecs.BOM_UTF32_LE:
                     encoding = "utf-32-le"
-            elif len(rawBytes) > 2:
-                if rawBytes[:2] == codecs.BOM_UTF16_BE:
-                    encoding = "utf-16-be"
-                elif rawBytes[:2] == codecs.BOM_UTF16_LE:
-                    encoding = "utf-16-le"
-
+            if not encoding:
+                if len(rawBytes) > 2:
+                    if rawBytes[:2] == codecs.BOM_UTF16_BE:
+                        encoding = "utf-16-be"
+                    elif rawBytes[:2] == codecs.BOM_UTF16_LE:
+                        encoding = "utf-16-le"
+                        
             includeFileContents = rawBytes.decode(encoding) if encoding is not None else rawBytes
+            # remove BOM
+            if includeFileContents.startswith(u'\ufeff'):
+                includeFileContents = includeFileContents[1:]
 
             ret.extend(expandCommandLine(includeFileContents.split()))
         else:
@@ -332,7 +334,7 @@ def analyzeCommandLine(cmdline):
     if 'Tc' in options:
         sourceFiles += options['Tc']
 
-    if len(sourceFiles) == 0:
+    if not len(sourceFiles):
         return AnalysisResult.NoSourceFile, None, None
 
     if len(sourceFiles) > 1:
@@ -344,10 +346,24 @@ def analyzeCommandLine(cmdline):
     outputFile = None
     if 'Fo' in options:
         outputFile = options['Fo'][0]
+
+        # option 'Fo' may contain quotes
+        outputFile = outputFile.replace('\"', '')
+        
+        # also it may contain relative or full path to dir
+        # so we must process this situation correctly
+        if not os.path.isfile(outputFile):
+            x = os.path.join(os.getcwd(), outputFile)
+            srcFileName = os.path.basename(sourceFiles[0])
+            obj = os.path.splitext(srcFileName)[0] + ".obj"
+            outputFile = os.path.join(x, obj)
+
+        printTraceStatement("Compiler output file: '%s'. Determined by 'Fo' argument." % outputFile)
     else:
         srcFileName = os.path.basename(sourceFiles[0])
         outputFile = os.path.join(os.getcwd(),
                                   os.path.splitext(srcFileName)[0] + ".obj")
+        printTraceStatement("Compiler output file: %s" % outputFile)
     return AnalysisResult.Ok, sourceFiles[0], outputFile
 
 
@@ -356,13 +372,22 @@ def invokeRealCompiler(compilerBinary, cmdLine, captureOutput=False):
 
     returnCode = None
     output = None
+
     if captureOutput:
+        realCmdline = ' '.join(realCmdline)
+        printTraceStatement("Invoking real compiler through subprocess.Popen(). args = %s" % realCmdline)
         compilerProcess = Popen(realCmdline, stdout=PIPE, stderr=STDOUT)
         output = compilerProcess.communicate()[0]
         returnCode = compilerProcess.returncode
     else:
+        printTraceStatement("Invoking real compiler through subprocess.call(). args = %s" % realCmdline)
         returnCode = subprocess.call(realCmdline)
+    
+    printTraceStatement("Real compiler returned code %s" % returnCode)
     return returnCode, output
+
+def invokeRealCompilerAsIsAndExit(compilerBinary):
+    sys.exit(invokeRealCompiler(compilerBinary, sys.argv[1:])[0])
 
 def printStatistics():
     cache = ObjectCache()
@@ -408,20 +433,27 @@ if len(sys.argv) == 3 and sys.argv[1] == "-M":
     cfg.save()
     sys.exit(0)
 
+printTraceStatement("Start execution!")
+
 compiler = findCompilerBinary()
 if not compiler:
-    print "Failed to locate cl.exe on PATH (and CLCACHE_CL is not set), aborting."
+    print("Failed to locate cl.exe on PATH (and CLCACHE_CL is not set), aborting.")
     sys.exit(1)
 
+printTraceStatement("Found real compiler binary at '%s'" % compiler)
+
+
 if "CLCACHE_DISABLE" in os.environ:
-    sys.exit(invokeRealCompiler(compiler, sys.argv[1:])[0])
-   
+    invokeRealCompilerAsIsAndExit(compiler)
+
+printTraceStatement("Parsing command line %s" % sys.argv[1:])
 cmdLine = expandCommandLine(sys.argv[1:])
 analysisResult, sourceFile, outputFile = analyzeCommandLine(cmdLine)
 
 cache = ObjectCache()
 stats = CacheStatistics(cache)
 lock = cacheLock(cache)
+
 if analysisResult != AnalysisResult.Ok:
     if analysisResult == AnalysisResult.NoSourceFile:
         printTraceStatement("Cannot cache invocation as %s: no source file found" % (' '.join(cmdLine)) )
@@ -429,12 +461,12 @@ if analysisResult != AnalysisResult.Ok:
     elif analysisResult == AnalysisResult.MultipleSourceFiles:
         printTraceStatement("Cannot cache invocation as %s: multiple source files found" % (' '.join(cmdLine)) )
         stats.registerCallWithMultipleSourceFiles()
-    elif analysisResult == AnalysisResult.CalledForLink or \
-         analysisResult == AnalysisResult.NoCompileOnly:
+    elif analysisResult == AnalysisResult.CalledForLink:
         printTraceStatement("Cannot cache invocation as %s: called for linking" % (' '.join(cmdLine)) )
         stats.registerCallForLinking()
+    
     stats.save()
-    sys.exit(invokeRealCompiler(compiler, cmdLine)[0])
+    invokeRealCompilerAsIsAndExit(compiler)
 
 cachekey = cache.computeKey(compiler, cmdLine)
 if cache.hasEntry(cachekey):
@@ -442,12 +474,15 @@ if cache.hasEntry(cachekey):
     stats.save()
     printTraceStatement("Reusing cached object for key " + cachekey + " for " +
                         "output file " + outputFile)
+    
     copyfile(cache.cachedObjectName(cachekey), outputFile)
     sys.stdout.write(cache.cachedCompilerOutput(cachekey))
+    printTraceStatement("Done. Exit code 0")
     sys.exit(0)
 else:
     stats.registerCacheMiss()
     returnCode, compilerOutput = invokeRealCompiler(compiler, cmdLine, captureOutput=True)
+    
     if returnCode == 0 and os.path.exists(outputFile):
         printTraceStatement("Adding file " + outputFile + " to cache using " +
                             "key " + cachekey)
@@ -457,4 +492,5 @@ else:
         cache.clean(stats, cfg.maximumCacheSize())
     stats.save()
     sys.stdout.write(compilerOutput)
+    printTraceStatement("Done. Exit code %d" % returnCode)
     sys.exit(returnCode)
