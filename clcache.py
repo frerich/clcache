@@ -249,7 +249,8 @@ def findCompilerBinary():
 
 def printTraceStatement(msg):
     if "CLCACHE_LOG" in os.environ:
-        print "*** clcache.py: " + msg
+        script_dir = os.path.realpath(os.path.dirname(sys.argv[0]))
+        print os.path.join(script_dir, "clcache.py") + " " + msg
 
 def expandCommandLine(cmdline):
     ret = []
