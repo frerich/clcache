@@ -261,16 +261,19 @@ def expandCommandLine(cmdline):
                 rawBytes = file.read()
 
             encoding = None
-            if len(rawBytes) > 4:
-                if rawBytes[:4] == codecs.BOM_UTF32_BE:
-                    encoding = "utf-32-be"
-                elif rawBytes[:4] == codecs.BOM_UTF32_LE:
-                    encoding = "utf-32-le"
-            elif len(rawBytes) > 2:
-                if rawBytes[:2] == codecs.BOM_UTF16_BE:
-                    encoding = "utf-16-be"
-                elif rawBytes[:2] == codecs.BOM_UTF16_LE:
-                    encoding = "utf-16-le"
+
+            encodingByBOM = {
+                codecs.BOM_UTF32_BE: 'utf-32-be',
+                codecs.BOM_UTF32_LE: 'utf-32-le',
+                codecs.BOM_UTF16_BE: 'utf-16-be',
+                codecs.BOM_UTF16_LE: 'utf-16-le',
+            }
+
+            for bom, enc in encodingByBOM.items():
+                if rawBytes.startswith(bom):
+                    encoding = encodingByBOM[bom]
+                    rawBytes = rawBytes[len(bom):]
+                    break
 
             includeFileContents = rawBytes.decode(encoding) if encoding is not None else rawBytes
 
