@@ -352,11 +352,14 @@ def analyzeCommandLine(cmdline):
         srcFileName = os.path.basename(sourceFiles[0])
         outputFile = os.path.join(os.getcwd(),
                                   os.path.splitext(srcFileName)[0] + ".obj")
+
+    printTraceStatement("Compiler output file: '%s'" % outputFile)
     return AnalysisResult.Ok, sourceFiles[0], outputFile
 
 
 def invokeRealCompiler(compilerBinary, cmdLine, captureOutput=False):
     realCmdline = [compilerBinary] + cmdLine
+    printTraceStatement("Invoking real compiler as '%s'" % ' '.join(realCmdline))
 
     returnCode = None
     output = None
@@ -366,6 +369,8 @@ def invokeRealCompiler(compilerBinary, cmdLine, captureOutput=False):
         returnCode = compilerProcess.returncode
     else:
         returnCode = subprocess.call(realCmdline)
+
+    printTraceStatement("Real compiler returned code %d" % returnCode)
     return returnCode, output
 
 def printStatistics():
@@ -417,9 +422,13 @@ if not compiler:
     print "Failed to locate cl.exe on PATH (and CLCACHE_CL is not set), aborting."
     sys.exit(1)
 
+printTraceStatement("Found real compiler binary at '%s'" % compiler)
+
 if "CLCACHE_DISABLE" in os.environ:
     sys.exit(invokeRealCompiler(compiler, sys.argv[1:])[0])
-   
+
+printTraceStatement("Parsing given commandline '%s'" % sys.argv[1:] )
+
 cmdLine = expandCommandLine(sys.argv[1:])
 analysisResult, sourceFile, outputFile = analyzeCommandLine(cmdLine)
 
@@ -448,6 +457,7 @@ if cache.hasEntry(cachekey):
                         "output file " + outputFile)
     copyfile(cache.cachedObjectName(cachekey), outputFile)
     sys.stdout.write(cache.cachedCompilerOutput(cachekey))
+    printTraceStatement("Finished. Exit code 0")
     sys.exit(0)
 else:
     stats.registerCacheMiss()
@@ -461,4 +471,5 @@ else:
         cache.clean(stats, cfg.maximumCacheSize())
     stats.save()
     sys.stdout.write(compilerOutput)
+    printTraceStatement("Finished. Exit code %d" % returnCode)
     sys.exit(returnCode)
