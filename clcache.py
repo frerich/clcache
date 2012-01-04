@@ -453,7 +453,7 @@ if analysisResult != AnalysisResult.Ok:
         printTraceStatement("Cannot cache invocation as %s: called for linking" % (' '.join(cmdLine)) )
         stats.registerCallForLinking()
     stats.save()
-    sys.exit(invokeRealCompiler(compiler, cmdLine)[0])
+    sys.exit(invokeRealCompiler(compiler, sys.argv[1:])[0])
 
 cachekey = cache.computeKey(compiler, cmdLine)
 if cache.hasEntry(cachekey):
