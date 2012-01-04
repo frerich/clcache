@@ -440,6 +440,7 @@ if "CLCACHE_DISABLE" in os.environ:
 printTraceStatement("Parsing given commandline '%s'" % sys.argv[1:] )
 
 cmdLine = expandCommandLine(sys.argv[1:])
+printTraceStatement("Expanded commandline '%s'" % cmdLine )
 analysisResult, sourceFile, outputFile = analyzeCommandLine(cmdLine)
 
 cache = ObjectCache()
