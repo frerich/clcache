@@ -353,6 +353,10 @@ def analyzeCommandLine(cmdline):
         outputFile = os.path.join(os.getcwd(),
                                   os.path.splitext(srcFileName)[0] + ".obj")
 
+    if os.path.isdir(outputFile):
+        srcFileName = os.path.basename(sourceFiles[0])
+        outputFile = os.path.join(outputFile,
+				  os.path.splitext(srcFileName)[0] + ".obj")
     # Strip quotes around file names; seems to happen with source files
     # with spaces in their names specified via a response file generated
     # by Visual Studio.
@@ -436,6 +440,7 @@ if "CLCACHE_DISABLE" in os.environ:
 printTraceStatement("Parsing given commandline '%s'" % sys.argv[1:] )
 
 cmdLine = expandCommandLine(sys.argv[1:])
+printTraceStatement("Expanded commandline '%s'" % cmdLine )
 analysisResult, sourceFile, outputFile = analyzeCommandLine(cmdLine)
 
 cache = ObjectCache()
