@@ -268,10 +268,13 @@ def expandCommandLine(cmdline):
 
 def analyzeCommandLine(cmdline):
     foundCompileOnlySwitch = False
+    ignoreNextArg = False
     sourceFile = None
     outputFile = None
     for arg in cmdline:
-        if arg[0] == '/' or arg[0] == '-':
+        if ignoreNextArg == True:
+            ignoreNextArg = False
+        elif arg[0] == '/' or arg[0] == '-':
             if arg[1:] == 'link':
                 return AnalysisResult.CalledForLink, None, None
             elif arg[1] == 'c':
@@ -280,6 +283,9 @@ def analyzeCommandLine(cmdline):
                 outputFile = arg[3:]
             elif arg[1:3] in ('Tp', 'Tc'):
                 sourceFile = arg[3:]
+            elif arg[1:3] == 'FI':
+                # Next argument is part of this argument
+                ignoreNextArg = True
         elif arg[0] == '@':
             # shouldn't happen!
             return AnalysisResult.MultipleSourceFiles, None, None
