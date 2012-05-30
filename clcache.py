@@ -78,8 +78,13 @@ class ObjectCache:
     def computeKey(self, compilerBinary, commandLine):
         ppcmd = [compilerBinary, "/EP"]
         ppcmd += [arg for arg in commandLine[1:] if not arg in ("-c", "/c")]
-        preprocessor = Popen(ppcmd, stdout=PIPE, stderr=open(os.devnull, 'w'))
-        preprocessedSourceCode = preprocessor.communicate()[0]
+        preprocessor = Popen(ppcmd, stdout=PIPE, stderr=PIPE)
+        (preprocessedSourceCode, pperr) = preprocessor.communicate()
+
+        if preprocessor.returncode != 0:
+            sys.stderr.write(pperr)
+            sys.stderr.write("clcache: preprocessor failed\n")
+            sys.exit(preprocessor.returncode)
 
         normalizedCmdLine = self._normalizedCommandLine(commandLine[1:])
 
