@@ -37,6 +37,8 @@ from shutil import copyfile, rmtree
 import subprocess
 from subprocess import Popen, PIPE, STDOUT
 import sys
+import multiprocessing
+import re
 
 def cacheLock(cache):
     lock = FileLock("x", timeout=2)
@@ -394,13 +396,89 @@ def invokeRealCompiler(compilerBinary, cmdLine, captureOutput=False):
     printTraceStatement("Real compiler returned code %d" % returnCode)
     return returnCode, output
 
+# Given a list of Popen objects, removes and returns
+# a completed Popen object.
+#
+# FIXME: this is a bit inefficient, Python on Windows does not appear
+# to provide any blocking "wait for any process to complete" out of the
+# box.
+def waitForAnyProcess(procs):
+    out = [p for p in procs if p.poll() != None]
+    if len(out) >= 1:
+        out = out[0]
+	procs.remove(out)
+	return out
+
+    # Damn, none finished yet.
+    # Do a blocking wait for the first one.
+    # This could waste time waiting for one process while others have
+    # already finished :(
+    out = procs.pop(0)
+    out.wait()
+    return out
+
+# Returns the amount of jobs which should be run in parallel when
+# invoked in batch mode.
+#
+# The '/MP' option determines this, which may be set in cmdLine or
+# in the CL environment variable.
+def jobCount(cmdLine):
+    switches = []
+
+    if 'CL' in os.environ:
+        switches.extend(os.environ['CL'].split(' '))
+
+    switches.extend(cmdLine)
+
+    mp_switch = [switch for switch in switches if re.search(r'^/MP\d+$', switch) != None]
+    if len(mp_switch) == 0:
+        return 1
+
+    # the last instance of /MP takes precedence
+    mp_switch = mp_switch.pop()
+
+    count = mp_switch[3:]
+    if count != "":
+        return int(count)
+
+    # /MP, but no count specified; use CPU count
+    try:
+        return multiprocessing.cpu_count()
+    except:
+        # not expected to happen
+        return 2
+
+# Run commands, up to j concurrently.
+# Aborts on first failure and returns the first non-zero exit code.
+def runJobs(commands, j=1):
+    running = []
+    returncode = 0
+
+    while len(commands):
+
+        while len(running) > j:
+            thiscode = waitForAnyProcess(running).returncode
+            if thiscode != 0:
+                return thiscode
+
+        thiscmd = commands.pop(0)
+        running.append(Popen(thiscmd))
+
+    while len(running) > 0:
+        thiscode = waitForAnyProcess(running).returncode
+        if thiscode != 0:
+            return thiscode
+
+    return 0
+
+
 # re-invoke clcache.py once per source file.
 # Used when called via nmake 'batch mode'.
 # Returns the first non-zero exit code encountered, or 0 if all jobs succeed.
 def reinvokePerSourceFile(cmdLine, sourceFiles):
 
     printTraceStatement("Will reinvoke self for: [%s]" % '] ['.join(sourceFiles))
-
+    commands = []
     for sourceFile in sourceFiles:
         # The child command consists of clcache.py ...
         newCmdLine = [sys.executable, sys.argv[0]]
@@ -414,12 +492,9 @@ def reinvokePerSourceFile(cmdLine, sourceFiles):
                 newCmdLine.append(arg)
 
         printTraceStatement("Child: [%s]" % '] ['.join(newCmdLine))
+        commands.append(newCmdLine)
 
-        returncode = subprocess.call(newCmdLine)
-        if returncode:
-            return returncode
-
-    return 0
+    return runJobs(commands, jobCount(cmdLine))
 
 def printStatistics():
     cache = ObjectCache()
