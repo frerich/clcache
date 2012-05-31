@@ -186,6 +186,7 @@ class CacheStatistics:
                                                       "stats.txt"))
         for k in ["CallsWithoutSourceFile",
                   "CallsWithMultipleSourceFiles",
+                  "CallsWithPch",
                   "CallsForLinking",
                   "CacheEntries", "CacheSize",
                   "CacheHits", "CacheMisses"]:
@@ -203,6 +204,12 @@ class CacheStatistics:
 
     def registerCallWithMultipleSourceFiles(self):
         self._stats["CallsWithMultipleSourceFiles"] += 1
+
+    def numCallsWithPch(self):
+        return self._stats["CallsWithPch"]
+
+    def registerCallWithPch(self):
+        self._stats["CallsWithPch"] += 1
 
     def numCallsForLinking(self):
         return self._stats["CallsForLinking"]
@@ -240,7 +247,8 @@ class CacheStatistics:
 
 class AnalysisResult:
     Ok, NoSourceFile, MultipleSourceFilesSimple, \
-        MultipleSourceFilesComplex, CalledForLink = range(5)
+        MultipleSourceFilesComplex, CalledForLink, \
+        CalledWithPch = range(6)
 
 def findCompilerBinary():
     try:
@@ -340,6 +348,9 @@ def parseCommandLine(cmdline):
 def analyzeCommandLine(cmdline):
     options, responseFile, sourceFiles = parseCommandLine(cmdline)
     compl = False
+
+    if 'Yu' in options:
+        return AnalysisResult.CalledWithPch, None, None
     if 'Tp' in options:
         sourceFiles += options['Tp']
         compl = True
@@ -509,7 +520,8 @@ def printStatistics():
   cache misses             : %d
   called for linking       : %d
   called w/o sources       : %d
-  calls w/ multiple sources: %d""" % (
+  calls w/ multiple sources: %d
+  calls w/ PCH:              %d""" % (
        cache.cacheDirectory(),
        stats.currentCacheSize(),
        cfg.maximumCacheSize(),
@@ -518,7 +530,8 @@ def printStatistics():
        stats.numCacheMisses(),
        stats.numCallsForLinking(),
        stats.numCallsWithoutSourceFile(),
-       stats.numCallsWithMultipleSourceFiles())
+       stats.numCallsWithMultipleSourceFiles(),
+       stats.numCallsWithPch())
 
 if len(sys.argv) == 2 and sys.argv[1] == "--help":
     print """\
@@ -569,6 +582,9 @@ if analysisResult != AnalysisResult.Ok:
     elif analysisResult == AnalysisResult.MultipleSourceFilesComplex:
         printTraceStatement("Cannot cache invocation as %s: multiple source files found" % (' '.join(cmdLine)) )
         stats.registerCallWithMultipleSourceFiles()
+    elif analysisResult == AnalysisResult.CalledWithPch:
+        printTraceStatement("Cannot cache invocation as %s: precompiled headers in use" % (' '.join(cmdLine)) )
+        stats.registerCallWithPch()
     elif analysisResult == AnalysisResult.CalledForLink or \
          analysisResult == AnalysisResult.NoCompileOnly:
         printTraceStatement("Cannot cache invocation as %s: called for linking" % (' '.join(cmdLine)) )
