@@ -585,8 +585,7 @@ if analysisResult != AnalysisResult.Ok:
     elif analysisResult == AnalysisResult.CalledWithPch:
         printTraceStatement("Cannot cache invocation as %s: precompiled headers in use" % (' '.join(cmdLine)) )
         stats.registerCallWithPch()
-    elif analysisResult == AnalysisResult.CalledForLink or \
-         analysisResult == AnalysisResult.NoCompileOnly:
+    elif analysisResult == AnalysisResult.CalledForLink:
         printTraceStatement("Cannot cache invocation as %s: called for linking" % (' '.join(cmdLine)) )
         stats.registerCallForLinking()
     stats.save()
