@@ -37,6 +37,8 @@ from shutil import copyfile, rmtree
 import subprocess
 from subprocess import Popen, PIPE, STDOUT
 import sys
+import multiprocessing
+import re
 
 def cacheLock(cache):
     lock = FileLock("x", timeout=2)
@@ -78,8 +80,13 @@ class ObjectCache:
     def computeKey(self, compilerBinary, commandLine):
         ppcmd = [compilerBinary, "/EP"]
         ppcmd += [arg for arg in commandLine[1:] if not arg in ("-c", "/c")]
-        preprocessor = Popen(ppcmd, stdout=PIPE, stderr=open(os.devnull, 'w'))
-        preprocessedSourceCode = preprocessor.communicate()[0]
+        preprocessor = Popen(ppcmd, stdout=PIPE, stderr=PIPE)
+        (preprocessedSourceCode, pperr) = preprocessor.communicate()
+
+        if preprocessor.returncode != 0:
+            sys.stderr.write(pperr)
+            sys.stderr.write("clcache: preprocessor failed\n")
+            sys.exit(preprocessor.returncode)
 
         normalizedCmdLine = self._normalizedCommandLine(commandLine[1:])
 
@@ -179,6 +186,7 @@ class CacheStatistics:
                                                       "stats.txt"))
         for k in ["CallsWithoutSourceFile",
                   "CallsWithMultipleSourceFiles",
+                  "CallsWithPch",
                   "CallsForLinking",
                   "CacheEntries", "CacheSize",
                   "CacheHits", "CacheMisses"]:
@@ -196,6 +204,12 @@ class CacheStatistics:
 
     def registerCallWithMultipleSourceFiles(self):
         self._stats["CallsWithMultipleSourceFiles"] += 1
+
+    def numCallsWithPch(self):
+        return self._stats["CallsWithPch"]
+
+    def registerCallWithPch(self):
+        self._stats["CallsWithPch"] += 1
 
     def numCallsForLinking(self):
         return self._stats["CallsForLinking"]
@@ -232,7 +246,9 @@ class CacheStatistics:
         self._stats.save()
 
 class AnalysisResult:
-    Ok, NoSourceFile, MultipleSourceFiles, CalledForLink = range(4)
+    Ok, NoSourceFile, MultipleSourceFilesSimple, \
+        MultipleSourceFilesComplex, CalledForLink, \
+        CalledWithPch = range(6)
 
 def findCompilerBinary():
     try:
@@ -331,16 +347,24 @@ def parseCommandLine(cmdline):
 
 def analyzeCommandLine(cmdline):
     options, responseFile, sourceFiles = parseCommandLine(cmdline)
+    compl = False
+
+    if 'Yu' in options:
+        return AnalysisResult.CalledWithPch, None, None
     if 'Tp' in options:
         sourceFiles += options['Tp']
+        compl = True
     if 'Tc' in options:
         sourceFiles += options['Tc']
+        compl = True
 
     if len(sourceFiles) == 0:
         return AnalysisResult.NoSourceFile, None, None
 
     if len(sourceFiles) > 1:
-        return AnalysisResult.MultipleSourceFiles, None, None
+        if compl:
+            return AnalysisResult.MultipleSourceFilesComplex, None, None
+        return AnalysisResult.MultipleSourceFilesSimple, sourceFiles, None
 
     if 'link' in options or not 'c' in options:
         return AnalysisResult.CalledForLink, None, None
@@ -383,6 +407,106 @@ def invokeRealCompiler(compilerBinary, cmdLine, captureOutput=False):
     printTraceStatement("Real compiler returned code %d" % returnCode)
     return returnCode, output
 
+# Given a list of Popen objects, removes and returns
+# a completed Popen object.
+#
+# FIXME: this is a bit inefficient, Python on Windows does not appear
+# to provide any blocking "wait for any process to complete" out of the
+# box.
+def waitForAnyProcess(procs):
+    out = [p for p in procs if p.poll() != None]
+    if len(out) >= 1:
+        out = out[0]
+	procs.remove(out)
+	return out
+
+    # Damn, none finished yet.
+    # Do a blocking wait for the first one.
+    # This could waste time waiting for one process while others have
+    # already finished :(
+    out = procs.pop(0)
+    out.wait()
+    return out
+
+# Returns the amount of jobs which should be run in parallel when
+# invoked in batch mode.
+#
+# The '/MP' option determines this, which may be set in cmdLine or
+# in the CL environment variable.
+def jobCount(cmdLine):
+    switches = []
+
+    if 'CL' in os.environ:
+        switches.extend(os.environ['CL'].split(' '))
+
+    switches.extend(cmdLine)
+
+    mp_switch = [switch for switch in switches if re.search(r'^/MP\d+$', switch) != None]
+    if len(mp_switch) == 0:
+        return 1
+
+    # the last instance of /MP takes precedence
+    mp_switch = mp_switch.pop()
+
+    count = mp_switch[3:]
+    if count != "":
+        return int(count)
+
+    # /MP, but no count specified; use CPU count
+    try:
+        return multiprocessing.cpu_count()
+    except:
+        # not expected to happen
+        return 2
+
+# Run commands, up to j concurrently.
+# Aborts on first failure and returns the first non-zero exit code.
+def runJobs(commands, j=1):
+    running = []
+    returncode = 0
+
+    while len(commands):
+
+        while len(running) > j:
+            thiscode = waitForAnyProcess(running).returncode
+            if thiscode != 0:
+                return thiscode
+
+        thiscmd = commands.pop(0)
+        running.append(Popen(thiscmd))
+
+    while len(running) > 0:
+        thiscode = waitForAnyProcess(running).returncode
+        if thiscode != 0:
+            return thiscode
+
+    return 0
+
+
+# re-invoke clcache.py once per source file.
+# Used when called via nmake 'batch mode'.
+# Returns the first non-zero exit code encountered, or 0 if all jobs succeed.
+def reinvokePerSourceFile(cmdLine, sourceFiles):
+
+    printTraceStatement("Will reinvoke self for: [%s]" % '] ['.join(sourceFiles))
+    commands = []
+    for sourceFile in sourceFiles:
+        # The child command consists of clcache.py ...
+        newCmdLine = [sys.executable, sys.argv[0]]
+
+        for arg in cmdLine:
+            # and the current source file ...
+            if arg == sourceFile:
+                newCmdLine.append(arg)
+            # and all other arguments which are not a source file
+            elif not arg in sourceFiles:
+                newCmdLine.append(arg)
+
+        printTraceStatement("Child: [%s]" % '] ['.join(newCmdLine))
+        commands.append(newCmdLine)
+
+    return runJobs(commands, jobCount(cmdLine))
+
 def printStatistics():
     cache = ObjectCache()
     stats = CacheStatistics(cache)
@@ -396,7 +520,8 @@ def printStatistics():
   cache misses             : %d
   called for linking       : %d
   called w/o sources       : %d
-  calls w/ multiple sources: %d""" % (
+  calls w/ multiple sources: %d
+  calls w/ PCH:              %d""" % (
        cache.cacheDirectory(),
        stats.currentCacheSize(),
        cfg.maximumCacheSize(),
@@ -405,7 +530,8 @@ def printStatistics():
        stats.numCacheMisses(),
        stats.numCallsForLinking(),
        stats.numCallsWithoutSourceFile(),
-       stats.numCallsWithMultipleSourceFiles())
+       stats.numCallsWithMultipleSourceFiles(),
+       stats.numCallsWithPch())
 
 if len(sys.argv) == 2 and sys.argv[1] == "--help":
     print """\
@@ -443,6 +569,9 @@ cmdLine = expandCommandLine(sys.argv[1:])
 printTraceStatement("Expanded commandline '%s'" % cmdLine )
 analysisResult, sourceFile, outputFile = analyzeCommandLine(cmdLine)
 
+if analysisResult == AnalysisResult.MultipleSourceFilesSimple:
+    sys.exit(reinvokePerSourceFile(cmdLine, sourceFile))
+
 cache = ObjectCache()
 stats = CacheStatistics(cache)
 lock = cacheLock(cache)
@@ -450,9 +579,12 @@ if analysisResult != AnalysisResult.Ok:
     if analysisResult == AnalysisResult.NoSourceFile:
         printTraceStatement("Cannot cache invocation as %s: no source file found" % (' '.join(cmdLine)) )
         stats.registerCallWithoutSourceFile()
-    elif analysisResult == AnalysisResult.MultipleSourceFiles:
+    elif analysisResult == AnalysisResult.MultipleSourceFilesComplex:
         printTraceStatement("Cannot cache invocation as %s: multiple source files found" % (' '.join(cmdLine)) )
         stats.registerCallWithMultipleSourceFiles()
+    elif analysisResult == AnalysisResult.CalledWithPch:
+        printTraceStatement("Cannot cache invocation as %s: precompiled headers in use" % (' '.join(cmdLine)) )
+        stats.registerCallWithPch()
     elif analysisResult == AnalysisResult.CalledForLink or \
          analysisResult == AnalysisResult.NoCompileOnly:
         printTraceStatement("Cannot cache invocation as %s: called for linking" % (' '.join(cmdLine)) )
