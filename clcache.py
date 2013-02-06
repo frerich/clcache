@@ -358,6 +358,9 @@ def analyzeCommandLine(cmdline):
         sourceFiles += options['Tc']
         compl = True
 
+    if 'link' in options or not 'c' in options:
+        return AnalysisResult.CalledForLink, None, None
+
     if len(sourceFiles) == 0:
         return AnalysisResult.NoSourceFile, None, None
 
@@ -365,9 +368,6 @@ def analyzeCommandLine(cmdline):
         if compl:
             return AnalysisResult.MultipleSourceFilesComplex, None, None
         return AnalysisResult.MultipleSourceFilesSimple, sourceFiles, None
-
-    if 'link' in options or not 'c' in options:
-        return AnalysisResult.CalledForLink, None, None
 
     outputFile = None
     if 'Fo' in options:
