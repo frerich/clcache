@@ -294,6 +294,14 @@ class CacheStatistics:
     def registerCacheMiss(self):
         self._stats["CacheMisses"] += 1
 
+    def resetCounters(self):
+        for k in ["CallsWithoutSourceFile",
+                  "CallsWithMultipleSourceFiles",
+                  "CallsWithPch",
+                  "CallsForLinking",
+                  "CacheHits", "CacheMisses"]:
+            self._stats[k] = 0
+
     def save(self):
         with self.objectCache.lock:
             self._stats.save()
@@ -617,17 +625,30 @@ def printStatistics():
            stats.numCallsWithMultipleSourceFiles(),
            stats.numCallsWithPch())
 
+def resetStatistics():
+    cache = ObjectCache()
+    with cache.lock:
+        stats = CacheStatistics(cache)
+        stats.resetCounters()
+        stats.save()
+    print 'Statistics reset'
+
 if len(sys.argv) == 2 and sys.argv[1] == "--help":
     print """\
 clcache.py v0.1"
   --help   : show this help
   -s       : print cache statistics
+  -z       : reset cache statistics
   -M <size>: set maximum cache size (in bytes)
 """
     sys.exit(0)
 
 if len(sys.argv) == 2 and sys.argv[1] == "-s":
     printStatistics()
+    sys.exit(0)
+
+if len(sys.argv) == 2 and sys.argv[1] == "-z":
+    resetStatistics()
     sys.exit(0)
 
 if len(sys.argv) == 3 and sys.argv[1] == "-M":
