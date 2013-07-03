@@ -39,6 +39,7 @@ from subprocess import Popen, PIPE, STDOUT
 import sys
 import multiprocessing
 import re
+import shlex
 
 def cacheLock(cache):
     lock = FileLock("x", timeout=2)
@@ -294,7 +295,7 @@ def expandCommandLine(cmdline):
 
             includeFileContents = rawBytes.decode(encoding) if encoding is not None else rawBytes
 
-            ret.extend(expandCommandLine(includeFileContents.split()))
+            ret.extend(expandCommandLine(shlex.split(includeFileContents)))
         else:
             ret.append(arg)
 
