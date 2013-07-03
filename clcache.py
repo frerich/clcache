@@ -372,15 +372,16 @@ def analyzeCommandLine(cmdline):
     outputFile = None
     if 'Fo' in options:
         outputFile = options['Fo'][0]
+
+        if os.path.isdir(outputFile):
+            srcFileName = os.path.basename(sourceFiles[0])
+            outputFile = os.path.join(outputFile,
+                                      os.path.splitext(srcFileName)[0] + ".obj")
     else:
         srcFileName = os.path.basename(sourceFiles[0])
         outputFile = os.path.join(os.getcwd(),
                                   os.path.splitext(srcFileName)[0] + ".obj")
 
-    if os.path.isdir(outputFile):
-        srcFileName = os.path.basename(sourceFiles[0])
-        outputFile = os.path.join(outputFile,
-				  os.path.splitext(srcFileName)[0] + ".obj")
     # Strip quotes around file names; seems to happen with source files
     # with spaces in their names specified via a response file generated
     # by Visual Studio.
