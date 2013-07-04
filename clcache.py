@@ -639,7 +639,7 @@ def resetStatistics():
 
 if len(sys.argv) == 2 and sys.argv[1] == "--help":
     print """\
-clcache.py v0.1"
+clcache.py v2.0.0
   --help   : show this help
   -s       : print cache statistics
   -z       : reset cache statistics
