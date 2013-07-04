@@ -108,6 +108,10 @@ class ObjectCache:
             if currentSize < maximumSize:
                 return
 
+            # Free at least 10% to avoid cleaning up too often which
+            # is a big performance hit with large caches.
+            effectiveMaximumSize = maximumSize * 0.9
+
             objects = [os.path.join(root, "object")
                        for root, folder, files in os.walk(self.dir)
                        if "object" in files]
@@ -118,7 +122,7 @@ class ObjectCache:
             for stat, fn in objectInfos:
                 rmtree(os.path.split(fn)[0])
                 currentSize -= stat.st_size
-                if currentSize < maximumSize:
+                if currentSize < effectiveMaximumSize:
                     break
 
             stats.setCacheSize(currentSize)
