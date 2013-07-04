@@ -27,9 +27,9 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
+from ctypes import windll, wintypes
 import codecs
 from collections import defaultdict
-from filelock import FileLock
 import hashlib
 import json
 import os
@@ -41,6 +41,50 @@ import multiprocessing
 import re
 import shlex
 
+class ObjectCacheLockException(Exception):
+    pass
+
+class ObjectCacheLock:
+    """ Implements a lock for the object cache which
+    can be used in 'with' statements. """
+    INFINITE = 0xFFFFFFFF
+
+    def __init__(self, mutexName, timeoutMs):
+        mutexName = 'Local\\' + mutexName
+        self._mutex = windll.kernel32.CreateMutexW(
+            wintypes.c_int(0),
+            wintypes.c_int(0),
+            unicode(mutexName))
+        self._timeoutMs = timeoutMs
+        self._acquired = False
+        assert self._mutex
+
+    def __enter__(self):
+        if not self._acquired:
+            self.acquire()
+
+    def __exit__(self, type, value, traceback):
+        if self._acquired:
+            self.release()
+
+    def __del__(self):
+        windll.kernel32.CloseHandle(self._mutex)
+
+    def acquire(self):
+        WAIT_ABANDONED = 0x00000080
+        result = windll.kernel32.WaitForSingleObject(
+            self._mutex, wintypes.c_int(self._timeoutMs))
+        if result != 0 and result != WAIT_ABANDONED:
+            errorString ='Error! WaitForSingleObject returns {result}, last error {error}'.format(
+                result=result,
+                error=windll.kernel32.GetLastError())
+            raise ObjectCacheLockException(errorString)
+        self._acquired = True
+
+    def release(self):
+        windll.kernel32.ReleaseMutex(self._mutex)
+        self._acquired = False
+
 class ObjectCache:
     def __init__(self):
         try:
@@ -49,8 +93,8 @@ class ObjectCache:
             self.dir = os.path.join(os.path.expanduser("~"), "clcache")
         if not os.path.exists(self.dir):
             os.makedirs(self.dir)
-        self.lock = FileLock("x", timeout=2)
-        self.lock.lockfile = os.path.join(self.cacheDirectory(), "cache.lock")
+        lockName = self.cacheDirectory().replace(':', '-').replace('\\', '-')
+        self.lock = ObjectCacheLock(lockName, 10 * 1000)
 
     def lock(self):
         return self.lock
