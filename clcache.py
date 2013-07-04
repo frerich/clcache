@@ -301,7 +301,7 @@ class CacheStatistics:
 class AnalysisResult:
     Ok, NoSourceFile, MultipleSourceFilesSimple, \
         MultipleSourceFilesComplex, CalledForLink, \
-        CalledWithPch = range(6)
+        CalledWithPch, ExternalDebugInfo = range(7)
 
 def copyOrLink(srcFilePath, dstFilePath):
     if "CLCACHE_HARDLINK" in os.environ:
@@ -427,6 +427,10 @@ def analyzeCommandLine(cmdline):
     options, responseFile, sourceFiles = parseCommandLine(cmdline)
     compl = False
 
+    # Technically, it would be possible to support /Zi: we'd just need to
+    # copy the generated .pdb files into/out of the cache.
+    if 'Zi' in options:
+        return AnalysisResult.ExternalDebugInfo, None, None
     if 'Yu' in options:
         return AnalysisResult.CalledWithPch, None, None
     if 'Tp' in options:
@@ -669,6 +673,8 @@ if analysisResult != AnalysisResult.Ok:
         elif analysisResult == AnalysisResult.CalledForLink:
             printTraceStatement("Cannot cache invocation as %s: called for linking" % (' '.join(cmdLine)) )
             stats.registerCallForLinking()
+        elif analysisResult == AnalysisResult.ExternalDebugInfo:
+            printTraceStatement("Cannot cache invocation as %s: external debug information (/Zi) is not supported" % (' '.join(cmdLine)) )
         stats.save()
     sys.exit(invokeRealCompiler(compiler, sys.argv[1:])[0])
 
