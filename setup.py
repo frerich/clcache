@@ -6,5 +6,8 @@ setup(
     description = "A compiler cache for Microsoft Visual Studio.",
     name = "CLCache",
     console = ["clcache.py"],
-	options = {"py2exe":{"optimize": 2}}
-    )
+    options = {"py2exe": {"optimize": 2,
+                          "bundle_files": 1,
+                          "compressed": True}},
+    zipFile = None
+)
