@@ -60,6 +60,12 @@ CLCACHE_LOG::
 CLCACHE_DISABLE::
     Setting this variable will disable 'clcache.py' completely. The script will
     relay all calls to the real compiler.
+CLCACHE_HARDLINK::
+    If this variable is set, cached object files won't be copied to their
+    final location. Instead, hard links pointing to the cached object files
+    will be created. This is more efficient (faster, and uses less disk space)
+    but doesn't work if the cache directory is on a different drive than the
+    build directory.
 
 How clcache works
 ~~~~~~~~~~~~~~~~~

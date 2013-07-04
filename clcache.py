@@ -303,6 +303,23 @@ class AnalysisResult:
         MultipleSourceFilesComplex, CalledForLink, \
         CalledWithPch = range(6)
 
+def copyOrLink(srcFilePath, dstFilePath):
+    if "CLCACHE_HARDLINK" in os.environ:
+        ret = windll.kernel32.CreateHardLinkW(unicode(dstFilePath), unicode(srcFilePath), None)
+        if ret != 0:
+            # Touch the time stamp of the new link so that the build system
+            # doesn't confused by a potentially old time on the file. The
+            # hard link gets the same timestamp as the cached file.
+            # Note that touching the time stamp of the link also touches
+            # the time stamp on the cache (and hence on all over hard
+            # links). This shouldn't be a problem though.
+            os.utime(dstFilePath, None)
+            return
+
+    # If hardlinking fails for some reason (or it's not enabled), just
+    # fall back to moving bytes around...
+    copyfile(srcFilePath, dstFilePath)
+
 def findCompilerBinary():
     if "CLCACHE_CL" in os.environ:
         path = os.environ["CLCACHE_CL"]
@@ -662,7 +679,9 @@ if cache.hasEntry(cachekey):
         stats.save()
     printTraceStatement("Reusing cached object for key " + cachekey + " for " +
                         "output file " + outputFile)
-    copyfile(cache.cachedObjectName(cachekey), outputFile)
+    if os.path.exists(outputFile):
+        os.remove(outputFile)
+    copyOrLink(cache.cachedObjectName(cachekey), outputFile)
     sys.stdout.write(cache.cachedCompilerOutput(cachekey))
     printTraceStatement("Finished. Exit code 0")
     sys.exit(0)
