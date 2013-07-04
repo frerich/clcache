@@ -41,11 +41,6 @@ import multiprocessing
 import re
 import shlex
 
-def cacheLock(cache):
-    lock = FileLock("x", timeout=2)
-    lock.lockfile = os.path.join(cache.cacheDirectory(), "cache.lock")
-    return lock
-
 class ObjectCache:
     def __init__(self):
         try:
@@ -54,29 +49,35 @@ class ObjectCache:
             self.dir = os.path.join(os.path.expanduser("~"), "clcache")
         if not os.path.exists(self.dir):
             os.makedirs(self.dir)
+        self.lock = FileLock("x", timeout=2)
+        self.lock.lockfile = os.path.join(self.cacheDirectory(), "cache.lock")
+
+    def lock(self):
+        return self.lock
 
     def cacheDirectory(self):
         return self.dir
 
     def clean(self, stats, maximumSize):
-        currentSize = stats.currentCacheSize()
-        if currentSize < maximumSize:
-            return
-
-        objects = [os.path.join(root, "object")
-                   for root, folder, files in os.walk(self.dir)
-                   if "object" in files]
-
-        objectInfos = [(os.stat(fn), fn) for fn in objects]
-        objectInfos.sort(key=lambda t: t[0].st_atime, reverse=True)
-
-        for stat, fn in objectInfos:
-            rmtree(os.path.split(fn)[0])
-            currentSize -= stat.st_size
+        with self.lock:
+            currentSize = stats.currentCacheSize()
             if currentSize < maximumSize:
-                break
+                return
 
-        stats.setCacheSize(currentSize)
+            objects = [os.path.join(root, "object")
+                       for root, folder, files in os.walk(self.dir)
+                       if "object" in files]
+
+            objectInfos = [(os.stat(fn), fn) for fn in objects]
+            objectInfos.sort(key=lambda t: t[0].st_atime, reverse=True)
+
+            for stat, fn in objectInfos:
+                rmtree(os.path.split(fn)[0])
+                currentSize -= stat.st_size
+                if currentSize < maximumSize:
+                    break
+
+            stats.setCacheSize(currentSize)
 
     def computeKey(self, compilerBinary, commandLine):
         ppcmd = [compilerBinary, "/EP"]
@@ -100,13 +101,15 @@ class ObjectCache:
         return sha.hexdigest()
 
     def hasEntry(self, key):
-        return os.path.exists(self.cachedObjectName(key))
+        with self.lock:
+            return os.path.exists(self.cachedObjectName(key))
 
     def setEntry(self, key, objectFileName, compilerOutput):
-        if not os.path.exists(self._cacheEntryDir(key)):
-            os.makedirs(self._cacheEntryDir(key))
-        copyfile(objectFileName, self.cachedObjectName(key))
-        open(self._cachedCompilerOutputName(key), 'w').write(compilerOutput)
+        with self.lock:
+            if not os.path.exists(self._cacheEntryDir(key)):
+                os.makedirs(self._cacheEntryDir(key))
+            copyfile(objectFileName, self.cachedObjectName(key))
+            open(self._cachedCompilerOutputName(key), 'w').write(compilerOutput)
 
     def cachedObjectName(self, key):
         return os.path.join(self._cacheEntryDir(key), "object")
@@ -165,8 +168,9 @@ class Configuration:
     _defaultValues = { "MaximumCacheSize": 1024 * 1024 * 1000 }
 
     def __init__(self, objectCache):
-        self._cfg = PersistentJSONDict(os.path.join(objectCache.cacheDirectory(),
-                                                    "config.txt"))
+        with objectCache.lock:
+            self._cfg = PersistentJSONDict(os.path.join(objectCache.cacheDirectory(),
+                                                        "config.txt"))
         for setting, defaultValue in self._defaultValues.iteritems():
             if not setting in self._cfg:
                 self._cfg[setting] = defaultValue
@@ -178,13 +182,16 @@ class Configuration:
         self._cfg["MaximumCacheSize"] = size
 
     def save(self):
-        self._cfg.save()
+        with objectCache.lock:
+            self._cfg.save()
 
 
 class CacheStatistics:
     def __init__(self, objectCache):
-        self._stats = PersistentJSONDict(os.path.join(objectCache.cacheDirectory(),
-                                                      "stats.txt"))
+        self.objectCache = objectCache
+        with objectCache.lock:
+            self._stats = PersistentJSONDict(os.path.join(objectCache.cacheDirectory(),
+                                                          "stats.txt"))
         for k in ["CallsWithoutSourceFile",
                   "CallsWithMultipleSourceFiles",
                   "CallsWithPch",
@@ -244,7 +251,8 @@ class CacheStatistics:
         self._stats["CacheMisses"] += 1
 
     def save(self):
-        self._stats.save()
+        with self.objectCache.lock:
+            self._stats.save()
 
 class AnalysisResult:
     Ok, NoSourceFile, MultipleSourceFilesSimple, \
@@ -511,9 +519,10 @@ def reinvokePerSourceFile(cmdLine, sourceFiles):
 
 def printStatistics():
     cache = ObjectCache()
-    stats = CacheStatistics(cache)
-    cfg = Configuration(cache)
-    print """clcache statistics:
+    with cache.lock:
+        stats = CacheStatistics(cache)
+        cfg = Configuration(cache)
+        print """clcache statistics:
   current cache dir        : %s
   cache size               : %d bytes
   maximum cache size       : %d bytes
@@ -524,16 +533,16 @@ def printStatistics():
   called w/o sources       : %d
   calls w/ multiple sources: %d
   calls w/ PCH:              %d""" % (
-       cache.cacheDirectory(),
-       stats.currentCacheSize(),
-       cfg.maximumCacheSize(),
-       stats.numCacheEntries(),
-       stats.numCacheHits(),
-       stats.numCacheMisses(),
-       stats.numCallsForLinking(),
-       stats.numCallsWithoutSourceFile(),
-       stats.numCallsWithMultipleSourceFiles(),
-       stats.numCallsWithPch())
+           cache.cacheDirectory(),
+           stats.currentCacheSize(),
+           cfg.maximumCacheSize(),
+           stats.numCacheEntries(),
+           stats.numCacheHits(),
+           stats.numCacheMisses(),
+           stats.numCallsForLinking(),
+           stats.numCallsWithoutSourceFile(),
+           stats.numCallsWithMultipleSourceFiles(),
+           stats.numCallsWithPch())
 
 if len(sys.argv) == 2 and sys.argv[1] == "--help":
     print """\
@@ -550,9 +559,10 @@ if len(sys.argv) == 2 and sys.argv[1] == "-s":
 
 if len(sys.argv) == 3 and sys.argv[1] == "-M":
     cache = ObjectCache()
-    cfg = Configuration(cache)
-    cfg.setMaximumCacheSize(int(sys.argv[2]))
-    cfg.save()
+    with cache.lock:
+        cfg = Configuration(cache)
+        cfg.setMaximumCacheSize(int(sys.argv[2]))
+        cfg.save()
     sys.exit(0)
 
 compiler = findCompilerBinary()
@@ -576,27 +586,28 @@ if analysisResult == AnalysisResult.MultipleSourceFilesSimple:
 
 cache = ObjectCache()
 stats = CacheStatistics(cache)
-lock = cacheLock(cache)
 if analysisResult != AnalysisResult.Ok:
-    if analysisResult == AnalysisResult.NoSourceFile:
-        printTraceStatement("Cannot cache invocation as %s: no source file found" % (' '.join(cmdLine)) )
-        stats.registerCallWithoutSourceFile()
-    elif analysisResult == AnalysisResult.MultipleSourceFilesComplex:
-        printTraceStatement("Cannot cache invocation as %s: multiple source files found" % (' '.join(cmdLine)) )
-        stats.registerCallWithMultipleSourceFiles()
-    elif analysisResult == AnalysisResult.CalledWithPch:
-        printTraceStatement("Cannot cache invocation as %s: precompiled headers in use" % (' '.join(cmdLine)) )
-        stats.registerCallWithPch()
-    elif analysisResult == AnalysisResult.CalledForLink:
-        printTraceStatement("Cannot cache invocation as %s: called for linking" % (' '.join(cmdLine)) )
-        stats.registerCallForLinking()
-    stats.save()
+    with cache.lock:
+        if analysisResult == AnalysisResult.NoSourceFile:
+            printTraceStatement("Cannot cache invocation as %s: no source file found" % (' '.join(cmdLine)) )
+            stats.registerCallWithoutSourceFile()
+        elif analysisResult == AnalysisResult.MultipleSourceFilesComplex:
+            printTraceStatement("Cannot cache invocation as %s: multiple source files found" % (' '.join(cmdLine)) )
+            stats.registerCallWithMultipleSourceFiles()
+        elif analysisResult == AnalysisResult.CalledWithPch:
+            printTraceStatement("Cannot cache invocation as %s: precompiled headers in use" % (' '.join(cmdLine)) )
+            stats.registerCallWithPch()
+        elif analysisResult == AnalysisResult.CalledForLink:
+            printTraceStatement("Cannot cache invocation as %s: called for linking" % (' '.join(cmdLine)) )
+            stats.registerCallForLinking()
+        stats.save()
     sys.exit(invokeRealCompiler(compiler, sys.argv[1:])[0])
 
 cachekey = cache.computeKey(compiler, cmdLine)
 if cache.hasEntry(cachekey):
-    stats.registerCacheHit()
-    stats.save()
+    with cache.lock:
+        stats.registerCacheHit()
+        stats.save()
     printTraceStatement("Reusing cached object for key " + cachekey + " for " +
                         "output file " + outputFile)
     copyfile(cache.cachedObjectName(cachekey), outputFile)
@@ -604,16 +615,17 @@ if cache.hasEntry(cachekey):
     printTraceStatement("Finished. Exit code 0")
     sys.exit(0)
 else:
-    stats.registerCacheMiss()
     returnCode, compilerOutput = invokeRealCompiler(compiler, cmdLine, captureOutput=True)
-    if returnCode == 0 and os.path.exists(outputFile):
-        printTraceStatement("Adding file " + outputFile + " to cache using " +
-                            "key " + cachekey)
-        cache.setEntry(cachekey, outputFile, compilerOutput)
-        stats.registerCacheEntry(os.path.getsize(outputFile))
-        cfg = Configuration(cache)
-        cache.clean(stats, cfg.maximumCacheSize())
-    stats.save()
+    with cache.lock:
+        stats.registerCacheMiss()
+        if returnCode == 0 and os.path.exists(outputFile):
+            printTraceStatement("Adding file " + outputFile + " to cache using " +
+                                "key " + cachekey)
+            cache.setEntry(cachekey, outputFile, compilerOutput)
+            stats.registerCacheEntry(os.path.getsize(outputFile))
+            cfg = Configuration(cache)
+            cache.clean(stats, cfg.maximumCacheSize())
+        stats.save()
     sys.stdout.write(compilerOutput)
     printTraceStatement("Finished. Exit code %d" % returnCode)
     sys.exit(returnCode)
