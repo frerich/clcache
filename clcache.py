@@ -260,14 +260,22 @@ class AnalysisResult:
         CalledWithPch = range(6)
 
 def findCompilerBinary():
-    try:
+    if "CLCACHE_CL" in os.environ:
         path = os.environ["CLCACHE_CL"]
+        return path if os.path.exists(path) else None
+
+    frozenByPy2Exe = hasattr(sys, "frozen")
+    if frozenByPy2Exe:
+        myExecutablePath = unicode(sys.executable, sys.getfilesystemencoding())
+
+    for dir in os.environ["PATH"].split(os.pathsep):
+        path = os.path.join(dir, "cl.exe")
         if os.path.exists(path):
-            return path
-    except KeyError:
-        for dir in os.environ["PATH"].split(os.pathsep):
-            path = os.path.join(dir, "cl.exe")
-            if os.path.exists(path):
+            if not frozenByPy2Exe:
+                return path
+
+            # Guard against recursively calling ourselves
+            if path != myExecutablePath:
                 return path
     return None
 
