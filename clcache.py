@@ -311,7 +311,7 @@ def expandCommandLine(cmdline):
 
             includeFileContents = rawBytes.decode(encoding) if encoding is not None else rawBytes
 
-            ret.extend(expandCommandLine(shlex.split(includeFileContents)))
+            ret.extend(expandCommandLine(shlex.split(includeFileContents, posix=False)))
         else:
             ret.append(arg)
 
