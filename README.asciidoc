@@ -15,15 +15,21 @@ relay the invocation to the real 'cl.exe' program.
 Installation
 ~~~~~~~~~~~~
 
-Create a wrapper batch file called 'cl.bat' and put it into a directory
-which comes first in the +PATH+. In my case, I put the batch file into
-'%HOME%\bin' and prepended that directory to the +PATH+. The batch
-file should simply call the Python script, forwarding all the arguments.
-Here's what I use:
+The source code comes with a small http://www.py2exe.org/[py2exe] script which
+makes it easy to compile the Python code into an executable. You can generate
+an executable on your system by running
 
- @C:\Python26\python.exe C:\clcache\clcache.py %*
+    python setup.py py2exe
 
-This way, simply running `cl` will invoke the script instead of the real
+This will put the resulting binary and all the dependencies into a 'dist\\'
+subdirectory.  You could then tell your build system to use 'clcache.exe' as
+the compiler binary, or you could rename 'clcache.exe' to 'cl.exe' and put it
+into a directory which comes first in the +PATH+. In my case, I went for the
+latter solution; I put the 'cl.exe' binary into '%HOME%\bin' and prepended that
+directory to the +PATH+.  The 'cl.exe' wrapper binary will notice that it was
+renamed and forward all the arguments to the real compiler executable.
+
+This way, simply running 'cl' will invoke the script instead of the real
 compiler.
 
 Options
