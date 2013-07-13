@@ -510,8 +510,8 @@ def waitForAnyProcess(procs):
     out = [p for p in procs if p.poll() != None]
     if len(out) >= 1:
         out = out[0]
-	procs.remove(out)
-	return out
+        procs.remove(out)
+        return out
 
     # Damn, none finished yet.
     # Do a blocking wait for the first one.
