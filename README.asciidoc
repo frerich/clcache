@@ -40,6 +40,10 @@ Options
 -s::
     Print some statistics about the cache (cache hits, cache misses, cache
     size etc.)
+-z::
+    Reset the cache statistics, i.e. number of cache hits, cache misses etc..
+    Doesn't actually clear the cache, so the number of cached objects and the
+    cache size will remain unchanged.
 -M <size>::
     Sets the maximum size of the cache in bytes. The default is 1048576000
     Bytes.
