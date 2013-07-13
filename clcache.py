@@ -96,9 +96,6 @@ class ObjectCache:
         lockName = self.cacheDirectory().replace(':', '-').replace('\\', '-')
         self.lock = ObjectCacheLock(lockName, 10 * 1000)
 
-    def lock(self):
-        return self.lock
-
     def cacheDirectory(self):
         return self.dir
 
