@@ -213,6 +213,7 @@ class Configuration:
     _defaultValues = { "MaximumCacheSize": 1024 * 1024 * 1000 }
 
     def __init__(self, objectCache):
+        self._objectCache = objectCache
         with objectCache.lock:
             self._cfg = PersistentJSONDict(os.path.join(objectCache.cacheDirectory(),
                                                         "config.txt"))
@@ -227,7 +228,7 @@ class Configuration:
         self._cfg["MaximumCacheSize"] = size
 
     def save(self):
-        with objectCache.lock:
+        with self._objectCache.lock:
             self._cfg.save()
 
 
