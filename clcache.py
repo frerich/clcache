@@ -146,7 +146,8 @@ class ObjectCache:
         return h.hexdigest()
 
     def hasEntry(self, key):
-        return os.path.exists(self.cachedObjectName(key))
+        with self.lock:
+            return os.path.exists(self.cachedObjectName(key))
 
     def setEntry(self, key, objectFileName, compilerOutput):
         with self.lock:
