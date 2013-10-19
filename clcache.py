@@ -635,97 +635,101 @@ def resetStatistics():
         stats.save()
     print 'Statistics reset'
 
-if len(sys.argv) == 2 and sys.argv[1] == "--help":
-    print """\
-clcache.py v2.0.0
-  --help   : show this help
-  -s       : print cache statistics
-  -z       : reset cache statistics
-  -M <size>: set maximum cache size (in bytes)
-"""
-    sys.exit(0)
+def main():
+    if len(sys.argv) == 2 and sys.argv[1] == "--help":
+        print """\
+    clcache.py v2.0.0
+      --help   : show this help
+      -s       : print cache statistics
+      -z       : reset cache statistics
+      -M <size>: set maximum cache size (in bytes)
+    """
+        return 0
 
-if len(sys.argv) == 2 and sys.argv[1] == "-s":
-    printStatistics()
-    sys.exit(0)
+    if len(sys.argv) == 2 and sys.argv[1] == "-s":
+        printStatistics()
+        return 0
 
-if len(sys.argv) == 2 and sys.argv[1] == "-z":
-    resetStatistics()
-    sys.exit(0)
+    if len(sys.argv) == 2 and sys.argv[1] == "-z":
+        resetStatistics()
+        return 0
 
-if len(sys.argv) == 3 and sys.argv[1] == "-M":
-    cache = ObjectCache()
-    with cache.lock:
-        cfg = Configuration(cache)
-        cfg.setMaximumCacheSize(int(sys.argv[2]))
-        cfg.save()
-    sys.exit(0)
-
-compiler = findCompilerBinary()
-if not compiler:
-    print "Failed to locate cl.exe on PATH (and CLCACHE_CL is not set), aborting."
-    sys.exit(1)
-
-printTraceStatement("Found real compiler binary at '%s'" % compiler)
-
-if "CLCACHE_DISABLE" in os.environ:
-    sys.exit(invokeRealCompiler(compiler, sys.argv[1:])[0])
-
-printTraceStatement("Parsing given commandline '%s'" % sys.argv[1:] )
-
-cmdLine = expandCommandLine(sys.argv[1:])
-printTraceStatement("Expanded commandline '%s'" % cmdLine )
-analysisResult, sourceFile, outputFile = analyzeCommandLine(cmdLine)
-
-if analysisResult == AnalysisResult.MultipleSourceFilesSimple:
-    sys.exit(reinvokePerSourceFile(cmdLine, sourceFile))
-
-cache = ObjectCache()
-stats = CacheStatistics(cache)
-if analysisResult != AnalysisResult.Ok:
-    with cache.lock:
-        if analysisResult == AnalysisResult.NoSourceFile:
-            printTraceStatement("Cannot cache invocation as %s: no source file found" % (' '.join(cmdLine)) )
-            stats.registerCallWithoutSourceFile()
-        elif analysisResult == AnalysisResult.MultipleSourceFilesComplex:
-            printTraceStatement("Cannot cache invocation as %s: multiple source files found" % (' '.join(cmdLine)) )
-            stats.registerCallWithMultipleSourceFiles()
-        elif analysisResult == AnalysisResult.CalledWithPch:
-            printTraceStatement("Cannot cache invocation as %s: precompiled headers in use" % (' '.join(cmdLine)) )
-            stats.registerCallWithPch()
-        elif analysisResult == AnalysisResult.CalledForLink:
-            printTraceStatement("Cannot cache invocation as %s: called for linking" % (' '.join(cmdLine)) )
-            stats.registerCallForLinking()
-        elif analysisResult == AnalysisResult.ExternalDebugInfo:
-            printTraceStatement("Cannot cache invocation as %s: external debug information (/Zi) is not supported" % (' '.join(cmdLine)) )
-        stats.save()
-    sys.exit(invokeRealCompiler(compiler, sys.argv[1:])[0])
-
-cachekey = cache.computeKey(compiler, cmdLine)
-if cache.hasEntry(cachekey):
-    with cache.lock:
-        stats.registerCacheHit()
-        stats.save()
-    printTraceStatement("Reusing cached object for key " + cachekey + " for " +
-                        "output file " + outputFile)
-    if os.path.exists(outputFile):
-        os.remove(outputFile)
-    copyOrLink(cache.cachedObjectName(cachekey), outputFile)
-    sys.stdout.write(cache.cachedCompilerOutput(cachekey))
-    printTraceStatement("Finished. Exit code 0")
-    sys.exit(0)
-else:
-    returnCode, compilerOutput = invokeRealCompiler(compiler, cmdLine, captureOutput=True)
-    with cache.lock:
-        stats.registerCacheMiss()
-        if returnCode == 0 and os.path.exists(outputFile):
-            printTraceStatement("Adding file " + outputFile + " to cache using " +
-                                "key " + cachekey)
-            cache.setEntry(cachekey, outputFile, compilerOutput)
-            stats.registerCacheEntry(os.path.getsize(outputFile))
+    if len(sys.argv) == 3 and sys.argv[1] == "-M":
+        cache = ObjectCache()
+        with cache.lock:
             cfg = Configuration(cache)
-            cache.clean(stats, cfg.maximumCacheSize())
-        stats.save()
-    sys.stdout.write(compilerOutput)
-    printTraceStatement("Finished. Exit code %d" % returnCode)
-    sys.exit(returnCode)
+            cfg.setMaximumCacheSize(int(sys.argv[2]))
+            cfg.save()
+        return 0
+
+    compiler = findCompilerBinary()
+    if not compiler:
+        print "Failed to locate cl.exe on PATH (and CLCACHE_CL is not set), aborting."
+        return 1
+
+    printTraceStatement("Found real compiler binary at '%s'" % compiler)
+
+    if "CLCACHE_DISABLE" in os.environ:
+        return invokeRealCompiler(compiler, sys.argv[1:])[0]
+
+    printTraceStatement("Parsing given commandline '%s'" % sys.argv[1:] )
+
+    cmdLine = expandCommandLine(sys.argv[1:])
+    printTraceStatement("Expanded commandline '%s'" % cmdLine )
+    analysisResult, sourceFile, outputFile = analyzeCommandLine(cmdLine)
+
+    if analysisResult == AnalysisResult.MultipleSourceFilesSimple:
+        return reinvokePerSourceFile(cmdLine, sourceFile)
+
+    cache = ObjectCache()
+    stats = CacheStatistics(cache)
+    if analysisResult != AnalysisResult.Ok:
+        with cache.lock:
+            if analysisResult == AnalysisResult.NoSourceFile:
+                printTraceStatement("Cannot cache invocation as %s: no source file found" % (' '.join(cmdLine)) )
+                stats.registerCallWithoutSourceFile()
+            elif analysisResult == AnalysisResult.MultipleSourceFilesComplex:
+                printTraceStatement("Cannot cache invocation as %s: multiple source files found" % (' '.join(cmdLine)) )
+                stats.registerCallWithMultipleSourceFiles()
+            elif analysisResult == AnalysisResult.CalledWithPch:
+                printTraceStatement("Cannot cache invocation as %s: precompiled headers in use" % (' '.join(cmdLine)) )
+                stats.registerCallWithPch()
+            elif analysisResult == AnalysisResult.CalledForLink:
+                printTraceStatement("Cannot cache invocation as %s: called for linking" % (' '.join(cmdLine)) )
+                stats.registerCallForLinking()
+            elif analysisResult == AnalysisResult.ExternalDebugInfo:
+                printTraceStatement("Cannot cache invocation as %s: external debug information (/Zi) is not supported" % (' '.join(cmdLine)) )
+            stats.save()
+        sys.exit(invokeRealCompiler(compiler, sys.argv[1:])[0])
+
+    cachekey = cache.computeKey(compiler, cmdLine)
+    if cache.hasEntry(cachekey):
+        with cache.lock:
+            stats.registerCacheHit()
+            stats.save()
+        printTraceStatement("Reusing cached object for key " + cachekey + " for " +
+                            "output file " + outputFile)
+        if os.path.exists(outputFile):
+            os.remove(outputFile)
+        copyOrLink(cache.cachedObjectName(cachekey), outputFile)
+        sys.stdout.write(cache.cachedCompilerOutput(cachekey))
+        printTraceStatement("Finished. Exit code 0")
+        sys.exit(0)
+    else:
+        returnCode, compilerOutput = invokeRealCompiler(compiler, cmdLine, captureOutput=True)
+        with cache.lock:
+            stats.registerCacheMiss()
+            if returnCode == 0 and os.path.exists(outputFile):
+                printTraceStatement("Adding file " + outputFile + " to cache using " +
+                                    "key " + cachekey)
+                cache.setEntry(cachekey, outputFile, compilerOutput)
+                stats.registerCacheEntry(os.path.getsize(outputFile))
+                cfg = Configuration(cache)
+                cache.clean(stats, cfg.maximumCacheSize())
+            stats.save()
+        sys.stdout.write(compilerOutput)
+        printTraceStatement("Finished. Exit code %d" % returnCode)
+        return returnCode
+
+if __name__ == '__main__':
+    sys.exit(main())
