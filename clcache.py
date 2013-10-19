@@ -356,6 +356,9 @@ def printTraceStatement(msg):
         script_dir = os.path.realpath(os.path.dirname(sys.argv[0]))
         print os.path.join(script_dir, "clcache.py") + " " + msg
 
+def splitCommandsFile(includeFileContents):
+    return shlex.split(includeFileContents, posix=False)
+
 def expandCommandLine(cmdline):
     ret = []
 
@@ -382,7 +385,7 @@ def expandCommandLine(cmdline):
 
             includeFileContents = rawBytes.decode(encoding) if encoding is not None else rawBytes
 
-            ret.extend(expandCommandLine(shlex.split(includeFileContents, posix=False)))
+            ret.extend(expandCommandLine(splitCommandsFile(includeFileContents)))
         else:
             ret.append(arg)
 
