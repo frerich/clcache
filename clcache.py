@@ -39,7 +39,6 @@ from subprocess import Popen, PIPE, STDOUT
 import sys
 import multiprocessing
 import re
-import shlex
 
 class ObjectCacheLockException(Exception):
     pass
@@ -356,8 +355,38 @@ def printTraceStatement(msg):
         script_dir = os.path.realpath(os.path.dirname(sys.argv[0]))
         print os.path.join(script_dir, "clcache.py") + " " + msg
 
-def splitCommandsFile(includeFileContents):
-    return shlex.split(includeFileContents, posix=False)
+def extractArgument(line, start, end):
+    # If there are quotes from both sides of argument, remove them
+    # "-Isome path" must becomse -Isome path
+    if line[start] == '"' and line[end-1] == '"' and start != (end-1):
+        start += 1
+        end -= 1
+    # Unescape quotes.
+    return line[start:end].replace('\\"','"')
+
+def splitCommandsFile(line):
+    # Note, we must treat lines in quotes as one argument. We do not use shlex
+    # since seems it difficult to set up it to correctly parse escaped quotes.
+    # A good test line to split is
+    # '"-IC:\\Program files\\Some library" -DX=1 -DVERSION=\\"1.0\\"
+    # -I..\\.. -I"..\\..\\lib" -DMYPATH=\\"C:\\Path\\"'
+    i = 0
+    wordStart = -1
+    insideQuotes = False
+    result = []
+    while i < len(line):
+        if line[i] == ' ' and not insideQuotes and wordStart >= 0:
+            result.append(extractArgument(line, wordStart, i))
+            wordStart = -1
+        if line[i] == '"' and ((i == 0) or (i > 0 and line[i - 1] != '\\')):
+            insideQuotes = not insideQuotes
+        if line[i] != ' ' and wordStart < 0:
+            wordStart = i
+        i += 1
+
+    if wordStart >= 0:
+        result.append(extractArgument(line, wordStart, len(line)))
+    return result
 
 def expandCommandLine(cmdline):
     ret = []
