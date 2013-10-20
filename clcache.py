@@ -138,12 +138,12 @@ class ObjectCache:
         normalizedCmdLine = self._normalizedCommandLine(commandLine)
 
         stat = os.stat(compilerBinary)
-        sha = hashlib.sha1()
-        sha.update(str(stat.st_mtime))
-        sha.update(str(stat.st_size))
-        sha.update(' '.join(normalizedCmdLine))
-        sha.update(preprocessedSourceCode)
-        return sha.hexdigest()
+        h = hashlib.md5()
+        h.update(str(stat.st_mtime))
+        h.update(str(stat.st_size))
+        h.update(' '.join(normalizedCmdLine))
+        h.update(preprocessedSourceCode)
+        return h.hexdigest()
 
     def hasEntry(self, key):
         with self.lock:
