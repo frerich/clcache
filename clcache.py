@@ -222,7 +222,7 @@ class ObjectCache:
             if not os.path.exists(self._cacheEntryDir(key)):
                 os.makedirs(self._cacheEntryDir(key))
             if objectFileName != '':
-                copyfile(objectFileName, self.cachedObjectName(key))
+                copyOrLink(objectFileName, self.cachedObjectName(key))
             open(self._cachedCompilerOutputName(key), 'w').write(compilerOutput)
             if compilerStderr != '':
                 open(self._cachedCompilerStderrName(key), 'w').write(compilerStderr)
