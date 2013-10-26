@@ -40,6 +40,8 @@ import sys
 import multiprocessing
 import re
 
+HASH_ALGORITHM = hashlib.md5
+
 class ObjectCacheLockException(Exception):
     pass
 
@@ -137,7 +139,7 @@ class ObjectCache:
         normalizedCmdLine = self._normalizedCommandLine(commandLine)
 
         stat = os.stat(compilerBinary)
-        h = hashlib.md5()
+        h = HASH_ALGORITHM()
         h.update(str(stat.st_mtime))
         h.update(str(stat.st_size))
         h.update(' '.join(normalizedCmdLine))
