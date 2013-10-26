@@ -70,6 +70,16 @@ CLCACHE_HARDLINK::
     will be created. This is more efficient (faster, and uses less disk space)
     but doesn't work if the cache directory is on a different drive than the
     build directory.
+CLCACHE_NODIRECT::
+    Disable direct mode. If this variable is set, clcache will always run
+    preprocessor on source file and will hash preprocessor output to get cache
+    key. Use this if you experience problems with direct mode or if you need
+    built-in macroses like \__TIME__ to work correctly.
+CLCACHE_BASEDIR::
+    Has effect only when direct mode is on. Set this to path to root directory
+    of your project. This allows clcache to cache relative paths, so if you
+    move your project to different directory, clcache will produce cache hits as
+    before.
 
 How clcache works
 ~~~~~~~~~~~~~~~~~
