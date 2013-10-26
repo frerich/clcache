@@ -148,14 +148,17 @@ class ObjectCache:
 
     def hasEntry(self, key):
         with self.lock:
-            return os.path.exists(self.cachedObjectName(key))
+            return os.path.exists(self.cachedObjectName(key)) or os.path.exists(self._cachedCompilerOutputName(key))
 
-    def setEntry(self, key, objectFileName, compilerOutput):
+    def setEntry(self, key, objectFileName, compilerOutput, compilerStderr):
         with self.lock:
             if not os.path.exists(self._cacheEntryDir(key)):
                 os.makedirs(self._cacheEntryDir(key))
-            copyfile(objectFileName, self.cachedObjectName(key))
+            if objectFileName != '':
+                copyfile(objectFileName, self.cachedObjectName(key))
             open(self._cachedCompilerOutputName(key), 'w').write(compilerOutput)
+            if compilerStderr != '':
+                open(self._cachedCompilerStderrName(key), 'w').write(compilerStderr)
 
     def cachedObjectName(self, key):
         return os.path.join(self._cacheEntryDir(key), "object")
@@ -163,11 +166,20 @@ class ObjectCache:
     def cachedCompilerOutput(self, key):
         return open(self._cachedCompilerOutputName(key), 'r').read()
 
+    def cachedCompilerStderr(self, key):
+        fileName = self._cachedCompilerStderrName(key)
+        if os.path.exists(fileName):
+            return open(fileName, 'r').read()
+        return ''
+
     def _cacheEntryDir(self, key):
         return os.path.join(self.dir, key[:2], key)
 
     def _cachedCompilerOutputName(self, key):
         return os.path.join(self._cacheEntryDir(key), "output.txt")
+
+    def _cachedCompilerStderrName(self, key):
+        return os.path.join(self._cacheEntryDir(key), "stderr.txt")
 
     def _normalizedCommandLine(self, cmdline):
         # Remove all arguments from the command line which only influence the
@@ -429,7 +441,7 @@ def parseCommandLine(cmdline):
                             'D', 'U', 'I', 'Zp', 'vm',
                             'MP', 'Tc', 'V', 'wd', 'wo',
                             'W', 'Yc', 'Yl', 'Tp', 'we',
-                            'Yu', 'Zm', 'F']
+                            'Yu', 'Zm', 'F', 'Fi']
     options = defaultdict(list)
     responseFile = ""
     sourceFiles = []
@@ -484,7 +496,14 @@ def analyzeCommandLine(cmdline):
         sourceFiles += options['Tc']
         compl = True
 
-    if 'link' in options or not 'c' in options:
+    preprocessing = False
+
+    for opt in ['E', 'EP', 'P']:
+        if opt in options:
+            preprocessing = True
+            break
+
+    if 'link' in options or (not 'c' in options and not preprocessing):
         return AnalysisResult.CalledForLink, None, None
 
     if len(sourceFiles) == 0:
@@ -503,6 +522,19 @@ def analyzeCommandLine(cmdline):
             srcFileName = os.path.basename(sourceFiles[0])
             outputFile = os.path.join(outputFile,
                                       os.path.splitext(srcFileName)[0] + ".obj")
+    elif preprocessing:
+        if 'P' in options:
+            # Prerpocess to file.
+            if 'Fi' in options:
+                outputFile = options['Fi'][0]
+            else:
+                srcFileName = os.path.basename(sourceFiles[0])
+                outputFile = os.path.join(os.getcwd(),
+                                          os.path.splitext(srcFileName)[0] + ".i")
+        else:
+            # Prerocess to stdout. Use empty string rather then None to ease
+            # output to log.
+            outputFile = ''
     else:
         srcFileName = os.path.basename(sourceFiles[0])
         outputFile = os.path.join(os.getcwd(),
@@ -523,16 +555,17 @@ def invokeRealCompiler(compilerBinary, cmdLine, captureOutput=False):
     printTraceStatement("Invoking real compiler as '%s'" % ' '.join(realCmdline))
 
     returnCode = None
-    output = None
+    stdout = None
+    stderr = None
     if captureOutput:
-        compilerProcess = Popen(realCmdline, universal_newlines=True, stdout=PIPE, stderr=STDOUT)
-        output = compilerProcess.communicate()[0]
+        compilerProcess = Popen(realCmdline, universal_newlines=True, stdout=PIPE, stderr=PIPE)
+        stdout, stderr = compilerProcess.communicate()[0]
         returnCode = compilerProcess.returncode
     else:
         returnCode = subprocess.call(realCmdline, universal_newlines=True)
 
     printTraceStatement("Real compiler returned code %d" % returnCode)
-    return returnCode, output
+    return returnCode, stdout, stderr
 
 # Given a list of Popen objects, removes and returns
 # a completed Popen object.
@@ -734,7 +767,7 @@ def main():
             elif analysisResult == AnalysisResult.ExternalDebugInfo:
                 printTraceStatement("Cannot cache invocation as %s: external debug information (/Zi) is not supported" % (' '.join(cmdLine)) )
             stats.save()
-        sys.exit(invokeRealCompiler(compiler, sys.argv[1:])[0])
+        return invokeRealCompiler(compiler, sys.argv[1:])[0]
 
     cachekey = cache.computeKey(compiler, cmdLine)
     if cache.hasEntry(cachekey):
@@ -747,21 +780,23 @@ def main():
             os.remove(outputFile)
         copyOrLink(cache.cachedObjectName(cachekey), outputFile)
         sys.stdout.write(cache.cachedCompilerOutput(cachekey))
+        sys.stderr.write(cache.cachedCompilerStderr(cachekey))
         printTraceStatement("Finished. Exit code 0")
-        sys.exit(0)
+        return 0
     else:
-        returnCode, compilerOutput = invokeRealCompiler(compiler, cmdLine, captureOutput=True)
+        returnCode, compilerStdout, compilerStderr = invokeRealCompiler(compiler, cmdLine, captureOutput=True)
         with cache.lock:
             stats.registerCacheMiss()
             if returnCode == 0 and os.path.exists(outputFile):
                 printTraceStatement("Adding file " + outputFile + " to cache using " +
                                     "key " + cachekey)
-                cache.setEntry(cachekey, outputFile, compilerOutput)
+                cache.setEntry(cachekey, outputFile, compilerStdout, compilerStderr)
                 stats.registerCacheEntry(os.path.getsize(outputFile))
                 cfg = Configuration(cache)
                 cache.clean(stats, cfg.maximumCacheSize())
             stats.save()
-        sys.stdout.write(compilerOutput)
+        sys.stdout.write(compilerStdout)
+        sys.stderr.write(compilerStderr)
         printTraceStatement("Finished. Exit code %d" % returnCode)
         return returnCode
 
