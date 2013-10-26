@@ -117,6 +117,12 @@ class ObjectCache:
             self.dir = os.path.join(os.path.expanduser("~"), "clcache")
         if not os.path.exists(self.dir):
             os.makedirs(self.dir)
+        self.manifestsDir = os.path.join(self.dir, "manifests")
+        if not os.path.exists(self.manifestsDir):
+            os.makedirs(self.manifestsDir)
+        self.objectsDir = os.path.join(self.dir, "objects")
+        if not os.path.exists(self.objectsDir):
+            os.makedirs(self.objectsDir)
         lockName = self.cacheDirectory().replace(':', '-').replace('\\', '-')
         self.lock = ObjectCacheLock(lockName, 10 * 1000)
 
@@ -134,7 +140,7 @@ class ObjectCache:
             effectiveMaximumSize = maximumSize * 0.9
 
             objects = [os.path.join(root, "object")
-                       for root, folder, files in os.walk(self.dir)
+                       for root, folder, files in os.walk(self.objectsDir)
                        if "object" in files]
 
             objectInfos = [(os.stat(fn), fn) for fn in objects]
@@ -223,8 +229,8 @@ class ObjectCache:
 
     def setManifest(self, manifestHash, manifest):
         with self.lock:
-            if not os.path.exists(self._cacheEntryDir(manifestHash)):
-                os.makedirs(self._cacheEntryDir(manifestHash))
+            if not os.path.exists(self._manifestDir(manifestHash)):
+                os.makedirs(self._manifestDir(manifestHash))
             with open(self._manifestName(manifestHash), 'wb') as outFile:
                 pickle.dump(manifest, outFile)
 
@@ -253,7 +259,13 @@ class ObjectCache:
         return ''
 
     def _cacheEntryDir(self, key):
-        return os.path.join(self.dir, key[:2], key)
+        return os.path.join(self.objectsDir, key[:2], key)
+
+    def _manifestDir(self, manifestHash):
+        return os.path.join(self.manifestsDir, manifestHash[:2])
+
+    def _manifestName(self, manifestHash):
+        return os.path.join(self._manifestDir(manifestHash), manifestHash + ".dat")
 
     def _cachedCompilerOutputName(self, key):
         return os.path.join(self._cacheEntryDir(key), "output.txt")
