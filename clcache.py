@@ -956,7 +956,7 @@ def processNoManifestMiss(stats, cache, outputFile, manifestHash, baseDir, compi
 def main():
     if len(sys.argv) == 2 and sys.argv[1] == "--help":
         print """\
-    clcache.py v2.0.0
+    clcache.py v3.0.0
       --help   : show this help
       -s       : print cache statistics
       -z       : reset cache statistics
