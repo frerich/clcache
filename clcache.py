@@ -695,8 +695,8 @@ def invokeRealCompiler(compilerBinary, cmdLine, captureOutput=False):
     printTraceStatement("Invoking real compiler as '%s'" % ' '.join(realCmdline))
 
     returnCode = None
-    stdout = None
-    stderr = None
+    stdout = ''
+    stderr = ''
     if captureOutput:
         compilerProcess = Popen(realCmdline, universal_newlines=True, stdout=PIPE, stderr=PIPE)
         stdout, stderr = compilerProcess.communicate()
