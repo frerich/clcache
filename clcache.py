@@ -937,7 +937,7 @@ def processNoManifestMiss(stats, cache, outputFile, manifestHash, baseDir, compi
             grabStderr = True
             break
     if grabStderr:
-        listOfIncludes, compilerStderr = getIncludes(compilerError, sourceFile, baseDir, stripIncludes)
+        listOfIncludes, compilerStderr = getIncludes(compilerStderr, sourceFile, baseDir, stripIncludes)
     else:
         listOfIncludes, compilerOutput = getIncludes(compilerOutput, sourceFile, baseDir, stripIncludes)
     manifest = Manifest(listOfIncludes, {})
