@@ -490,7 +490,7 @@ def findCompilerBinary():
 
     frozenByPy2Exe = hasattr(sys, "frozen")
     if frozenByPy2Exe:
-        myExecutablePath = unicode(sys.executable, sys.getfilesystemencoding())
+        myExecutablePath = unicode(sys.executable, sys.getfilesystemencoding()).upper()
 
     for dir in os.environ["PATH"].split(os.pathsep):
         path = os.path.join(dir, "cl.exe")
@@ -499,7 +499,7 @@ def findCompilerBinary():
                 return path
 
             # Guard against recursively calling ourselves
-            if path != myExecutablePath:
+            if path.upper() != myExecutablePath:
                 return path
     return None
 
