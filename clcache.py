@@ -853,7 +853,7 @@ def resetStatistics():
 # Output changes if strip is True in that case all lines with include
 # directives are stripped from it
 def getIncludes(compilerOutput, sourceFile, baseDir, strip):
-    newOutput = ''
+    newOutput = []
     includesSet = set([])
     reFilePath = re.compile('^Note: including file: *(?P<file_path>.+)$')
     absSourceFile = os.path.normcase(os.path.abspath(sourceFile))
@@ -869,9 +869,9 @@ def getIncludes(compilerOutput, sourceFile, baseDir, strip):
                     filePath = filePath.replace(baseDir, BASEDIR_REPLACEMENT, 1)
                 includesSet.add(filePath)
         elif strip:
-            newOutput += line
+            newOutput.append(line)
     if strip:
-        return list(includesSet), newOutput
+        return list(includesSet), '\n'.join(newOutput)
     else:
         return list(includesSet), compilerOutput
 
