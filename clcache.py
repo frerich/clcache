@@ -516,7 +516,7 @@ def extractArgument(line, start, end):
         start += 1
         end -= 1
     # Unescape quotes.
-    return line[start:end].replace('\\"','"')
+    return line[start:end].replace('\\"','"').strip()
 
 def splitCommandsFile(line):
     # Note, we must treat lines in quotes as one argument. We do not use shlex
@@ -568,7 +568,7 @@ def expandCommandLine(cmdline):
 
             includeFileContents = rawBytes.decode(encoding) if encoding is not None else rawBytes
 
-            ret.extend(expandCommandLine(splitCommandsFile(includeFileContents)))
+            ret.extend(expandCommandLine(splitCommandsFile(includeFileContents.strip())))
         else:
             ret.append(arg)
 
