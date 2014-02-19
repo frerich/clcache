@@ -792,7 +792,9 @@ def reinvokePerSourceFile(cmdLine, sourceFiles):
     commands = []
     for sourceFile in sourceFiles:
         # The child command consists of clcache.py ...
-        newCmdLine = [sys.executable, sys.argv[0]]
+        newCmdLine = [sys.executable]
+        if not hasattr(sys, "frozen"):
+            newCmdLine.append(sys.argv[0])
 
         for arg in cmdLine:
             # and the current source file ...
