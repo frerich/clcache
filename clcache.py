@@ -516,7 +516,7 @@ def extractArgument(line, start, end):
         start += 1
         end -= 1
     # Unescape quotes.
-    return line[start:end].replace('\\"','"')
+    return line[start:end].replace('\\"','"').strip()
 
 def splitCommandsFile(line):
     # Note, we must treat lines in quotes as one argument. We do not use shlex
@@ -568,7 +568,7 @@ def expandCommandLine(cmdline):
 
             includeFileContents = rawBytes.decode(encoding) if encoding is not None else rawBytes
 
-            ret.extend(expandCommandLine(splitCommandsFile(includeFileContents)))
+            ret.extend(expandCommandLine(splitCommandsFile(includeFileContents.strip())))
         else:
             ret.append(arg)
 
@@ -792,7 +792,9 @@ def reinvokePerSourceFile(cmdLine, sourceFiles):
     commands = []
     for sourceFile in sourceFiles:
         # The child command consists of clcache.py ...
-        newCmdLine = [sys.executable, sys.argv[0]]
+        newCmdLine = [sys.executable]
+        if not hasattr(sys, "frozen"):
+            newCmdLine.append(sys.argv[0])
 
         for arg in cmdLine:
             # and the current source file ...
