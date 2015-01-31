@@ -36,7 +36,7 @@ import json
 import os
 from shutil import copyfile, rmtree
 import subprocess
-from subprocess import Popen, PIPE, STDOUT
+from subprocess import Popen, PIPE
 import sys
 import multiprocessing
 import re
@@ -782,7 +782,6 @@ def jobCount(cmdLine):
 # Aborts on first failure and returns the first non-zero exit code.
 def runJobs(commands, j=1):
     running = []
-    returncode = 0
 
     while len(commands):
 
