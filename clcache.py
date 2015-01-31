@@ -58,8 +58,10 @@ BASEDIR_REPLACEMENT = '?'
 # Value - key in the cache, under which output file is stored.
 Manifest = namedtuple('Manifest', ['includeFiles', 'hashes'])
 
+
 class ObjectCacheLockException(Exception):
     pass
+
 
 class LogicException(Exception):
     def __init__(self, message):
@@ -67,6 +69,7 @@ class LogicException(Exception):
 
     def __str__(self):
         return repr(self.message)
+
 
 class ObjectCacheLock:
     """ Implements a lock for the object cache which
@@ -99,7 +102,7 @@ class ObjectCacheLock:
         result = windll.kernel32.WaitForSingleObject(
             self._mutex, wintypes.c_int(self._timeoutMs))
         if result != 0 and result != WAIT_ABANDONED:
-            errorString ='Error! WaitForSingleObject returns {result}, last error {error}'.format(
+            errorString = 'Error! WaitForSingleObject returns {result}, last error {error}'.format(
                 result=result,
                 error=windll.kernel32.GetLastError())
             raise ObjectCacheLockException(errorString)
@@ -108,6 +111,7 @@ class ObjectCacheLock:
     def release(self):
         windll.kernel32.ReleaseMutex(self._mutex)
         self._acquired = False
+
 
 class ObjectCache:
     def __init__(self):
@@ -289,6 +293,7 @@ class ObjectCache:
         return [arg for arg in cmdline
                 if not (arg[0] in "/-" and arg[1:].startswith(_argsToStrip))]
 
+
 class PersistentJSONDict:
     def __init__(self, fileName):
         self._dirty = False
@@ -315,7 +320,7 @@ class PersistentJSONDict:
 
 
 class Configuration:
-    _defaultValues = { "MaximumCacheSize": 1024 * 1024 * 1000 }
+    _defaultValues = {"MaximumCacheSize": 1024 * 1024 * 1000}
 
     def __init__(self, objectCache):
         self._objectCache = objectCache
@@ -438,18 +443,21 @@ class CacheStatistics:
         with self.objectCache.lock:
             self._stats.save()
 
+
 class AnalysisResult:
     Ok, NoSourceFile, MultipleSourceFilesSimple, \
         MultipleSourceFilesComplex, CalledForLink, \
         CalledWithPch, ExternalDebugInfo = range(7)
 
-def getFileHash(filePath, additionalData = None):
+
+def getFileHash(filePath, additionalData=None):
     hasher = HASH_ALGORITHM()
     with open(filePath, 'rb') as inFile:
         hasher.update(inFile.read())
     if additionalData is not None:
         hasher.update(additionalData)
     return hasher.hexdigest()
+
 
 def getRelFileHash(filePath, baseDir):
     absFilePath = filePath
@@ -461,10 +469,12 @@ def getRelFileHash(filePath, baseDir):
         return None
     return getFileHash(absFilePath)
 
+
 def getHash(data):
     hasher = HASH_ALGORITHM()
     hasher.update(data)
     return hasher.hexdigest()
+
 
 def copyOrLink(srcFilePath, dstFilePath):
     if "CLCACHE_HARDLINK" in os.environ:
@@ -482,6 +492,7 @@ def copyOrLink(srcFilePath, dstFilePath):
     # If hardlinking fails for some reason (or it's not enabled), just
     # fall back to moving bytes around...
     copyfile(srcFilePath, dstFilePath)
+
 
 def findCompilerBinary():
     if "CLCACHE_CL" in os.environ:
@@ -509,14 +520,16 @@ def printTraceStatement(msg):
         script_dir = os.path.realpath(os.path.dirname(sys.argv[0]))
         print os.path.join(script_dir, "clcache.py") + " " + msg
 
+
 def extractArgument(line, start, end):
     # If there are quotes from both sides of argument, remove them
     # "-Isome path" must becomse -Isome path
-    if line[start] == '"' and line[end-1] == '"' and start != (end-1):
+    if line[start] == '"' and line[end - 1] == '"' and start != (end - 1):
         start += 1
         end -= 1
     # Unescape quotes.
-    return line[start:end].replace('\\"','"').strip()
+    return line[start:end].replace('\\"', '"').strip()
+
 
 def splitCommandsFile(line):
     # Note, we must treat lines in quotes as one argument. We do not use shlex
@@ -541,6 +554,7 @@ def splitCommandsFile(line):
     if wordStart >= 0:
         result.append(extractArgument(line, wordStart, len(line)))
     return result
+
 
 def expandCommandLine(cmdline):
     ret = []
@@ -574,6 +588,7 @@ def expandCommandLine(cmdline):
 
     return ret
 
+
 def parseCommandLine(cmdline):
     optionsWithParameter = ['Ob', 'Gs', 'Fa', 'Fd', 'Fm',
                             'Fp', 'FR', 'doc', 'FA', 'Fe',
@@ -593,13 +608,13 @@ def parseCommandLine(cmdline):
         if arg[0] == '/' or arg[0] == '-':
             isParametrized = False
             for opt in optionsWithParameter:
-                if arg[1:len(opt)+1] == opt:
+                if arg[1:len(opt) + 1] == opt:
                     isParametrized = True
                     key = opt
                     if len(arg) > len(opt) + 1:
-                        value = arg[len(opt)+1:]
+                        value = arg[len(opt) + 1:]
                     else:
-                        value = cmdline[i+1]
+                        value = cmdline[i + 1]
                         i += 1
                     options[key].append(value)
                     break
@@ -618,6 +633,7 @@ def parseCommandLine(cmdline):
         i += 1
 
     return options, responseFile, sourceFiles
+
 
 def analyzeCommandLine(cmdline):
     options, responseFile, sourceFiles = parseCommandLine(cmdline)
@@ -707,6 +723,7 @@ def invokeRealCompiler(compilerBinary, cmdLine, captureOutput=False):
     printTraceStatement("Real compiler returned code %d" % returnCode)
     return returnCode, stdout, stderr
 
+
 # Given a list of Popen objects, removes and returns
 # a completed Popen object.
 #
@@ -727,6 +744,7 @@ def waitForAnyProcess(procs):
     out = procs.pop(0)
     out.wait()
     return out
+
 
 # Returns the amount of jobs which should be run in parallel when
 # invoked in batch mode.
@@ -758,6 +776,7 @@ def jobCount(cmdLine):
     except:
         # not expected to happen
         return 2
+
 
 # Run commands, up to j concurrently.
 # Aborts on first failure and returns the first non-zero exit code.
@@ -809,6 +828,7 @@ def reinvokePerSourceFile(cmdLine, sourceFiles):
 
     return runJobs(commands, jobCount(cmdLine))
 
+
 def printStatistics():
     cache = ObjectCache()
     with cache.lock:
@@ -828,20 +848,20 @@ def printStatistics():
   evicted misses           : %d
   header changed misses    : %d
   source changed misses    : %d
-  """ % (
-           cache.cacheDirectory(),
-           stats.currentCacheSize(),
-           cfg.maximumCacheSize(),
-           stats.numCacheEntries(),
-           stats.numCacheHits(),
-           stats.numCacheMisses(),
-           stats.numCallsForLinking(),
-           stats.numCallsWithoutSourceFile(),
-           stats.numCallsWithMultipleSourceFiles(),
-           stats.numCallsWithPch(),
-           stats.numEvictedMisses(),
-           stats.numHeaderChangedMisses(),
-           stats.numSourceChangedMisses())
+  """ % (cache.cacheDirectory(),
+         stats.currentCacheSize(),
+         cfg.maximumCacheSize(),
+         stats.numCacheEntries(),
+         stats.numCacheHits(),
+         stats.numCacheMisses(),
+         stats.numCallsForLinking(),
+         stats.numCallsWithoutSourceFile(),
+         stats.numCallsWithMultipleSourceFiles(),
+         stats.numCallsWithPch(),
+         stats.numEvictedMisses(),
+         stats.numHeaderChangedMisses(),
+         stats.numSourceChangedMisses())
+
 
 def resetStatistics():
     cache = ObjectCache()
@@ -850,6 +870,7 @@ def resetStatistics():
         stats.resetCounters()
         stats.save()
     print 'Statistics reset'
+
 
 # Returns pair - list of includes and new compiler output.
 # Output changes if strip is True in that case all lines with include
@@ -877,6 +898,7 @@ def getIncludes(compilerOutput, sourceFile, baseDir, strip):
     else:
         return list(includesSet), compilerOutput
 
+
 def addObjectToCache(stats, cache, outputFile, compilerOutput, compilerStderr, cachekey):
     printTraceStatement("Adding file " + outputFile + " to cache using " +
                         "key " + cachekey)
@@ -885,6 +907,7 @@ def addObjectToCache(stats, cache, outputFile, compilerOutput, compilerStderr, c
         stats.registerCacheEntry(os.path.getsize(outputFile))
         cfg = Configuration(cache)
         cache.clean(stats, cfg.maximumCacheSize())
+
 
 def processCacheHit(stats, cache, outputFile, cachekey):
     stats.registerCacheHit()
@@ -900,6 +923,7 @@ def processCacheHit(stats, cache, outputFile, cachekey):
     printTraceStatement("Finished. Exit code 0")
     return 0, compilerOutput, compilerStderr
 
+
 def processObjectEvicted(stats, cache, outputFile, cachekey, compiler, cmdLine):
     stats.registerEvictedMiss()
     printTraceStatement("Cached object already evicted for key " + cachekey + " for " +
@@ -910,6 +934,7 @@ def processObjectEvicted(stats, cache, outputFile, cachekey, compiler, cmdLine):
     stats.save()
     printTraceStatement("Finished. Exit code %d" % returnCode)
     return returnCode, compilerOutput, compilerStderr
+
 
 def processHeaderChangedMiss(stats, cache, outputFile, manifest, manifestHash, keyInManifest, compiler, cmdLine):
     cachekey = cache.getDirectCacheKey(manifestHash, keyInManifest)
@@ -927,6 +952,7 @@ def processHeaderChangedMiss(stats, cache, outputFile, manifest, manifestHash, k
     stats.save()
     printTraceStatement("Finished. Exit code %d" % returnCode)
     return returnCode, compilerOutput, compilerStderr
+
 
 def processNoManifestMiss(stats, cache, outputFile, manifestHash, baseDir, compiler, cmdLine, sourceFile):
     stats.registerSourceChangedMiss()
@@ -954,6 +980,7 @@ def processNoManifestMiss(stats, cache, outputFile, manifestHash, baseDir, compi
     stats.save()
     printTraceStatement("Finished. Exit code %d" % returnCode)
     return returnCode, compilerOutput, compilerStderr
+
 
 def main():
     if len(sys.argv) == 2 and sys.argv[1] == "--help":
@@ -1000,11 +1027,12 @@ def main():
         print e
         return 1
 
+
 def processCompileRequest(compiler, args):
-    printTraceStatement("Parsing given commandline '%s'" % args[1:] )
+    printTraceStatement("Parsing given commandline '%s'" % args[1:])
 
     cmdLine = expandCommandLine(sys.argv[1:])
-    printTraceStatement("Expanded commandline '%s'" % cmdLine )
+    printTraceStatement("Expanded commandline '%s'" % cmdLine)
     analysisResult, sourceFile, outputFile = analyzeCommandLine(cmdLine)
 
     if analysisResult == AnalysisResult.MultipleSourceFilesSimple:
@@ -1015,19 +1043,19 @@ def processCompileRequest(compiler, args):
     if analysisResult != AnalysisResult.Ok:
         with cache.lock:
             if analysisResult == AnalysisResult.NoSourceFile:
-                printTraceStatement("Cannot cache invocation as %s: no source file found" % (' '.join(cmdLine)) )
+                printTraceStatement("Cannot cache invocation as %s: no source file found" % (' '.join(cmdLine)))
                 stats.registerCallWithoutSourceFile()
             elif analysisResult == AnalysisResult.MultipleSourceFilesComplex:
-                printTraceStatement("Cannot cache invocation as %s: multiple source files found" % (' '.join(cmdLine)) )
+                printTraceStatement("Cannot cache invocation as %s: multiple source files found" % (' '.join(cmdLine)))
                 stats.registerCallWithMultipleSourceFiles()
             elif analysisResult == AnalysisResult.CalledWithPch:
-                printTraceStatement("Cannot cache invocation as %s: precompiled headers in use" % (' '.join(cmdLine)) )
+                printTraceStatement("Cannot cache invocation as %s: precompiled headers in use" % (' '.join(cmdLine)))
                 stats.registerCallWithPch()
             elif analysisResult == AnalysisResult.CalledForLink:
-                printTraceStatement("Cannot cache invocation as %s: called for linking" % (' '.join(cmdLine)) )
+                printTraceStatement("Cannot cache invocation as %s: called for linking" % (' '.join(cmdLine)))
                 stats.registerCallForLinking()
             elif analysisResult == AnalysisResult.ExternalDebugInfo:
-                printTraceStatement("Cannot cache invocation as %s: external debug information (/Zi) is not supported" % (' '.join(cmdLine)) )
+                printTraceStatement("Cannot cache invocation as %s: external debug information (/Zi) is not supported" % (' '.join(cmdLine)))
             stats.save()
         return invokeRealCompiler(compiler, args[1:])
     if 'CLCACHE_NODIRECT' in os.environ:
@@ -1058,6 +1086,7 @@ def processCompileRequest(compiler, args):
             return processHeaderChangedMiss(stats, cache, outputFile, manifest, manifestHash, keyInManifest, compiler, cmdLine)
     else:
         return processNoManifestMiss(stats, cache, outputFile, manifestHash, baseDir, compiler, cmdLine, sourceFile)
+
 
 def processNoDirect(stats, cache, compiler, cmdLine):
     cachekey = cache.computeKey(compiler, cmdLine)
