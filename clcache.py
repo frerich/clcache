@@ -184,12 +184,12 @@ class ObjectCache:
         additionalData = '{mtime}{size}{cmdLine}'.format(
             mtime=stat.st_mtime,
             size=stat.st_size,
-            cmdLine=' '.join(commandLine));
+            cmdLine=' '.join(commandLine))
         return getFileHash(sourceFile, additionalData)
 
     def computeKey(self, compilerBinary, commandLine):
         ppcmd = [compilerBinary, "/EP"]
-        ppcmd += [arg for arg in commandLine if not arg in ("-c", "/c")]
+        ppcmd += [arg for arg in commandLine if arg not in ("-c", "/c")]
         preprocessor = Popen(ppcmd, stdout=PIPE, stderr=PIPE)
         (preprocessedSourceCode, pperr) = preprocessor.communicate()
 
@@ -328,7 +328,7 @@ class Configuration:
             self._cfg = PersistentJSONDict(os.path.join(objectCache.cacheDirectory(),
                                                         "config.txt"))
         for setting, defaultValue in self._defaultValues.iteritems():
-            if not setting in self._cfg:
+            if setting not in self._cfg:
                 self._cfg[setting] = defaultValue
 
     def maximumCacheSize(self):
@@ -356,7 +356,7 @@ class CacheStatistics:
                   "CacheHits", "CacheMisses",
                   "EvictedMisses", "HeaderChangedMisses",
                   "SourceChangedMisses"]:
-            if not k in self._stats:
+            if k not in self._stats:
                 self._stats[k] = 0
 
     def numCallsWithoutSourceFile(self):
@@ -659,7 +659,7 @@ def analyzeCommandLine(cmdline):
             preprocessing = True
             break
 
-    if 'link' in options or (not 'c' in options and not preprocessing):
+    if 'link' in options or ('c' not in options and not preprocessing):
         return AnalysisResult.CalledForLink, None, None
 
     if len(sourceFiles) == 0:
@@ -731,7 +731,7 @@ def invokeRealCompiler(compilerBinary, cmdLine, captureOutput=False):
 # to provide any blocking "wait for any process to complete" out of the
 # box.
 def waitForAnyProcess(procs):
-    out = [p for p in procs if p.poll() != None]
+    out = [p for p in procs if p.poll() is not None]
     if len(out) >= 1:
         out = out[0]
         procs.remove(out)
@@ -759,7 +759,7 @@ def jobCount(cmdLine):
 
     switches.extend(cmdLine)
 
-    mp_switch = [switch for switch in switches if re.search(r'^/MP\d+$', switch) != None]
+    mp_switch = [switch for switch in switches if re.search(r'^/MP\d+$', switch) is not None]
     if len(mp_switch) == 0:
         return 1
 
@@ -820,7 +820,7 @@ def reinvokePerSourceFile(cmdLine, sourceFiles):
             if arg == sourceFile:
                 newCmdLine.append(arg)
             # and all other arguments which are not a source file
-            elif not arg in sourceFiles:
+            elif arg not in sourceFiles:
                 newCmdLine.append(arg)
 
         printTraceStatement("Child: [%s]" % '] ['.join(newCmdLine))
@@ -930,7 +930,7 @@ def processObjectEvicted(stats, cache, outputFile, cachekey, compiler, cmdLine):
                         "output file " + outputFile)
     returnCode, compilerOutput, compilerStderr = invokeRealCompiler(compiler, cmdLine, captureOutput=True)
     if returnCode == 0 and (outputFile == '' or os.path.exists(outputFile)):
-       addObjectToCache(stats, cache, outputFile, compilerOutput, compilerStderr, cachekey)
+        addObjectToCache(stats, cache, outputFile, compilerOutput, compilerStderr, cachekey)
     stats.save()
     printTraceStatement("Finished. Exit code %d" % returnCode)
     return returnCode, compilerOutput, compilerStderr
@@ -956,7 +956,7 @@ def processHeaderChangedMiss(stats, cache, outputFile, manifest, manifestHash, k
 
 def processNoManifestMiss(stats, cache, outputFile, manifestHash, baseDir, compiler, cmdLine, sourceFile):
     stats.registerSourceChangedMiss()
-    stripIncludes = not '/showIncludes' in cmdLine
+    stripIncludes = '/showIncludes' not in cmdLine
     returnCode, compilerOutput, compilerStderr = invokeRealCompiler(compiler, cmdLine, captureOutput=True)
     grabStderr = False
     # If these options present, cl.exe will list includes on stderr, not stdout
