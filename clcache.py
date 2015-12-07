@@ -128,7 +128,8 @@ class ObjectCache:
         if not os.path.exists(self.objectsDir):
             os.makedirs(self.objectsDir)
         lockName = self.cacheDirectory().replace(':', '-').replace('\\', '-')
-        self.lock = ObjectCacheLock(lockName, 10 * 1000)
+        timeout_ms = int(os.environ.get('CLCACHE_OBJECT_CACHE_TIMEOUT_MS', 10 * 1000))
+        self.lock = ObjectCacheLock(lockName, timeout_ms)
 
     def cacheDirectory(self):
         return self.dir
