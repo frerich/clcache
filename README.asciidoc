@@ -45,8 +45,8 @@ Options
     Doesn't actually clear the cache, so the number of cached objects and the
     cache size will remain unchanged.
 -M <size>::
-    Sets the maximum size of the cache in bytes. The default is 1048576000
-    Bytes.
+    Sets the maximum size of the cache in bytes.
+    The default value is 1073741824 (1 GiB).
 
 Environment Variables
 ~~~~~~~~~~~~~~~~~~~~~
