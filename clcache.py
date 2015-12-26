@@ -833,21 +833,22 @@ def printStatistics():
     with cache.lock:
         stats = CacheStatistics(cache)
         cfg = Configuration(cache)
-        print """clcache statistics:
-  current cache dir        : %s
-  cache size               : %d bytes
-  maximum cache size       : %d bytes
-  cache entries            : %d
-  cache hits               : %d
-  cache misses             : %d
-  called for linking       : %d
-  called w/o sources       : %d
-  calls w/ multiple sources: %d
-  calls w/ PCH:              %d
-  evicted misses           : %d
-  header changed misses    : %d
-  source changed misses    : %d
-  """ % (cache.cacheDirectory(),
+        out = """clcache statistics:
+  current cache dir        : {}
+  cache size               : {:,} bytes
+  maximum cache size       : {:,} bytes
+  cache entries            : {}
+  cache hits               : {}
+  cache misses             : {}
+  called for linking       : {}
+  called w/o sources       : {}
+  calls w/ multiple sources: {}
+  calls w/ PCH             : {}
+  evicted misses           : {}
+  header changed misses    : {}
+  source changed misses    : {}
+  """.format(
+         cache.cacheDirectory(),
          stats.currentCacheSize(),
          cfg.maximumCacheSize(),
          stats.numCacheEntries(),
@@ -860,7 +861,7 @@ def printStatistics():
          stats.numEvictedMisses(),
          stats.numHeaderChangedMisses(),
          stats.numSourceChangedMisses())
-
+    print(out)
 
 def resetStatistics():
     cache = ObjectCache()
