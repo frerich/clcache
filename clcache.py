@@ -321,7 +321,7 @@ class PersistentJSONDict:
 
 
 class Configuration:
-    _defaultValues = {"MaximumCacheSize": 1024 * 1024 * 1000}
+    _defaultValues = {"MaximumCacheSize": 1073741824} # 1 GiB
 
     def __init__(self, objectCache):
         self._objectCache = objectCache
