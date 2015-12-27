@@ -3,6 +3,7 @@
 # clcache.py - a compiler cache for Microsoft Visual Studio
 #
 # Copyright (c) 2010, 2011, 2012, 2013 froglogic GmbH <raabe@froglogic.com>
+#               2016 Simon Warta (Kullo GmbH)
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -27,10 +28,18 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
+
+# All string literals are unicode strings. Requires Python 3.3+
+# (http://python-future.org/faq.html#which-versions-of-python-does-python-future-support)
+from __future__ import unicode_literals
+
 from ctypes import windll, wintypes
 import codecs
 from collections import defaultdict, namedtuple
-import cPickle as pickle
+try:
+    import cPickle as pickle
+except ImportError:
+    import pickle
 import errno
 import hashlib
 import json
@@ -80,9 +89,9 @@ class ObjectCacheLock:
     def __init__(self, mutexName, timeoutMs):
         mutexName = 'Local\\' + mutexName
         self._mutex = windll.kernel32.CreateMutexW(
-            wintypes.c_int(0),
-            wintypes.c_int(0),
-            unicode(mutexName))
+            wintypes.INT(0),
+            wintypes.INT(0),
+            mutexName)
         self._timeoutMs = timeoutMs
         self._acquired = False
         assert self._mutex
@@ -101,7 +110,7 @@ class ObjectCacheLock:
     def acquire(self):
         WAIT_ABANDONED = 0x00000080
         result = windll.kernel32.WaitForSingleObject(
-            self._mutex, wintypes.c_int(self._timeoutMs))
+            self._mutex, wintypes.INT(self._timeoutMs))
         if result != 0 and result != WAIT_ABANDONED:
             errorString = 'Error! WaitForSingleObject returns {result}, last error {error}'.format(
                 result=result,
@@ -202,10 +211,19 @@ class ObjectCache:
         normalizedCmdLine = self._normalizedCommandLine(commandLine)
 
         stat = os.stat(compilerBinary)
+
+        # Meta data is stored as a unicode string for simple
+        # int->string conversion. The source file is stored as
+        # binary from the preprocessor because we donn't know
+        # it's encoding, so just don't touch it.
+        hash_subject_metadata = "{}{}{}".format(
+            stat.st_mtime,
+            stat.st_size,
+            ' '.join(normalizedCmdLine)
+        )
+
         h = HASH_ALGORITHM()
-        h.update(str(stat.st_mtime))
-        h.update(str(stat.st_size))
-        h.update(' '.join(normalizedCmdLine))
+        h.update(hash_subject_metadata.encode("UTF-8"))
         h.update(preprocessedSourceCode)
         return h.hexdigest()
 
@@ -328,7 +346,7 @@ class Configuration:
         with objectCache.lock:
             self._cfg = PersistentJSONDict(os.path.join(objectCache.cacheDirectory(),
                                                         "config.txt"))
-        for setting, defaultValue in self._defaultValues.iteritems():
+        for setting, defaultValue in self._defaultValues.items():
             if setting not in self._cfg:
                 self._cfg[setting] = defaultValue
 
@@ -448,7 +466,7 @@ class CacheStatistics:
 class AnalysisResult:
     Ok, NoSourceFile, MultipleSourceFilesSimple, \
         MultipleSourceFilesComplex, CalledForLink, \
-        CalledWithPch, ExternalDebugInfo = range(7)
+        CalledWithPch, ExternalDebugInfo = list(range(7))
 
 
 def getFileHash(filePath, additionalData=None):
@@ -456,7 +474,10 @@ def getFileHash(filePath, additionalData=None):
     with open(filePath, 'rb') as inFile:
         hasher.update(inFile.read())
     if additionalData is not None:
-        hasher.update(additionalData)
+        # Encoding of this additional data does not really matter
+        # as long as we keep it fixed, otherwise hashes change.
+        # The string should fit into ASCII, so UTF8 should not change anything
+        hasher.update(additionalData.encode("UTF-8"))
     return hasher.hexdigest()
 
 
@@ -473,7 +494,7 @@ def getRelFileHash(filePath, baseDir):
 
 def getHash(data):
     hasher = HASH_ALGORITHM()
-    hasher.update(data)
+    hasher.update(data.encode("UTF-8"))
     return hasher.hexdigest()
 
 
@@ -486,7 +507,7 @@ def copyOrLink(srcFilePath, dstFilePath):
             raise
 
     if "CLCACHE_HARDLINK" in os.environ:
-        ret = windll.kernel32.CreateHardLinkW(unicode(dstFilePath), unicode(srcFilePath), None)
+        ret = windll.kernel32.CreateHardLinkW(str(dstFilePath), str(srcFilePath), None)
         if ret != 0:
             # Touch the time stamp of the new link so that the build system
             # doesn't confused by a potentially old time on the file. The
@@ -509,7 +530,7 @@ def findCompilerBinary():
 
     frozenByPy2Exe = hasattr(sys, "frozen")
     if frozenByPy2Exe:
-        myExecutablePath = unicode(sys.executable, sys.getfilesystemencoding()).upper()
+        myExecutablePath = str(sys.executable, sys.getfilesystemencoding()).upper()
 
     for dir in os.environ["PATH"].split(os.pathsep):
         path = os.path.join(dir, "cl.exe")
@@ -526,7 +547,7 @@ def findCompilerBinary():
 def printTraceStatement(msg):
     if "CLCACHE_LOG" in os.environ:
         script_dir = os.path.realpath(os.path.dirname(sys.argv[0]))
-        print os.path.join(script_dir, "clcache.py") + " " + msg
+        print(os.path.join(script_dir, "clcache.py") + " " + msg)
 
 
 def extractArgument(line, start, end):
@@ -582,13 +603,16 @@ def expandCommandLine(cmdline):
                 codecs.BOM_UTF16_LE: 'utf-16-le',
             }
 
-            for bom, enc in encodingByBOM.items():
+            for bom, enc in list(encodingByBOM.items()):
                 if rawBytes.startswith(bom):
                     encoding = encodingByBOM[bom]
                     rawBytes = rawBytes[len(bom):]
                     break
 
-            includeFileContents = rawBytes.decode(encoding) if encoding is not None else rawBytes
+            if encoding:
+                includeFileContents = rawBytes.decode(encoding)
+            else:
+                includeFileContents = rawBytes.decode("UTF-8")
 
             ret.extend(expandCommandLine(splitCommandsFile(includeFileContents.strip())))
         else:
@@ -877,7 +901,7 @@ def resetStatistics():
         stats = CacheStatistics(cache)
         stats.resetCounters()
         stats.save()
-    print 'Statistics reset'
+    print('Statistics reset')
 
 
 # Returns pair - list of includes and new compiler output.
@@ -992,13 +1016,13 @@ def processNoManifestMiss(stats, cache, outputFile, manifestHash, baseDir, compi
 
 def main():
     if len(sys.argv) == 2 and sys.argv[1] == "--help":
-        print """\
+        print("""\
     clcache.py v3.0.1
       --help   : show this help
       -s       : print cache statistics
       -z       : reset cache statistics
       -M <size>: set maximum cache size (in bytes)
-    """
+    """)
         return 0
 
     if len(sys.argv) == 2 and sys.argv[1] == "-s":
@@ -1019,7 +1043,7 @@ def main():
 
     compiler = findCompilerBinary()
     if not compiler:
-        print "Failed to locate cl.exe on PATH (and CLCACHE_CL is not set), aborting."
+        print("Failed to locate cl.exe on PATH (and CLCACHE_CL is not set), aborting.")
         return 1
 
     printTraceStatement("Found real compiler binary at '%s'" % compiler)
@@ -1032,7 +1056,7 @@ def main():
         sys.stderr.write(compilerStderr)
         return exitCode
     except LogicException as e:
-        print e
+        print(e)
         return 1
 
 
