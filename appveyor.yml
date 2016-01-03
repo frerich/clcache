@@ -1,0 +1,26 @@
+environment:
+  matrix:
+    # AppVeyor installed Python versions
+    # http://www.appveyor.com/docs/installed-software#python
+
+    - PYTHON_INSTALL: "C:\\Python27"
+    - PYTHON_INSTALL: "C:\\Python33"
+    - PYTHON_INSTALL: "C:\\Python34"
+    - PYTHON_INSTALL: "C:\\Python35"
+
+install:
+  # Make compiler available (use MSVC 2013, 32 bit)
+  - call "%ProgramFiles(x86)%\Microsoft Visual Studio 12.0\VC\vcvarsall.bat" x86
+
+  # Check compiler version
+  - cl
+
+  # Prepend Python installation to PATH
+  - "SET PATH=%PYTHON_INSTALL%;%PATH%"
+
+  # Check Python version
+  - "python --version"
+
+build_script:
+  - "python clcache.py --help"
+  - "python clcache.py -s"
