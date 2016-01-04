@@ -24,3 +24,6 @@ install:
 build_script:
   - "python clcache.py --help"
   - "python clcache.py -s"
+
+test_script:
+  - "python tests.py"
