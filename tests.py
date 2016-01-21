@@ -3,27 +3,45 @@ import clcache
 import subprocess
 import sys
 
+class TestExtractArgument(unittest.TestCase):
+    def testSimple(self):
+        # Keep
+        self.assertEqual(clcache.extractArgument(r''), r'')
+        self.assertEqual(clcache.extractArgument(r'1'), r'1')
+        self.assertEqual(clcache.extractArgument(r'myfile.cpp'), r'myfile.cpp')
+        self.assertEqual(clcache.extractArgument(r'-DVERSION=\\"1.0\\"'), r'-DVERSION=\\"1.0\\"')
+        self.assertEqual(clcache.extractArgument(r'-I"..\.."'), r'-I"..\.."')
+
+        # Extract
+        self.assertEqual(clcache.extractArgument(r'"-IC:\Program Files\Lib1"'),
+                                                 r'-IC:\Program Files\Lib1')
+        self.assertEqual(clcache.extractArgument(r'"/Fo"CrashReport.dir\Release\""'),
+                                                 r'/Fo"CrashReport.dir\Release\"')
+        self.assertEqual(clcache.extractArgument(r'"-DWEBRTC_SVNREVISION=\"Unavailable(issue687)\""'),
+                                                 r'-DWEBRTC_SVNREVISION=\"Unavailable(issue687)\"')
+
+
 class TestSplitCommandsFile(unittest.TestCase):
     def _genericTest(self, fileContents, expectedOutput):
         splitted = clcache.splitCommandsFile(fileContents)
         self.assertEqual(splitted, expectedOutput)
 
-    def testBasic(self):
-        self._genericTest('-A -B    -C',
-                          ['-A', '-B', '-C'])
+    def testWhitespace(self):
+        self._genericTest('-A -B    -C', ['-A', '-B', '-C'])
+        self._genericTest('   -A -B -C', ['-A', '-B', '-C'])
+        self._genericTest('-A -B -C   ', ['-A', '-B', '-C'])
 
     def testSlashes(self):
-        self._genericTest('-A -I..\\..   -C',
-                          ['-A', '-I..\\..', '-C'])
+        self._genericTest(r'-A -I..\..   -C',
+                          ['-A', r'-I..\..', '-C'])
 
     def testDubleQuotes(self):
-        self._genericTest('"-IC:\\Program Files\\Lib1" "-IC:\\Program Files\\Lib2" -I"..\\.."',
-                          ['-IC:\\Program Files\\Lib1', '-IC:\\Program Files\\Lib2', '-I"..\\.."'])
-
+        self._genericTest(r'"-IC:\Program Files\Lib1" "-IC:\Program Files\Lib2" -I"..\.."',
+                          [r'-IC:\Program Files\Lib1', r'-IC:\Program Files\Lib2', r'-I"..\.."'])
 
     def testEscapedQuotes(self):
-        self._genericTest('"-DWEBRTC_SVNREVISION=\\"Unavailable(issue687)\\"" -D_WIN32_WINNT=0x0602',
-                          ['-DWEBRTC_SVNREVISION="Unavailable(issue687)"', '-D_WIN32_WINNT=0x0602'])
+        self._genericTest(r'"-DWEBRTC_SVNREVISION=\"Unavailable(issue687)\"" -D_WIN32_WINNT=0x0602',
+                          [r'-DWEBRTC_SVNREVISION=\"Unavailable(issue687)\"', '-D_WIN32_WINNT=0x0602'])
 
 class TestCompileRuns(unittest.TestCase):
     PYTHON_BINARY = sys.executable
