@@ -27,3 +27,8 @@ build_script:
 
 test_script:
   - "python tests.py"
+
+after_test:
+  # Get a rough overview about what happened in the tests.
+  # This is not part of the actual testing but pure convenience.
+  - "python clcache.py -s"

@@ -1,5 +1,7 @@
 import unittest
 import clcache
+import subprocess
+import sys
 
 class TestSplitCommandsFile(unittest.TestCase):
     def _genericTest(self, fileContents, expectedOutput):
@@ -23,6 +25,34 @@ class TestSplitCommandsFile(unittest.TestCase):
         self._genericTest('"-DWEBRTC_SVNREVISION=\\"Unavailable(issue687)\\"" -D_WIN32_WINNT=0x0602',
                           ['-DWEBRTC_SVNREVISION="Unavailable(issue687)"', '-D_WIN32_WINNT=0x0602'])
 
+class TestCompileRuns(unittest.TestCase):
+    PYTHON_BINARY = sys.executable
+
+    def testBasicCompileC(self):
+        cmd = [self.PYTHON_BINARY, "clcache.py", "/nologo", "/c", "tests\\fibonacci.c"]
+        subprocess.check_call(cmd)
+
+    def testBasicCompileCpp(self):
+        cmd = [self.PYTHON_BINARY, "clcache.py", "/nologo", "/EHsc", "/c", "tests\\fibonacci.cpp"]
+        subprocess.check_call(cmd)
+
+    def testCompileLinkRunC(self):
+        cmd = [self.PYTHON_BINARY, "clcache.py", "/nologo", "/c", "tests\\fibonacci.c", "/Fofibonacci_c.obj"]
+        subprocess.check_call(cmd)
+        cmd = ["link", "/nologo", "/OUT:fibonacci_c.exe", "fibonacci_c.obj"]
+        subprocess.check_call(cmd)
+        cmd = ["fibonacci_c.exe"]
+        output = subprocess.check_output(cmd).decode("ascii").strip()
+        self.assertEqual(output, "0 1 1 2 3 5 8 13 21 34 55 89 144 233 377")
+
+    def testCompileLinkRunCpp(self):
+        cmd = [self.PYTHON_BINARY, "clcache.py", "/nologo", "/EHsc", "/c", "tests\\fibonacci.cpp", "/Fofibonacci_cpp.obj"]
+        subprocess.check_call(cmd)
+        cmd = ["link", "/nologo", "/OUT:fibonacci_cpp.exe", "fibonacci_cpp.obj"]
+        subprocess.check_call(cmd)
+        cmd = ["fibonacci_cpp.exe"]
+        output = subprocess.check_output(cmd).decode("ascii").strip()
+        self.assertEqual(output, "0 1 1 2 3 5 8 13 21 34 55 89 144 233 377")
 
 if __name__ == '__main__':
     unittest.main()
