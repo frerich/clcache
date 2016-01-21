@@ -54,5 +54,20 @@ class TestCompileRuns(unittest.TestCase):
         output = subprocess.check_output(cmd).decode("ascii").strip()
         self.assertEqual(output, "0 1 1 2 3 5 8 13 21 34 55 89 144 233 377")
 
+    def testRecompile(self):
+        cmd = [self.PYTHON_BINARY, "clcache.py", "/nologo", "/EHsc", "/c", "tests\\recompile1.cpp"]
+        subprocess.check_call(cmd) # Compile once
+        subprocess.check_call(cmd) # Compile again
+
+    def testRecompileObjectSetSameDir(self):
+        cmd = [self.PYTHON_BINARY, "clcache.py", "/nologo", "/EHsc", "/c", "tests\\recompile2.cpp", "/Forecompile2_custom_object_name.obj"]
+        subprocess.check_call(cmd) # Compile once
+        subprocess.check_call(cmd) # Compile again
+
+    def testRecompileObjectSetOtherDir(self):
+        cmd = [self.PYTHON_BINARY, "clcache.py", "/nologo", "/EHsc", "/c", "tests\\recompile3.cpp", "/Fotests\\output\\recompile2_custom_object_name.obj"]
+        subprocess.check_call(cmd) # Compile once
+        subprocess.check_call(cmd) # Compile again
+
 if __name__ == '__main__':
     unittest.main()
