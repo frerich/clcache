@@ -502,7 +502,7 @@ def getHash(data):
 def copyOrLink(srcFilePath, dstFilePath):
     # Ensure the destination folder exists
     try:
-        os.makedirs(os.path.dirname(dstFilePath))
+        os.makedirs(os.path.dirname(os.path.abspath(dstFilePath)))
     except OSError as e:
         if e.errno != errno.EEXIST:
             raise
