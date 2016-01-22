@@ -681,7 +681,7 @@ def analyzeCommandLine(cmdline):
     # copy the generated .pdb files into/out of the cache.
     if 'Zi' in options:
         return AnalysisResult.ExternalDebugInfo, None, None
-    if 'Yu' in options:
+    if 'Yc' in options or 'Yu' in options:
         return AnalysisResult.CalledWithPch, None, None
     if 'Tp' in options:
         sourceFiles += options['Tp']
