@@ -797,12 +797,12 @@ def jobCount(cmdLine):
 
     switches.extend(cmdLine)
 
-    mp_switch = [switch for switch in switches if re.search(r'^/MP(\d+)?$', switch) is not None]
-    if len(mp_switch) == 0:
+    mp_switches = [switch for switch in switches if re.search(r'^/MP(\d+)?$', switch) is not None]
+    if len(mp_switches) == 0:
         return 1
 
     # the last instance of /MP takes precedence
-    mp_switch = mp_switch.pop()
+    mp_switch = mp_switches.pop()
 
     count = mp_switch[3:]
     if count != "":
