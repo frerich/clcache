@@ -797,7 +797,7 @@ def jobCount(cmdLine):
 
     switches.extend(cmdLine)
 
-    mp_switch = [switch for switch in switches if re.search(r'^/MP\d+$', switch) is not None]
+    mp_switch = [switch for switch in switches if re.search(r'^/MP(\d+)?$', switch) is not None]
     if len(mp_switch) == 0:
         return 1
 
