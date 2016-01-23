@@ -1,8 +1,19 @@
 import clcache
-import unittest
+from contextlib import contextmanager
 import multiprocessing
+import os
 import subprocess
 import sys
+import unittest
+
+@contextmanager
+def cd(target_directory):
+    old_directory = os.getcwd()
+    os.chdir(os.path.expanduser(target_directory))
+    try:
+        yield
+    finally:
+        os.chdir(old_directory)
 
 class TestExtractArgument(unittest.TestCase):
     def testSimple(self):
@@ -130,6 +141,26 @@ class TestCompileRuns(unittest.TestCase):
         cmd = [self.PYTHON_BINARY, "clcache.py", "/nologo", "/EHsc", "/c", "tests\\recompile3.cpp", "/Fotests\\output\\recompile2_custom_object_name.obj"]
         subprocess.check_call(cmd) # Compile once
         subprocess.check_call(cmd) # Compile again
+
+class TestPrecompiledHeaders(unittest.TestCase):
+    PYTHON_BINARY = sys.executable
+    CLCACHE_SCRIPT = os.path.join(os.path.dirname(os.path.realpath(__file__)), "clcache.py")
+
+    def testSampleproject(self):
+        with cd(os.path.join("tests", "precompiled-headers")):
+            cpp = self.PYTHON_BINARY + " " + self.CLCACHE_SCRIPT
+
+            cmd = ["nmake", "/nologo"]
+            subprocess.check_call(cmd, env=dict(os.environ, CPP=cpp))
+
+            cmd = ["myapp.exe"]
+            subprocess.check_call(cmd)
+
+            cmd = ["nmake", "/nologo", "clean"]
+            subprocess.check_call(cmd, env=dict(os.environ, CPP=cpp))
+
+            cmd = ["nmake", "/nologo"]
+            subprocess.check_call(cmd, env=dict(os.environ, CPP=cpp))
 
 if __name__ == '__main__':
     unittest.main()
