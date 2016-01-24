@@ -84,6 +84,12 @@ CLCACHE_BASEDIR::
     of your project. This allows clcache to cache relative paths, so if you
     move your project to different directory, clcache will produce cache hits as
     before.
+CLCACHE_OBJECT_CACHE_TIMEOUT_MS::
+    Overrides the default ObjectCacheLock timeout (Default is 10 * 1000 ms).
+    The ObjectCacheLock is used to give exclusive access to the cache, which is
+    used by the clcache script. You may override this variable if you are
+    getting ObjectCacheLockExceptions with return code 258 (which is the
+    WAIT_TIMEOUT return code).
 
 How clcache works
 ~~~~~~~~~~~~~~~~~
