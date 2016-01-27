@@ -866,13 +866,23 @@ def reinvokePerSourceFile(cmdLine, sourceFiles):
 
     return runJobs(commands, jobCount(cmdLine))
 
+def getConfiguration():
+    cache = ObjectCache()
+    with cache.lock:
+        config = Configuration(cache)
+    return config
 
-def printStatistics():
+def getStatistics():
     cache = ObjectCache()
     with cache.lock:
         stats = CacheStatistics(cache)
-        cfg = Configuration(cache)
-        out = """clcache statistics:
+    return stats
+
+def printStatistics():
+    cache = ObjectCache()
+    cfg = getConfiguration()
+    stats = getStatistics()
+    out = """clcache statistics:
   current cache dir        : {}
   cache size               : {:,} bytes
   maximum cache size       : {:,} bytes
