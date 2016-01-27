@@ -144,10 +144,8 @@ class TestCompileRuns(unittest.TestCase):
         subprocess.check_call(cmd) # Compile again
 
 class TestHits(unittest.TestCase):
-    PYTHON_BINARY = sys.executable
-
     def testHitsSimple(self):
-        cmd = [self.PYTHON_BINARY, "clcache.py", "/nologo", "/EHsc", "/c", r'tests\hits-and-misses\hit.cpp']
+        cmd = [PYTHON_BINARY, CLCACHE_SCRIPT, "/nologo", "/EHsc", "/c", r'tests\hits-and-misses\hit.cpp']
         subprocess.check_call(cmd) # Ensure it has been compiled before
 
         oldHits = clcache.getStatistics().numCacheHits()
