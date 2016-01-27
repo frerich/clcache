@@ -1,3 +1,5 @@
+RM = @del /q
+
 OBJS = myapp.obj applib.obj
 APP = myapp.exe
 
@@ -32,4 +34,4 @@ stable.pch : $(STABLEHDRS)
 .PHONY: clean
 
 clean:
-    rm -f $(OBJS) $(APP) stable.pch
+    $(RM) $(OBJS) $(APP) stable.pch
