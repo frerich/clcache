@@ -170,5 +170,34 @@ class TestPrecompiledHeaders(unittest.TestCase):
             cmd = ["nmake", "/nologo"]
             subprocess.check_call(cmd, env=dict(os.environ, CPP=cpp))
 
+class TestHeaderChange(unittest.TestCase):
+    def testDirect(self):
+        with cd(os.path.join("tests", "header-change")):
+            cmd_compile = [PYTHON_BINARY, CLCACHE_SCRIPT, "/nologo", "/EHsc", "main.cpp"]
+
+            # Create header and compile
+            with open("version.h", "w") as header:
+                header.write("#define VERSION 1")
+            subprocess.check_call(cmd_compile)
+
+            # Run and check
+            cmd_run = [os.path.abspath("main.exe")]
+            output = subprocess.check_output(cmd_run).decode("ascii").strip()
+            self.assertEqual(output, "1")
+
+            # Remove compiled files
+            os.remove("main.obj")
+            os.remove("main.exe")
+
+            # Change header and compile
+            with open("version.h", "w") as header:
+                header.write("#define VERSION 2")
+            subprocess.check_call(cmd_compile)
+
+            # Run and check
+            cmd_run = [os.path.abspath("main.exe")]
+            output = subprocess.check_output(cmd_run).decode("ascii").strip()
+            self.assertEqual(output, "2")
+
 if __name__ == '__main__':
     unittest.main()
