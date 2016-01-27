@@ -143,6 +143,18 @@ class TestCompileRuns(unittest.TestCase):
         subprocess.check_call(cmd) # Compile once
         subprocess.check_call(cmd) # Compile again
 
+class TestHits(unittest.TestCase):
+    PYTHON_BINARY = sys.executable
+
+    def testHitsSimple(self):
+        cmd = [self.PYTHON_BINARY, "clcache.py", "/nologo", "/EHsc", "/c", r'tests\hits-and-misses\hit.cpp']
+        subprocess.check_call(cmd) # Ensure it has been compiled before
+
+        oldHits = clcache.getStatistics().numCacheHits()
+        subprocess.check_call(cmd) # This must hit now
+        newHits = clcache.getStatistics().numCacheHits()
+        self.assertEqual(newHits, oldHits + 1)
+
 class TestPrecompiledHeaders(unittest.TestCase):
     def testSampleproject(self):
         with cd(os.path.join("tests", "precompiled-headers")):
