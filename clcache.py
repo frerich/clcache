@@ -187,7 +187,8 @@ class ObjectCache:
                 rmtree(dirPath)
             stats.setCacheSize(currentSize)
 
-    def getManifestHash(self, compilerBinary, commandLine, sourceFile):
+    @staticmethod
+    def getManifestHash(compilerBinary, commandLine, sourceFile):
         stat = os.stat(compilerBinary)
         # NOTE: We intentionally do not normalize command line to include
         # preprocessor options. In direct mode we do not perform
@@ -198,7 +199,8 @@ class ObjectCache:
             cmdLine=' '.join(commandLine))
         return getFileHash(sourceFile, additionalData)
 
-    def computeKey(self, compilerBinary, commandLine):
+    @staticmethod
+    def computeKey(compilerBinary, commandLine):
         ppcmd = [compilerBinary, "/EP"]
         ppcmd += [arg for arg in commandLine if arg not in ("-c", "/c")]
         preprocessor = Popen(ppcmd, stdout=PIPE, stderr=PIPE)
@@ -209,7 +211,7 @@ class ObjectCache:
             sys.stderr.write("clcache: preprocessor failed\n")
             sys.exit(preprocessor.returncode)
 
-        normalizedCmdLine = self._normalizedCommandLine(commandLine)
+        normalizedCmdLine = ObjectCache._normalizedCommandLine(commandLine)
 
         stat = os.stat(compilerBinary)
 
@@ -228,14 +230,22 @@ class ObjectCache:
         h.update(preprocessedSourceCode)
         return h.hexdigest()
 
-    def getKeyInManifest(self, listOfHeaderHashes):
-        return getHash(','.join(listOfHeaderHashes))
+    @staticmethod
+    def getHash(dataString):
+        hasher = HASH_ALGORITHM()
+        hasher.update(dataString.encode("UTF-8"))
+        return hasher.hexdigest()
 
-    def getDirectCacheKey(self, manifestHash, keyInManifest):
+    @staticmethod
+    def getKeyInManifest(listOfHeaderHashes):
+        return ObjectCache.getHash(','.join(listOfHeaderHashes))
+
+    @staticmethod
+    def getDirectCacheKey(manifestHash, keyInManifest):
         # We must take into account manifestHash to avoid
         # collisions when different source files use the same
         # set of includes.
-        return getHash(manifestHash + keyInManifest)
+        return ObjectCache.getHash(manifestHash + keyInManifest)
 
     def hasEntry(self, key):
         with self.lock:
@@ -297,7 +307,8 @@ class ObjectCache:
     def _cachedCompilerStderrName(self, key):
         return os.path.join(self._cacheEntryDir(key), "stderr.txt")
 
-    def _normalizedCommandLine(self, cmdline):
+    @staticmethod
+    def _normalizedCommandLine(cmdline):
         # Remove all arguments from the command line which only influence the
         # preprocessor; the preprocessor's output is already included into the
         # hash sum so we don't have to care about these switches in the
@@ -492,12 +503,6 @@ def getRelFileHash(filePath, baseDir):
     if not os.path.exists(absFilePath):
         return None
     return getFileHash(absFilePath)
-
-
-def getHash(data):
-    hasher = HASH_ALGORITHM()
-    hasher.update(data.encode("UTF-8"))
-    return hasher.hexdigest()
 
 
 def copyOrLink(srcFilePath, dstFilePath):
@@ -986,7 +991,7 @@ def processObjectEvicted(stats, cache, outputFile, cachekey, compiler, cmdLine):
 
 
 def processHeaderChangedMiss(stats, cache, outputFile, manifest, manifestHash, keyInManifest, compiler, cmdLine):
-    cachekey = cache.getDirectCacheKey(manifestHash, keyInManifest)
+    cachekey = ObjectCache.getDirectCacheKey(manifestHash, keyInManifest)
     stats.registerHeaderChangedMiss()
     returnCode, compilerOutput, compilerStderr = invokeRealCompiler(compiler, cmdLine, captureOutput=True)
     if returnCode == 0 and (outputFile == '' or os.path.exists(outputFile)):
@@ -1019,8 +1024,8 @@ def processNoManifestMiss(stats, cache, outputFile, manifestHash, baseDir, compi
         listOfIncludes, compilerOutput = getIncludes(compilerOutput, sourceFile, baseDir, stripIncludes)
     manifest = Manifest(listOfIncludes, {})
     listOfHeaderHashes = [getRelFileHash(fileName, baseDir) for fileName in listOfIncludes]
-    keyInManifest = cache.getKeyInManifest(listOfHeaderHashes)
-    cachekey = cache.getDirectCacheKey(manifestHash, keyInManifest)
+    keyInManifest = ObjectCache.getKeyInManifest(listOfHeaderHashes)
+    cachekey = ObjectCache.getDirectCacheKey(manifestHash, keyInManifest)
 
     if returnCode == 0 and (outputFile == '' or os.path.exists(outputFile)):
         addObjectToCache(stats, cache, outputFile, compilerOutput, compilerStderr, cachekey)
@@ -1109,7 +1114,7 @@ def processCompileRequest(compiler, args):
         return invokeRealCompiler(compiler, args[1:])
     if 'CLCACHE_NODIRECT' in os.environ:
         return processNoDirect(stats, cache, outputFile, compiler, cmdLine)
-    manifestHash = cache.getManifestHash(compiler, cmdLine, sourceFile)
+    manifestHash = ObjectCache.getManifestHash(compiler, cmdLine, sourceFile)
     manifest = cache.getManifest(manifestHash)
     baseDir = os.environ.get('CLCACHE_BASEDIR')
     if baseDir and not baseDir.endswith(os.path.sep):
@@ -1123,7 +1128,7 @@ def processCompileRequest(compiler, args):
                 # May be if source does not use this header anymore (e.g. if that
                 # header was included through some other header, which now changed).
                 listOfHeaderHashes.append(fileHash)
-        keyInManifest = cache.getKeyInManifest(listOfHeaderHashes)
+        keyInManifest = ObjectCache.getKeyInManifest(listOfHeaderHashes)
         cachekey = manifest.hashes.get(keyInManifest)
         if cachekey is not None:
             if cache.hasEntry(cachekey):
@@ -1138,7 +1143,7 @@ def processCompileRequest(compiler, args):
 
 
 def processNoDirect(stats, cache, outputFile, compiler, cmdLine):
-    cachekey = cache.computeKey(compiler, cmdLine)
+    cachekey = ObjectCache.computeKey(compiler, cmdLine)
     if cache.hasEntry(cachekey):
         with cache.lock:
             stats.registerCacheHit()
