@@ -58,6 +58,30 @@ class TestSplitCommandsFile(unittest.TestCase):
         self._genericTest(r'"-DWEBRTC_SVNREVISION=\"Unavailable(issue687)\"" -D_WIN32_WINNT=0x0602',
                           [r'-DWEBRTC_SVNREVISION=\"Unavailable(issue687)\"', '-D_WIN32_WINNT=0x0602'])
 
+class TestParseIncludes(unittest.TestCase):
+    def setUp(self):
+        with open(r'tests\parse-includes\compiler_output.txt', 'r') as infile:
+            self.sampleCompilerOutput = infile.read()
+            self.sampleUniqueIncludesCount = 83
+
+    def testParseIncludesNoStrip(self):
+        includesSet, newCompilerOutput = clcache.parseIncludesList(self.sampleCompilerOutput,
+            r"C:\Users\me\test\smartsqlite\src\version.cpp", None, strip=False)
+
+        self.assertEquals(len(includesSet), self.sampleUniqueIncludesCount)
+        self.assertTrue(r'c:\users\me\test\smartsqlite\include\smartsqlite\version.h' in includesSet)
+        self.assertTrue(r'c:\program files (x86)\microsoft visual studio 12.0\vc\include\concurrencysal.h' in includesSet)
+        self.assertEquals(newCompilerOutput, self.sampleCompilerOutput)
+
+    def testParseIncludesStrip(self):
+        includesSet, newCompilerOutput = clcache.parseIncludesList(self.sampleCompilerOutput,
+            r"C:\Users\me\test\smartsqlite\src\version.cpp", None, strip=True)
+
+        self.assertEquals(len(includesSet), self.sampleUniqueIncludesCount)
+        self.assertTrue(r'c:\users\me\test\smartsqlite\include\smartsqlite\version.h' in includesSet)
+        self.assertTrue(r'c:\program files (x86)\microsoft visual studio 12.0\vc\include\concurrencysal.h' in includesSet)
+        self.assertEquals(newCompilerOutput, "version.cpp\n")
+
 class TestMultipleSourceFiles(unittest.TestCase):
     CPU_CORES = multiprocessing.cpu_count()
 

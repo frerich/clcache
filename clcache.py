@@ -924,14 +924,14 @@ def resetStatistics():
 # Returns pair - list of includes and new compiler output.
 # Output changes if strip is True in that case all lines with include
 # directives are stripped from it
-def getIncludes(compilerOutput, sourceFile, baseDir, strip):
+def parseIncludesList(compilerOutput, sourceFile, baseDir, strip):
     newOutput = []
     includesSet = set([])
     reFilePath = re.compile('^Note: including file: *(?P<file_path>.+)$')
     absSourceFile = os.path.normcase(os.path.abspath(sourceFile))
     if baseDir:
         baseDir = os.path.normcase(baseDir)
-    for line in compilerOutput.split('\n'):
+    for line in compilerOutput.splitlines(True):
         match = reFilePath.match(line.rstrip('\r\n'))
         if match is not None:
             filePath = match.group('file_path')
@@ -943,7 +943,7 @@ def getIncludes(compilerOutput, sourceFile, baseDir, strip):
         elif strip:
             newOutput.append(line)
     if strip:
-        return list(includesSet), '\n'.join(newOutput)
+        return list(includesSet), ''.join(newOutput)
     else:
         return list(includesSet), compilerOutput
 
@@ -1014,9 +1014,9 @@ def processNoManifestMiss(stats, cache, outputFile, manifestHash, baseDir, compi
             grabStderr = True
             break
     if grabStderr:
-        listOfIncludes, compilerStderr = getIncludes(compilerStderr, sourceFile, baseDir, stripIncludes)
+        listOfIncludes, compilerStderr = parseIncludesList(compilerStderr, sourceFile, baseDir, stripIncludes)
     else:
-        listOfIncludes, compilerOutput = getIncludes(compilerOutput, sourceFile, baseDir, stripIncludes)
+        listOfIncludes, compilerOutput = parseIncludesList(compilerOutput, sourceFile, baseDir, stripIncludes)
     manifest = Manifest(listOfIncludes, {})
     listOfHeaderHashes = [getRelFileHash(fileName, baseDir) for fileName in listOfIncludes]
     keyInManifest = cache.getKeyInManifest(listOfHeaderHashes)
