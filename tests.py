@@ -15,6 +15,9 @@ def cd(target_directory):
     finally:
         os.chdir(old_directory)
 
+PYTHON_BINARY = sys.executable
+CLCACHE_SCRIPT = os.path.join(os.path.dirname(os.path.realpath(__file__)), "clcache.py")
+
 class TestExtractArgument(unittest.TestCase):
     def testSimple(self):
         # Keep
@@ -99,18 +102,16 @@ class TestMultipleSourceFiles(unittest.TestCase):
         self.assertEqual(actual, self.CPU_CORES)
 
 class TestCompileRuns(unittest.TestCase):
-    PYTHON_BINARY = sys.executable
-
     def testBasicCompileC(self):
-        cmd = [self.PYTHON_BINARY, "clcache.py", "/nologo", "/c", "tests\\fibonacci.c"]
+        cmd = [PYTHON_BINARY, CLCACHE_SCRIPT, "/nologo", "/c", "tests\\fibonacci.c"]
         subprocess.check_call(cmd)
 
     def testBasicCompileCpp(self):
-        cmd = [self.PYTHON_BINARY, "clcache.py", "/nologo", "/EHsc", "/c", "tests\\fibonacci.cpp"]
+        cmd = [PYTHON_BINARY, CLCACHE_SCRIPT, "/nologo", "/EHsc", "/c", "tests\\fibonacci.cpp"]
         subprocess.check_call(cmd)
 
     def testCompileLinkRunC(self):
-        cmd = [self.PYTHON_BINARY, "clcache.py", "/nologo", "/c", "tests\\fibonacci.c", "/Fofibonacci_c.obj"]
+        cmd = [PYTHON_BINARY, CLCACHE_SCRIPT, "/nologo", "/c", "tests\\fibonacci.c", "/Fofibonacci_c.obj"]
         subprocess.check_call(cmd)
         cmd = ["link", "/nologo", "/OUT:fibonacci_c.exe", "fibonacci_c.obj"]
         subprocess.check_call(cmd)
@@ -119,7 +120,7 @@ class TestCompileRuns(unittest.TestCase):
         self.assertEqual(output, "0 1 1 2 3 5 8 13 21 34 55 89 144 233 377")
 
     def testCompileLinkRunCpp(self):
-        cmd = [self.PYTHON_BINARY, "clcache.py", "/nologo", "/EHsc", "/c", "tests\\fibonacci.cpp", "/Fofibonacci_cpp.obj"]
+        cmd = [PYTHON_BINARY, CLCACHE_SCRIPT, "/nologo", "/EHsc", "/c", "tests\\fibonacci.cpp", "/Fofibonacci_cpp.obj"]
         subprocess.check_call(cmd)
         cmd = ["link", "/nologo", "/OUT:fibonacci_cpp.exe", "fibonacci_cpp.obj"]
         subprocess.check_call(cmd)
@@ -128,27 +129,24 @@ class TestCompileRuns(unittest.TestCase):
         self.assertEqual(output, "0 1 1 2 3 5 8 13 21 34 55 89 144 233 377")
 
     def testRecompile(self):
-        cmd = [self.PYTHON_BINARY, "clcache.py", "/nologo", "/EHsc", "/c", "tests\\recompile1.cpp"]
+        cmd = [PYTHON_BINARY, CLCACHE_SCRIPT, "/nologo", "/EHsc", "/c", "tests\\recompile1.cpp"]
         subprocess.check_call(cmd) # Compile once
         subprocess.check_call(cmd) # Compile again
 
     def testRecompileObjectSetSameDir(self):
-        cmd = [self.PYTHON_BINARY, "clcache.py", "/nologo", "/EHsc", "/c", "tests\\recompile2.cpp", "/Forecompile2_custom_object_name.obj"]
+        cmd = [PYTHON_BINARY, CLCACHE_SCRIPT, "/nologo", "/EHsc", "/c", "tests\\recompile2.cpp", "/Forecompile2_custom_object_name.obj"]
         subprocess.check_call(cmd) # Compile once
         subprocess.check_call(cmd) # Compile again
 
     def testRecompileObjectSetOtherDir(self):
-        cmd = [self.PYTHON_BINARY, "clcache.py", "/nologo", "/EHsc", "/c", "tests\\recompile3.cpp", "/Fotests\\output\\recompile2_custom_object_name.obj"]
+        cmd = [PYTHON_BINARY, CLCACHE_SCRIPT, "/nologo", "/EHsc", "/c", "tests\\recompile3.cpp", "/Fotests\\output\\recompile2_custom_object_name.obj"]
         subprocess.check_call(cmd) # Compile once
         subprocess.check_call(cmd) # Compile again
 
 class TestPrecompiledHeaders(unittest.TestCase):
-    PYTHON_BINARY = sys.executable
-    CLCACHE_SCRIPT = os.path.join(os.path.dirname(os.path.realpath(__file__)), "clcache.py")
-
     def testSampleproject(self):
         with cd(os.path.join("tests", "precompiled-headers")):
-            cpp = self.PYTHON_BINARY + " " + self.CLCACHE_SCRIPT
+            cpp = PYTHON_BINARY + " " + CLCACHE_SCRIPT
 
             cmd = ["nmake", "/nologo"]
             subprocess.check_call(cmd, env=dict(os.environ, CPP=cpp))
