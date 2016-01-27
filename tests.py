@@ -197,14 +197,16 @@ class TestPrecompiledHeaders(unittest.TestCase):
 class TestHeaderChange(unittest.TestCase):
     def testDirect(self):
         with cd(os.path.join("tests", "header-change")):
-            cmd_compile = [PYTHON_BINARY, CLCACHE_SCRIPT, "/nologo", "/EHsc", "main.cpp"]
+            cmd_compile = [PYTHON_BINARY, CLCACHE_SCRIPT, "/nologo", "/EHsc", "/c", "main.cpp"]
+            cmd_link = ["link", "/nologo", "/OUT:main.exe", "main.obj"]
 
             # Create header and compile
             with open("version.h", "w") as header:
                 header.write("#define VERSION 1")
             subprocess.check_call(cmd_compile)
 
-            # Run and check
+            # Link, run and check
+            subprocess.check_call(cmd_link)
             cmd_run = [os.path.abspath("main.exe")]
             output = subprocess.check_output(cmd_run).decode("ascii").strip()
             self.assertEqual(output, "1")
@@ -218,7 +220,8 @@ class TestHeaderChange(unittest.TestCase):
                 header.write("#define VERSION 2")
             subprocess.check_call(cmd_compile)
 
-            # Run and check
+            # Link, run and check
+            subprocess.check_call(cmd_link)
             cmd_run = [os.path.abspath("main.exe")]
             output = subprocess.check_output(cmd_run).decode("ascii").strip()
             self.assertEqual(output, "2")
