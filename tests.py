@@ -195,35 +195,38 @@ class TestPrecompiledHeaders(unittest.TestCase):
             subprocess.check_call(cmd, env=dict(os.environ, CPP=cpp))
 
 class TestHeaderChange(unittest.TestCase):
-    def testDirect(self):
-        with cd(os.path.join("tests", "header-change")):
-            cmd_compile = [PYTHON_BINARY, CLCACHE_SCRIPT, "/nologo", "/EHsc", "/c", "main.cpp"]
-            cmd_link = ["link", "/nologo", "/OUT:main.exe", "main.obj"]
-
-            # Create header and compile
-            with open("version.h", "w") as header:
-                header.write("#define VERSION 1")
-            subprocess.check_call(cmd_compile)
-
-            # Link, run and check
-            subprocess.check_call(cmd_link)
-            cmd_run = [os.path.abspath("main.exe")]
-            output = subprocess.check_output(cmd_run).decode("ascii").strip()
-            self.assertEqual(output, "1")
-
-            # Remove compiled files
+    def _clean(self):
+        if os.path.isfile("main.obj"):
             os.remove("main.obj")
+        if os.path.isfile("main.exe"):
             os.remove("main.exe")
 
-            # Change header and compile
+    def _compileAndLink(self, environment = os.environ):
+        cmdCompile = [PYTHON_BINARY, CLCACHE_SCRIPT, "/nologo", "/EHsc", "/c", "main.cpp"]
+        cmdLink = ["link", "/nologo", "/OUT:main.exe", "main.obj"]
+        subprocess.check_call(cmdCompile, env=environment)
+        subprocess.check_call(cmdLink, env=environment)
+
+    def testDirect(self):
+        with cd(os.path.join("tests", "header-change")):
+            self._clean()
+
+            with open("version.h", "w") as header:
+                header.write("#define VERSION 1")
+
+            self._compileAndLink()
+            cmdRun = [os.path.abspath("main.exe")]
+            output = subprocess.check_output(cmdRun).decode("ascii").strip()
+            self.assertEqual(output, "1")
+
+            self._clean()
+
             with open("version.h", "w") as header:
                 header.write("#define VERSION 2")
-            subprocess.check_call(cmd_compile)
 
-            # Link, run and check
-            subprocess.check_call(cmd_link)
-            cmd_run = [os.path.abspath("main.exe")]
-            output = subprocess.check_output(cmd_run).decode("ascii").strip()
+            self._compileAndLink()
+            cmdRun = [os.path.abspath("main.exe")]
+            output = subprocess.check_output(cmdRun).decode("ascii").strip()
             self.assertEqual(output, "2")
 
 if __name__ == '__main__':
