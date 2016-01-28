@@ -1010,8 +1010,13 @@ def processHeaderChangedMiss(stats, cache, outputFile, manifest, manifestHash, k
 
 def processNoManifestMiss(stats, cache, outputFile, manifestHash, baseDir, compiler, cmdLine, sourceFile):
     stats.registerSourceChangedMiss()
-    stripIncludes = '/showIncludes' not in cmdLine
-    returnCode, compilerOutput, compilerStderr = invokeRealCompiler(compiler, cmdLine, captureOutput=True)
+    if '/showIncludes' in cmdLine:
+        realCompilerCmdLine = cmdLine
+        stripIncludes = False
+    else:
+        realCompilerCmdLine = ['/showIncludes'] + cmdLine
+        stripIncludes = True
+    returnCode, compilerOutput, compilerStderr = invokeRealCompiler(compiler, realCompilerCmdLine, captureOutput=True)
     grabStderr = False
     # If these options present, cl.exe will list includes on stderr, not stdout
     for option in ['/E', '/EP', '/P']:
@@ -1022,15 +1027,17 @@ def processNoManifestMiss(stats, cache, outputFile, manifestHash, baseDir, compi
         listOfIncludes, compilerStderr = parseIncludesList(compilerStderr, sourceFile, baseDir, stripIncludes)
     else:
         listOfIncludes, compilerOutput = parseIncludesList(compilerOutput, sourceFile, baseDir, stripIncludes)
-    manifest = Manifest(listOfIncludes, {})
-    listOfHeaderHashes = [getRelFileHash(fileName, baseDir) for fileName in listOfIncludes]
-    keyInManifest = ObjectCache.getKeyInManifest(listOfHeaderHashes)
-    cachekey = ObjectCache.getDirectCacheKey(manifestHash, keyInManifest)
 
     if returnCode == 0 and (outputFile == '' or os.path.exists(outputFile)):
+        # Store compile output and manifest
+        manifest = Manifest(listOfIncludes, {})
+        listOfHeaderHashes = [getRelFileHash(fileName, baseDir) for fileName in listOfIncludes]
+        keyInManifest = ObjectCache.getKeyInManifest(listOfHeaderHashes)
+        cachekey = ObjectCache.getDirectCacheKey(manifestHash, keyInManifest)
         addObjectToCache(stats, cache, outputFile, compilerOutput, compilerStderr, cachekey)
         manifest.hashes[keyInManifest] = cachekey
         cache.setManifest(manifestHash, manifest)
+
     stats.save()
     printTraceStatement("Finished. Exit code %d" % returnCode)
     return returnCode, compilerOutput, compilerStderr
