@@ -229,5 +229,27 @@ class TestHeaderChange(unittest.TestCase):
             output = subprocess.check_output(cmdRun).decode("ascii").strip()
             self.assertEqual(output, "2")
 
+    def testNoDirect(self):
+        with cd(os.path.join("tests", "header-change")):
+            self._clean()
+
+            with open("version.h", "w") as header:
+                header.write("#define VERSION 1")
+
+            self._compileAndLink(dict(os.environ, CLCACHE_NODIRECT="1"))
+            cmdRun = [os.path.abspath("main.exe")]
+            output = subprocess.check_output(cmdRun).decode("ascii").strip()
+            self.assertEqual(output, "1")
+
+            self._clean()
+
+            with open("version.h", "w") as header:
+                header.write("#define VERSION 2")
+
+            self._compileAndLink(dict(os.environ, CLCACHE_NODIRECT="1"))
+            cmdRun = [os.path.abspath("main.exe")]
+            output = subprocess.check_output(cmdRun).decode("ascii").strip()
+            self.assertEqual(output, "2")
+
 if __name__ == '__main__':
     unittest.main()
