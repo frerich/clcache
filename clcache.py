@@ -1010,8 +1010,13 @@ def processHeaderChangedMiss(stats, cache, outputFile, manifest, manifestHash, k
 
 def processNoManifestMiss(stats, cache, outputFile, manifestHash, baseDir, compiler, cmdLine, sourceFile):
     stats.registerSourceChangedMiss()
-    stripIncludes = '/showIncludes' not in cmdLine
-    returnCode, compilerOutput, compilerStderr = invokeRealCompiler(compiler, cmdLine, captureOutput=True)
+    if '/showIncludes' in cmdLine:
+        realCompilerCmdLine = cmdLine
+        stripIncludes = False
+    else:
+        realCompilerCmdLine = ['/showIncludes'] + cmdLine
+        stripIncludes = True
+    returnCode, compilerOutput, compilerStderr = invokeRealCompiler(compiler, realCompilerCmdLine, captureOutput=True)
     grabStderr = False
     # If these options present, cl.exe will list includes on stderr, not stdout
     for option in ['/E', '/EP', '/P']:
