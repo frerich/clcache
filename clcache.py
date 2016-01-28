@@ -1022,15 +1022,17 @@ def processNoManifestMiss(stats, cache, outputFile, manifestHash, baseDir, compi
         listOfIncludes, compilerStderr = parseIncludesList(compilerStderr, sourceFile, baseDir, stripIncludes)
     else:
         listOfIncludes, compilerOutput = parseIncludesList(compilerOutput, sourceFile, baseDir, stripIncludes)
-    manifest = Manifest(listOfIncludes, {})
-    listOfHeaderHashes = [getRelFileHash(fileName, baseDir) for fileName in listOfIncludes]
-    keyInManifest = ObjectCache.getKeyInManifest(listOfHeaderHashes)
-    cachekey = ObjectCache.getDirectCacheKey(manifestHash, keyInManifest)
 
     if returnCode == 0 and (outputFile == '' or os.path.exists(outputFile)):
+        # Store compile output and manifest
+        manifest = Manifest(listOfIncludes, {})
+        listOfHeaderHashes = [getRelFileHash(fileName, baseDir) for fileName in listOfIncludes]
+        keyInManifest = ObjectCache.getKeyInManifest(listOfHeaderHashes)
+        cachekey = ObjectCache.getDirectCacheKey(manifestHash, keyInManifest)
         addObjectToCache(stats, cache, outputFile, compilerOutput, compilerStderr, cachekey)
         manifest.hashes[keyInManifest] = cachekey
         cache.setManifest(manifestHash, manifest)
+
     stats.save()
     printTraceStatement("Finished. Exit code %d" % returnCode)
     return returnCode, compilerOutput, compilerStderr
