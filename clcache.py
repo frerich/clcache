@@ -331,14 +331,15 @@ class PersistentJSONDict:
         self._dict = {}
         self._fileName = fileName
         try:
-            self._dict = json.load(open(self._fileName, 'r'))
+            with open(self._fileName, 'r') as f:
+                self._dict = json.load(f)
         except:
             pass
 
     def save(self):
         if self._dirty:
-            json.dump(self._dict, open(self._fileName, 'w'),
-                      sort_keys=True, indent=4)
+            with open(self._fileName, 'w') as f:
+                json.dump(self._dict, f, sort_keys=True, indent=4)
 
     def __setitem__(self, key, value):
         self._dict[key] = value
