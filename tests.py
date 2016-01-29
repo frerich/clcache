@@ -36,7 +36,6 @@ class TestExtractArgument(unittest.TestCase):
         self.assertEqual(clcache.extractArgument(r'"-DWEBRTC_SVNREVISION=\"Unavailable(issue687)\""'),
                                                  r'-DWEBRTC_SVNREVISION=\"Unavailable(issue687)\"')
 
-
 class TestSplitCommandsFile(unittest.TestCase):
     def _genericTest(self, fileContents, expectedOutput):
         splitted = clcache.splitCommandsFile(fileContents)
