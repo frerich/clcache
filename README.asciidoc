@@ -136,8 +136,8 @@ by the compiler) is copied to the cache.
 
 Credits
 ~~~~~~~
-clcache.py was written by mailto:raabe@froglogic.com[Frerich Raabe] with
-a lot of help by mailto:vchigrin@yandex-team.ru[Slava Chigrin] and other
+clcache.py was written by mailto:raabe@froglogic.com[Frerich Raabe] with a lot
+of help by mailto:vchigrin@yandex-team.ru[Slava Chigrin], Simon Warta and other
 contributors.
 
 This program was heavily inspired by http://ccache.samba.org[ccache], a
