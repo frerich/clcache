@@ -130,6 +130,20 @@ class TestMultipleSourceFiles(BaseTest):
         actual = clcache.jobCount(["/MP2", "/c", "/MP44", "/nologo", "/MP", "mysource.cpp"])
         self.assertEqual(actual, self.CPU_CORES)
 
+class TestCommandLineArguments(BaseTest):
+    @unittest.skip("Do not run this test by default because it change user's cache settings")
+    def testValidMaxSize(self):
+        valid_values = ["1", "  10", "42  ", "22222222"]
+        for value in valid_values:
+            cmd = [PYTHON_BINARY, CLCACHE_SCRIPT, "-M", value]
+            self.assertEqual(subprocess.call(cmd), 0, "Command must not fail for max size: '" + value + "'")
+
+    def testInvalidMaxSize(self):
+        invalid_values = ["ababa", "-1", "0", "1000.0"]
+        for value in invalid_values:
+            cmd = [PYTHON_BINARY, CLCACHE_SCRIPT, "-M", value]
+            self.assertNotEqual(subprocess.call(cmd), 0, "Command must fail for max size: '" + value + "'")
+
 class TestCompileRuns(BaseTest):
     def testBasicCompileC(self):
         cmd = [PYTHON_BINARY, CLCACHE_SCRIPT, "/nologo", "/c", "tests\\fibonacci.c"]
