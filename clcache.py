@@ -2,7 +2,7 @@
 #
 # clcache.py - a compiler cache for Microsoft Visual Studio
 #
-# Copyright (c) 2010, 2011, 2012, 2013 froglogic GmbH <raabe@froglogic.com>
+# Copyright (c) 2010, 2011, 2012, 2013, 2016 froglogic GmbH <raabe@froglogic.com>
 #               2016 Simon Warta (Kullo GmbH)
 # All rights reserved.
 #
