@@ -24,6 +24,7 @@ class TestExtractArgument(unittest.TestCase):
         self.assertEqual(clcache.extractArgument(r''), r'')
         self.assertEqual(clcache.extractArgument(r'1'), r'1')
         self.assertEqual(clcache.extractArgument(r'myfile.cpp'), r'myfile.cpp')
+        self.assertEqual(clcache.extractArgument(r'/DEXTERNAL_DLL=__declspec(dllexport)'), r'/DEXTERNAL_DLL=__declspec(dllexport)')
         self.assertEqual(clcache.extractArgument(r'-DVERSION=\\"1.0\\"'), r'-DVERSION=\\"1.0\\"')
         self.assertEqual(clcache.extractArgument(r'-I"..\.."'), r'-I"..\.."')
 
