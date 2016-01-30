@@ -478,6 +478,7 @@ def getCompilerHash(compilerBinary):
     data = '|'.join([
                 str(stat.st_mtime),
                 str(stat.st_size),
+                VERSION,
             ])
     hasher = HASH_ALGORITHM()
     hasher.update(data.encode("UTF-8"))
