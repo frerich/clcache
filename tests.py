@@ -79,6 +79,7 @@ class TestParseIncludes(BaseTest):
         self.assertEqual(len(includesSet), sample['UniqueIncludesCount'])
         self.assertTrue(r'c:\users\me\test\smartsqlite\include\smartsqlite\version.h' in includesSet)
         self.assertTrue(r'c:\program files (x86)\microsoft visual studio 12.0\vc\include\concurrencysal.h' in includesSet)
+        self.assertTrue(r'' not in includesSet)
         self.assertEqual(newCompilerOutput, sample['CompilerOutput'])
 
     def testParseIncludesStrip(self):
@@ -89,6 +90,7 @@ class TestParseIncludes(BaseTest):
         self.assertEqual(len(includesSet), sample['UniqueIncludesCount'])
         self.assertTrue(r'c:\users\me\test\smartsqlite\include\smartsqlite\version.h' in includesSet)
         self.assertTrue(r'c:\program files (x86)\microsoft visual studio 12.0\vc\include\concurrencysal.h' in includesSet)
+        self.assertTrue(r'' not in includesSet)
         self.assertEqual(newCompilerOutput, "version.cpp\n")
 
 class TestMultipleSourceFiles(BaseTest):
