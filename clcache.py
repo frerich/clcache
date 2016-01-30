@@ -51,6 +51,8 @@ import sys
 import multiprocessing
 import re
 
+VERSION = "3.0.2"
+
 HASH_ALGORITHM = hashlib.md5
 
 # Manifest file will have at most this number of hash lists in it. Need to avoi
@@ -1047,12 +1049,12 @@ def processNoManifestMiss(stats, cache, outputFile, manifestHash, baseDir, compi
 def main():
     if len(sys.argv) == 2 and sys.argv[1] == "--help":
         print("""\
-    clcache.py v3.0.2
+    clcache.py v{}
       --help   : show this help
       -s       : print cache statistics
       -z       : reset cache statistics
       -M <size>: set maximum cache size (in bytes)
-    """)
+    """.format(VERSION))
         return 0
 
     if len(sys.argv) == 2 and sys.argv[1] == "-s":
