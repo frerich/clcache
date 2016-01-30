@@ -71,6 +71,13 @@ class TestParseIncludes(BaseTest):
                 'UniqueIncludesCount': 83
             }
 
+    def _readSampleFileNoIncludes(self):
+        with open(r'tests\parse-includes\compiler_output_no_includes.txt', 'r') as infile:
+            return {
+                'CompilerOutput': infile.read(),
+                'UniqueIncludesCount': 0
+            }
+
     def testParseIncludesNoStrip(self):
         sample = self._readSampleFileDefault()
         includesSet, newCompilerOutput = clcache.parseIncludesList(sample['CompilerOutput'],
@@ -92,6 +99,16 @@ class TestParseIncludes(BaseTest):
         self.assertTrue(r'c:\program files (x86)\microsoft visual studio 12.0\vc\include\concurrencysal.h' in includesSet)
         self.assertTrue(r'' not in includesSet)
         self.assertEqual(newCompilerOutput, "version.cpp\n")
+
+    def testParseIncludesNoIncludes(self):
+        sample = self._readSampleFileNoIncludes()
+        for stripIncludes in [True, False]:
+            includesSet, newCompilerOutput = clcache.parseIncludesList(sample['CompilerOutput'],
+                r"C:\Users\me\test\myproject\main.cpp", None,
+                strip=stripIncludes)
+
+            self.assertEqual(len(includesSet), sample['UniqueIncludesCount'])
+            self.assertEqual(newCompilerOutput, "main.cpp\n")
 
 class TestMultipleSourceFiles(BaseTest):
     CPU_CORES = multiprocessing.cpu_count()
