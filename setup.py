@@ -2,7 +2,7 @@ from distutils.core import setup
 import py2exe
 
 setup(
-    version = "3.0.2",
+    version = "3.0.3-dev",
     description = "A compiler cache for Microsoft Visual Studio.",
     name = "CLCache",
     console = ["clcache.py"],

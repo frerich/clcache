@@ -52,6 +52,8 @@ import sys
 import multiprocessing
 import re
 
+VERSION = "3.0.3-dev"
+
 HASH_ALGORITHM = hashlib.md5
 
 # Manifest file will have at most this number of hash lists in it. Need to avoi
@@ -190,14 +192,12 @@ class ObjectCache:
 
     @staticmethod
     def getManifestHash(compilerBinary, commandLine, sourceFile):
-        stat = os.stat(compilerBinary)
+        compilerHash = getCompilerHash(compilerBinary)
+
         # NOTE: We intentionally do not normalize command line to include
         # preprocessor options. In direct mode we do not perform
         # preprocessing before cache lookup, so all parameters are important
-        additionalData = '{mtime}{size}{cmdLine}'.format(
-            mtime=stat.st_mtime,
-            size=stat.st_size,
-            cmdLine=' '.join(commandLine))
+        additionalData = compilerHash + ' '.join(commandLine)
         return getFileHash(sourceFile, additionalData)
 
     @staticmethod
@@ -212,22 +212,12 @@ class ObjectCache:
             sys.stderr.write("clcache: preprocessor failed\n")
             sys.exit(preprocessor.returncode)
 
+        compilerHash = getCompilerHash(compilerBinary)
         normalizedCmdLine = ObjectCache._normalizedCommandLine(commandLine)
 
-        stat = os.stat(compilerBinary)
-
-        # Meta data is stored as a unicode string for simple
-        # int->string conversion. The source file is stored as
-        # binary from the preprocessor because we donn't know
-        # it's encoding, so just don't touch it.
-        hash_subject_metadata = "{}{}{}".format(
-            stat.st_mtime,
-            stat.st_size,
-            ' '.join(normalizedCmdLine)
-        )
-
         h = HASH_ALGORITHM()
-        h.update(hash_subject_metadata.encode("UTF-8"))
+        h.update(compilerHash.encode("UTF-8"))
+        h.update(' '.join(normalizedCmdLine).encode("UTF-8"))
         h.update(preprocessedSourceCode)
         return h.hexdigest()
 
@@ -482,6 +472,18 @@ class AnalysisResult:
     Ok, NoSourceFile, MultipleSourceFilesSimple, \
         MultipleSourceFilesComplex, CalledForLink, \
         CalledWithPch, ExternalDebugInfo = list(range(7))
+
+
+def getCompilerHash(compilerBinary):
+    stat = os.stat(compilerBinary)
+    data = '|'.join([
+                str(stat.st_mtime),
+                str(stat.st_size),
+                VERSION,
+            ])
+    hasher = HASH_ALGORITHM()
+    hasher.update(data.encode("UTF-8"))
+    return hasher.hexdigest()
 
 
 def getFileHash(filePath, additionalData=None):
@@ -1048,12 +1050,12 @@ def processNoManifestMiss(stats, cache, outputFile, manifestHash, baseDir, compi
 def main():
     if len(sys.argv) == 2 and sys.argv[1] == "--help":
         print("""\
-    clcache.py v3.0.2
+    clcache.py v{}
       --help   : show this help
       -s       : print cache statistics
       -z       : reset cache statistics
       -M <size>: set maximum cache size (in bytes)
-    """)
+    """.format(VERSION))
         return 0
 
     if len(sys.argv) == 2 and sys.argv[1] == "-s":
