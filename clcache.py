@@ -29,6 +29,7 @@
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 
+from __future__ import print_function
 # All string literals are unicode strings. Requires Python 3.3+
 # (http://python-future.org/faq.html#which-versions-of-python-does-python-future-support)
 from __future__ import unicode_literals
@@ -1064,10 +1065,20 @@ def main():
         return 0
 
     if len(sys.argv) == 3 and sys.argv[1] == "-M":
+        arg = sys.argv[2]
+        try:
+            maxSizeValue = int(arg)
+        except ValueError:
+            print("Given max size argument is not a valid integer: '{}'.".format(arg), file=sys.stderr)
+            return 1
+        if maxSizeValue < 1:
+            print("Max size argument must be greater than 0.", file=sys.stderr)
+            return 1
+
         cache = ObjectCache()
         with cache.lock:
             cfg = Configuration(cache)
-            cfg.setMaximumCacheSize(int(sys.argv[2]))
+            cfg.setMaximumCacheSize(maxSizeValue)
             cfg.save()
         return 0
 

@@ -15,15 +15,21 @@ def cd(target_directory):
     finally:
         os.chdir(old_directory)
 
+class BaseTest(unittest.TestCase):
+    def __init__(self, *args, **kwargs):
+        self.longMessage = True
+        super(BaseTest, self).__init__(*args, **kwargs)
+
 PYTHON_BINARY = sys.executable
 CLCACHE_SCRIPT = os.path.join(os.path.dirname(os.path.realpath(__file__)), "clcache.py")
 
-class TestExtractArgument(unittest.TestCase):
+class TestExtractArgument(BaseTest):
     def testSimple(self):
         # Keep
         self.assertEqual(clcache.extractArgument(r''), r'')
         self.assertEqual(clcache.extractArgument(r'1'), r'1')
         self.assertEqual(clcache.extractArgument(r'myfile.cpp'), r'myfile.cpp')
+        self.assertEqual(clcache.extractArgument(r'/DEXTERNAL_DLL=__declspec(dllexport)'), r'/DEXTERNAL_DLL=__declspec(dllexport)')
         self.assertEqual(clcache.extractArgument(r'-DVERSION=\\"1.0\\"'), r'-DVERSION=\\"1.0\\"')
         self.assertEqual(clcache.extractArgument(r'-I"..\.."'), r'-I"..\.."')
 
@@ -35,8 +41,7 @@ class TestExtractArgument(unittest.TestCase):
         self.assertEqual(clcache.extractArgument(r'"-DWEBRTC_SVNREVISION=\"Unavailable(issue687)\""'),
                                                  r'-DWEBRTC_SVNREVISION=\"Unavailable(issue687)\"')
 
-
-class TestSplitCommandsFile(unittest.TestCase):
+class TestSplitCommandsFile(BaseTest):
     def _genericTest(self, fileContents, expectedOutput):
         splitted = clcache.splitCommandsFile(fileContents)
         self.assertEqual(splitted, expectedOutput)
@@ -58,31 +63,54 @@ class TestSplitCommandsFile(unittest.TestCase):
         self._genericTest(r'"-DWEBRTC_SVNREVISION=\"Unavailable(issue687)\"" -D_WIN32_WINNT=0x0602',
                           [r'-DWEBRTC_SVNREVISION=\"Unavailable(issue687)\"', '-D_WIN32_WINNT=0x0602'])
 
-class TestParseIncludes(unittest.TestCase):
-    def setUp(self):
+class TestParseIncludes(BaseTest):
+    def _readSampleFileDefault(self):
         with open(r'tests\parse-includes\compiler_output.txt', 'r') as infile:
-            self.sampleCompilerOutput = infile.read()
-            self.sampleUniqueIncludesCount = 83
+            return {
+                'CompilerOutput': infile.read(),
+                'UniqueIncludesCount': 83
+            }
+
+    def _readSampleFileNoIncludes(self):
+        with open(r'tests\parse-includes\compiler_output_no_includes.txt', 'r') as infile:
+            return {
+                'CompilerOutput': infile.read(),
+                'UniqueIncludesCount': 0
+            }
 
     def testParseIncludesNoStrip(self):
-        includesSet, newCompilerOutput = clcache.parseIncludesList(self.sampleCompilerOutput,
+        sample = self._readSampleFileDefault()
+        includesSet, newCompilerOutput = clcache.parseIncludesList(sample['CompilerOutput'],
             r"C:\Users\me\test\smartsqlite\src\version.cpp", None, strip=False)
 
-        self.assertEqual(len(includesSet), self.sampleUniqueIncludesCount)
+        self.assertEqual(len(includesSet), sample['UniqueIncludesCount'])
         self.assertTrue(r'c:\users\me\test\smartsqlite\include\smartsqlite\version.h' in includesSet)
         self.assertTrue(r'c:\program files (x86)\microsoft visual studio 12.0\vc\include\concurrencysal.h' in includesSet)
-        self.assertEqual(newCompilerOutput, self.sampleCompilerOutput)
+        self.assertTrue(r'' not in includesSet)
+        self.assertEqual(newCompilerOutput, sample['CompilerOutput'])
 
     def testParseIncludesStrip(self):
-        includesSet, newCompilerOutput = clcache.parseIncludesList(self.sampleCompilerOutput,
+        sample = self._readSampleFileDefault()
+        includesSet, newCompilerOutput = clcache.parseIncludesList(sample['CompilerOutput'],
             r"C:\Users\me\test\smartsqlite\src\version.cpp", None, strip=True)
 
-        self.assertEqual(len(includesSet), self.sampleUniqueIncludesCount)
+        self.assertEqual(len(includesSet), sample['UniqueIncludesCount'])
         self.assertTrue(r'c:\users\me\test\smartsqlite\include\smartsqlite\version.h' in includesSet)
         self.assertTrue(r'c:\program files (x86)\microsoft visual studio 12.0\vc\include\concurrencysal.h' in includesSet)
+        self.assertTrue(r'' not in includesSet)
         self.assertEqual(newCompilerOutput, "version.cpp\n")
 
-class TestMultipleSourceFiles(unittest.TestCase):
+    def testParseIncludesNoIncludes(self):
+        sample = self._readSampleFileNoIncludes()
+        for stripIncludes in [True, False]:
+            includesSet, newCompilerOutput = clcache.parseIncludesList(sample['CompilerOutput'],
+                r"C:\Users\me\test\myproject\main.cpp", None,
+                strip=stripIncludes)
+
+            self.assertEqual(len(includesSet), sample['UniqueIncludesCount'])
+            self.assertEqual(newCompilerOutput, "main.cpp\n")
+
+class TestMultipleSourceFiles(BaseTest):
     CPU_CORES = multiprocessing.cpu_count()
 
     def testCpuCuresPlausibility(self):
@@ -125,7 +153,21 @@ class TestMultipleSourceFiles(unittest.TestCase):
         actual = clcache.jobCount(["/MP2", "/c", "/MP44", "/nologo", "/MP", "mysource.cpp"])
         self.assertEqual(actual, self.CPU_CORES)
 
-class TestCompileRuns(unittest.TestCase):
+class TestCommandLineArguments(BaseTest):
+    @unittest.skip("Do not run this test by default because it change user's cache settings")
+    def testValidMaxSize(self):
+        valid_values = ["1", "  10", "42  ", "22222222"]
+        for value in valid_values:
+            cmd = [PYTHON_BINARY, CLCACHE_SCRIPT, "-M", value]
+            self.assertEqual(subprocess.call(cmd), 0, "Command must not fail for max size: '" + value + "'")
+
+    def testInvalidMaxSize(self):
+        invalid_values = ["ababa", "-1", "0", "1000.0"]
+        for value in invalid_values:
+            cmd = [PYTHON_BINARY, CLCACHE_SCRIPT, "-M", value]
+            self.assertNotEqual(subprocess.call(cmd), 0, "Command must fail for max size: '" + value + "'")
+
+class TestCompileRuns(BaseTest):
     def testBasicCompileC(self):
         cmd = [PYTHON_BINARY, CLCACHE_SCRIPT, "/nologo", "/c", "tests\\fibonacci.c"]
         subprocess.check_call(cmd)
@@ -167,7 +209,7 @@ class TestCompileRuns(unittest.TestCase):
         subprocess.check_call(cmd) # Compile once
         subprocess.check_call(cmd) # Compile again
 
-class TestHits(unittest.TestCase):
+class TestHits(BaseTest):
     def testHitsSimple(self):
         cmd = [PYTHON_BINARY, CLCACHE_SCRIPT, "/nologo", "/EHsc", "/c", r'tests\hits-and-misses\hit.cpp']
         subprocess.check_call(cmd) # Ensure it has been compiled before
@@ -177,7 +219,7 @@ class TestHits(unittest.TestCase):
         newHits = clcache.getStatistics().numCacheHits()
         self.assertEqual(newHits, oldHits + 1)
 
-class TestPrecompiledHeaders(unittest.TestCase):
+class TestPrecompiledHeaders(BaseTest):
     def testSampleproject(self):
         with cd(os.path.join("tests", "precompiled-headers")):
             cpp = PYTHON_BINARY + " " + CLCACHE_SCRIPT
@@ -194,7 +236,7 @@ class TestPrecompiledHeaders(unittest.TestCase):
             cmd = ["nmake", "/nologo"]
             subprocess.check_call(cmd, env=dict(os.environ, CPP=cpp))
 
-class TestHeaderChange(unittest.TestCase):
+class TestHeaderChange(BaseTest):
     def _clean(self):
         if os.path.isfile("main.obj"):
             os.remove("main.obj")
