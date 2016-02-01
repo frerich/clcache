@@ -103,7 +103,7 @@ class ObjectCacheLock:
         if not self._acquired:
             self.acquire()
 
-    def __exit__(self, type, value, traceback):
+    def __exit__(self, typ, value, traceback):
         if self._acquired:
             self.release()
 
@@ -177,8 +177,8 @@ class ObjectCache:
             return
         with self.lock:
             currentSize = stats.currentCacheSize()
-            for hash in removedObjects:
-                dirPath = self._cacheEntryDir(hash)
+            for o in removedObjects:
+                dirPath = self._cacheEntryDir(o)
                 if not os.path.exists(dirPath):
                     continue  # May be if object already evicted.
                 objectPath = os.path.join(dirPath, "object")
@@ -543,8 +543,8 @@ def findCompilerBinary():
     if frozenByPy2Exe:
         myExecutablePath = str(sys.executable, sys.getfilesystemencoding()).upper()
 
-    for dir in os.environ["PATH"].split(os.pathsep):
-        path = os.path.join(dir, "cl.exe")
+    for p in os.environ["PATH"].split(os.pathsep):
+        path = os.path.join(p, "cl.exe")
         if os.path.exists(path):
             if not frozenByPy2Exe:
                 return path
@@ -607,8 +607,8 @@ def expandCommandLine(cmdline):
     for arg in cmdline:
         if arg[0] == '@':
             includeFile = arg[1:]
-            with open(includeFile, 'rb') as file:
-                rawBytes = file.read()
+            with open(includeFile, 'rb') as f:
+                rawBytes = f.read()
 
             encoding = None
 
