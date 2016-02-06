@@ -541,7 +541,10 @@ def findCompilerBinary():
 
     frozenByPy2Exe = hasattr(sys, "frozen")
     if frozenByPy2Exe:
-        myExecutablePath = str(sys.executable, sys.getfilesystemencoding()).upper()
+        if sys.version_info >= (3, 0):
+            myExecutablePath = sys.executable.upper()
+        else:
+            myExecutablePath = unicode(sys.executable, sys.getfilesystemencoding()).upper()
 
     for p in os.environ["PATH"].split(os.pathsep):
         path = os.path.join(p, "cl.exe")
