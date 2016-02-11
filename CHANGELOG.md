@@ -3,7 +3,7 @@ clcache changelog
 
 ## Upcoming release
 
- * Bugfix: Supportuse of py2exe with Python 3.4
+ * Bugfix: Support use of py2exe with Python 3.4
 
 ## clcache 3.0.2 (2016-01-29)
 
