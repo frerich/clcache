@@ -939,7 +939,21 @@ def resetStatistics():
 def parseIncludesList(compilerOutput, sourceFile, baseDir, strip):
     newOutput = []
     includesSet = set([])
-    reFilePath = re.compile('^Note: including file: *(?P<file_path>.+)$')
+
+    # Example lines
+    # Note: including file:         C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\INCLUDE\limits.h
+    # Hinweis: Einlesen der Datei:   C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\INCLUDE\iterator
+    #
+    # So we match
+    # - one word (translation of "note")
+    # - colon
+    # - space
+    # - a phrase containing characters and spaces (translation of "including file")
+    # - colon
+    # - one or more spaces
+    # - the file path, starting with a non-whitespace character
+    reFilePath = re.compile('^(\w+): ([ \w]+):( +)(?P<file_path>\S.*)$')
+
     absSourceFile = os.path.normcase(os.path.abspath(sourceFile))
     if baseDir:
         baseDir = os.path.normcase(baseDir)

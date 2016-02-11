@@ -64,11 +64,18 @@ class TestSplitCommandsFile(BaseTest):
                           [r'-DWEBRTC_SVNREVISION=\"Unavailable(issue687)\"', '-D_WIN32_WINNT=0x0602'])
 
 class TestParseIncludes(BaseTest):
-    def _readSampleFileDefault(self):
-        with open(r'tests\parse-includes\compiler_output.txt', 'r') as infile:
+    def _readSampleFileDefault(self, lang=None):
+        if lang == "de":
+            filePath = r'tests\parse-includes\compiler_output_lang_de.txt'
+            uniqueIncludesCount = 82
+        else:
+            filePath = r'tests\parse-includes\compiler_output.txt'
+            uniqueIncludesCount = 83
+
+        with open(filePath, 'r') as infile:
             return {
                 'CompilerOutput': infile.read(),
-                'UniqueIncludesCount': 83
+                'UniqueIncludesCount': uniqueIncludesCount
             }
 
     def _readSampleFileNoIncludes(self):
@@ -109,6 +116,16 @@ class TestParseIncludes(BaseTest):
 
             self.assertEqual(len(includesSet), sample['UniqueIncludesCount'])
             self.assertEqual(newCompilerOutput, "main.cpp\n")
+
+    def testParseIncludesGerman(self):
+        sample = self._readSampleFileDefault(lang="de")
+        includesSet, newCompilerOutput = clcache.parseIncludesList(sample['CompilerOutput'],
+            r"C:\Users\me\test\smartsqlite\src\version.cpp", None, strip=False)
+
+        self.assertEqual(len(includesSet), sample['UniqueIncludesCount'])
+        self.assertTrue(r'c:\users\me\test\smartsqlite\include\smartsqlite\version.h' in includesSet)
+        self.assertTrue(r'c:\program files (x86)\microsoft visual studio 12.0\vc\include\concurrencysal.h' in includesSet)
+        self.assertTrue(r'' not in includesSet)
 
 class TestMultipleSourceFiles(BaseTest):
     CPU_CORES = multiprocessing.cpu_count()
