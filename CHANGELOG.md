@@ -3,7 +3,7 @@ clcache changelog
 
 ## Upcoming release
 
- * Bugfix: Supportuse of py2exe with Python 3.4
+ * Bugfix: Support use of py2exe with Python 3.4
 
 ## clcache 3.0.2 (2016-01-29)
 
@@ -17,7 +17,7 @@ clcache changelog
  * Bugfix: Fix crash when using CLCACHE_NODIRECT by restoring missing argument
  * Bugfix: Fix fork-bomb when py2exe is used
 
-### Implementation details
+**Implementation details**
 
  * Setup CI system
  * Add some basic tests
