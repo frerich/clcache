@@ -1066,13 +1066,13 @@ def processNoManifestMiss(stats, cache, outputFile, manifestHash, baseDir, compi
 
 def main():
     if len(sys.argv) == 2 and sys.argv[1] == "--help":
-        print("""\
-    clcache.py v{}
-      --help   : show this help
-      -s       : print cache statistics
-      -z       : reset cache statistics
-      -M <size>: set maximum cache size (in bytes)
-    """.format(VERSION))
+        print("""
+clcache.py v{}
+  --help    : show this help
+  -s        : print cache statistics
+  -z        : reset cache statistics
+  -M <size> : set maximum cache size (in bytes)
+""".strip().format(VERSION))
         return 0
 
     if len(sys.argv) == 2 and sys.argv[1] == "-s":
