@@ -911,6 +911,7 @@ clcache statistics:
   cache hits                : {}
   cache misses              : {}
   called for linking        : {}
+  called for external debug : {}
   called w/o sources        : {}
   calls w/ multiple sources : {}
   calls w/ PCH              : {}
@@ -925,6 +926,7 @@ clcache statistics:
         stats.numCacheHits(),
         stats.numCacheMisses(),
         stats.numCallsForLinking(),
+        stats.numCallsForExternalDebugInfo(),
         stats.numCallsWithoutSourceFile(),
         stats.numCallsWithMultipleSourceFiles(),
         stats.numCallsWithPch(),
