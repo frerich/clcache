@@ -910,14 +910,15 @@ clcache statistics:
   cache entries             : {}
   cache hits                : {}
   cache misses              : {}
-  called for linking        : {}
-  called for external debug : {}
-  called w/o sources        : {}
-  calls w/ multiple sources : {}
-  calls w/ PCH              : {}
   evicted misses            : {}
   header changed misses     : {}
   source changed misses     : {}
+  passed to real compiler
+    called for linking         : {}
+    called for external debug  : {}
+    called w/o source          : {}
+    called w/ multiple sources : {}
+    called w/ PCH              : {}
 """.strip().format(
         cache.cacheDirectory(),
         stats.currentCacheSize(),
@@ -925,14 +926,14 @@ clcache statistics:
         stats.numCacheEntries(),
         stats.numCacheHits(),
         stats.numCacheMisses(),
+        stats.numEvictedMisses(),
+        stats.numHeaderChangedMisses(),
+        stats.numSourceChangedMisses(),
         stats.numCallsForLinking(),
         stats.numCallsForExternalDebugInfo(),
         stats.numCallsWithoutSourceFile(),
         stats.numCallsWithMultipleSourceFiles(),
         stats.numCallsWithPch(),
-        stats.numEvictedMisses(),
-        stats.numHeaderChangedMisses(),
-        stats.numSourceChangedMisses(),
     )
     print(out)
 
