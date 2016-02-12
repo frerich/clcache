@@ -909,10 +909,11 @@ clcache statistics:
   maximum cache size        : {:,} bytes
   cache entries             : {}
   cache hits                : {}
-  cache misses              : {}
-  evicted misses            : {}
-  header changed misses     : {}
-  source changed misses     : {}
+  cache misses
+    total                      : {}
+    evicted                    : {}
+    header changed             : {}
+    source changed             : {}
   passed to real compiler
     called for linking         : {}
     called for external debug  : {}
