@@ -902,34 +902,36 @@ def printStatistics():
     cache = ObjectCache()
     cfg = getConfiguration()
     stats = getStatistics()
-    out = """clcache statistics:
-  current cache dir        : {}
-  cache size               : {:,} bytes
-  maximum cache size       : {:,} bytes
-  cache entries            : {}
-  cache hits               : {}
-  cache misses             : {}
-  called for linking       : {}
-  called w/o sources       : {}
-  calls w/ multiple sources: {}
-  calls w/ PCH             : {}
-  evicted misses           : {}
-  header changed misses    : {}
-  source changed misses    : {}
-  """.format(
-         cache.cacheDirectory(),
-         stats.currentCacheSize(),
-         cfg.maximumCacheSize(),
-         stats.numCacheEntries(),
-         stats.numCacheHits(),
-         stats.numCacheMisses(),
-         stats.numCallsForLinking(),
-         stats.numCallsWithoutSourceFile(),
-         stats.numCallsWithMultipleSourceFiles(),
-         stats.numCallsWithPch(),
-         stats.numEvictedMisses(),
-         stats.numHeaderChangedMisses(),
-         stats.numSourceChangedMisses())
+    out = """
+clcache statistics:
+  current cache dir         : {}
+  cache size                : {:,} bytes
+  maximum cache size        : {:,} bytes
+  cache entries             : {}
+  cache hits                : {}
+  cache misses              : {}
+  called for linking        : {}
+  called w/o sources        : {}
+  calls w/ multiple sources : {}
+  calls w/ PCH              : {}
+  evicted misses            : {}
+  header changed misses     : {}
+  source changed misses     : {}
+""".strip().format(
+        cache.cacheDirectory(),
+        stats.currentCacheSize(),
+        cfg.maximumCacheSize(),
+        stats.numCacheEntries(),
+        stats.numCacheHits(),
+        stats.numCacheMisses(),
+        stats.numCallsForLinking(),
+        stats.numCallsWithoutSourceFile(),
+        stats.numCallsWithMultipleSourceFiles(),
+        stats.numCallsWithPch(),
+        stats.numEvictedMisses(),
+        stats.numHeaderChangedMisses(),
+        stats.numSourceChangedMisses(),
+    )
     print(out)
 
 def resetStatistics():
