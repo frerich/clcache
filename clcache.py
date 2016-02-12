@@ -376,6 +376,7 @@ class CacheStatistics:
                   "CallsWithMultipleSourceFiles",
                   "CallsWithPch",
                   "CallsForLinking",
+                  "CallsForExternalDebugInfo",
                   "CacheEntries", "CacheSize",
                   "CacheHits", "CacheMisses",
                   "EvictedMisses", "HeaderChangedMisses",
@@ -406,6 +407,12 @@ class CacheStatistics:
 
     def registerCallForLinking(self):
         self._stats["CallsForLinking"] += 1
+
+    def numCallsForExternalDebugInfo(self):
+        return self._stats["CallsForExternalDebugInfo"]
+
+    def registerCallForExternalDebugInfo(self):
+        self._stats["CallsForExternalDebugInfo"] += 1
 
     def numEvictedMisses(self):
         return self._stats["EvictedMisses"]
@@ -458,6 +465,7 @@ class CacheStatistics:
                   "CallsWithMultipleSourceFiles",
                   "CallsWithPch",
                   "CallsForLinking",
+                  "CallsForExternalDebugInfo",
                   "CacheHits", "CacheMisses",
                   "EvictedMisses", "HeaderChangedMisses",
                   "SourceChangedMisses"]:
@@ -1148,6 +1156,7 @@ def processCompileRequest(compiler, args):
                 stats.registerCallForLinking()
             elif analysisResult == AnalysisResult.ExternalDebugInfo:
                 printTraceStatement("Cannot cache invocation as %s: external debug information (/Zi) is not supported" % (' '.join(cmdLine)))
+                stats.registerCallForExternalDebugInfo()
             stats.save()
         return invokeRealCompiler(compiler, args[1:])
     if 'CLCACHE_NODIRECT' in os.environ:
