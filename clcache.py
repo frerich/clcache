@@ -1215,12 +1215,7 @@ def processNoDirect(stats, cache, outputFile, compiler, cmdLine):
         with cache.lock:
             stats.registerCacheMiss()
             if returnCode == 0 and os.path.exists(outputFile):
-                printTraceStatement("Adding file " + outputFile + " to cache using " +
-                                    "key " + cachekey)
-                cache.setEntry(cachekey, outputFile, compilerStdout, compilerStderr)
-                stats.registerCacheEntry(os.path.getsize(outputFile))
-                cfg = Configuration(cache)
-                cache.clean(stats, cfg.maximumCacheSize())
+                addObjectToCache(stats, cache, outputFile, compilerStdout, compilerStderr, cachekey)
             stats.save()
         printTraceStatement("Finished. Exit code %d" % returnCode)
         return returnCode, compilerStdout, compilerStderr
