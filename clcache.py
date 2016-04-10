@@ -739,7 +739,7 @@ def analyzeCommandLine(cmdline):
                                       os.path.splitext(srcFileName)[0] + ".obj")
     elif preprocessing:
         if 'P' in options:
-            # Prerpocess to file.
+            # Preprocess to file.
             if 'Fi' in options:
                 outputFile = options['Fi'][0]
             else:
@@ -747,7 +747,7 @@ def analyzeCommandLine(cmdline):
                 outputFile = os.path.join(os.getcwd(),
                                           os.path.splitext(srcFileName)[0] + ".i")
         else:
-            # Prerocess to stdout. Use empty string rather then None to ease
+            # Preprocess to stdout. Use empty string rather then None to ease
             # output to log.
             outputFile = ''
     else:
