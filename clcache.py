@@ -988,10 +988,10 @@ def parseIncludesList(compilerOutput, sourceFile, baseDir, strip):
         return list(includesSet), compilerOutput
 
 
-def addObjectToCache(stats, cache, outputFile, compilerOutput, compilerStderr, cachekey):
+def addObjectToCache(stats, cache, outputFile, compilerStdout, compilerStderr, cachekey):
     printTraceStatement("Adding file " + outputFile + " to cache using " +
                         "key " + cachekey)
-    cache.setEntry(cachekey, outputFile, compilerOutput, compilerStderr)
+    cache.setEntry(cachekey, outputFile, compilerStdout, compilerStderr)
     if outputFile != '':
         stats.registerCacheEntry(os.path.getsize(outputFile))
         cfg = Configuration(cache)
