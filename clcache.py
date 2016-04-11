@@ -248,9 +248,11 @@ class ObjectCache:
                 os.makedirs(self._cacheEntryDir(key))
             if objectFileName != '':
                 copyOrLink(objectFileName, self.cachedObjectName(key))
-            open(self._cachedCompilerOutputName(key), 'w').write(compilerOutput)
+            with open(self._cachedCompilerOutputName(key), 'w') as f:
+                f.write(compilerOutput)
             if compilerStderr != '':
-                open(self._cachedCompilerStderrName(key), 'w').write(compilerStderr)
+                with open(self._cachedCompilerStderrName(key), 'w') as f:
+                    f.write(compilerStderr)
 
     def setManifest(self, manifestHash, manifest):
         with self.lock:
@@ -275,12 +277,14 @@ class ObjectCache:
         return os.path.join(self._cacheEntryDir(key), "object")
 
     def cachedCompilerOutput(self, key):
-        return open(self._cachedCompilerOutputName(key), 'r').read()
+        with open(self._cachedCompilerOutputName(key), 'r') as f:
+            return f.read()
 
     def cachedCompilerStderr(self, key):
         fileName = self._cachedCompilerStderrName(key)
         if os.path.exists(fileName):
-            return open(fileName, 'r').read()
+            with open(fileName, 'r') as f:
+                return f.read()
         return ''
 
     def _cacheEntryDir(self, key):
