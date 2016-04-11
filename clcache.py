@@ -743,7 +743,7 @@ def analyzeCommandLine(cmdline):
                                       os.path.splitext(srcFileName)[0] + ".obj")
     elif preprocessing:
         if 'P' in options:
-            # Prerpocess to file.
+            # Preprocess to file.
             if 'Fi' in options:
                 outputFile = options['Fi'][0]
             else:
@@ -751,7 +751,7 @@ def analyzeCommandLine(cmdline):
                 outputFile = os.path.join(os.getcwd(),
                                           os.path.splitext(srcFileName)[0] + ".i")
         else:
-            # Prerocess to stdout. Use empty string rather then None to ease
+            # Preprocess to stdout. Use empty string rather then None to ease
             # output to log.
             outputFile = ''
     else:
@@ -992,10 +992,10 @@ def parseIncludesList(compilerOutput, sourceFile, baseDir, strip):
         return list(includesSet), compilerOutput
 
 
-def addObjectToCache(stats, cache, outputFile, compilerOutput, compilerStderr, cachekey):
+def addObjectToCache(stats, cache, outputFile, compilerStdout, compilerStderr, cachekey):
     printTraceStatement("Adding file " + outputFile + " to cache using " +
                         "key " + cachekey)
-    cache.setEntry(cachekey, outputFile, compilerOutput, compilerStderr)
+    cache.setEntry(cachekey, outputFile, compilerStdout, compilerStderr)
     if outputFile != '':
         stats.registerCacheEntry(os.path.getsize(outputFile))
         cfg = Configuration(cache)
@@ -1219,12 +1219,7 @@ def processNoDirect(stats, cache, outputFile, compiler, cmdLine):
         with cache.lock:
             stats.registerCacheMiss()
             if returnCode == 0 and os.path.exists(outputFile):
-                printTraceStatement("Adding file " + outputFile + " to cache using " +
-                                    "key " + cachekey)
-                cache.setEntry(cachekey, outputFile, compilerStdout, compilerStderr)
-                stats.registerCacheEntry(os.path.getsize(outputFile))
-                cfg = Configuration(cache)
-                cache.clean(stats, cfg.maximumCacheSize())
+                addObjectToCache(stats, cache, outputFile, compilerStdout, compilerStderr, cachekey)
             stats.save()
         printTraceStatement("Finished. Exit code %d" % returnCode)
         return returnCode, compilerStdout, compilerStderr
