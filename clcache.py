@@ -156,8 +156,16 @@ class ObjectCache:
         # is a big performance hit with large caches.
         effectiveMaximumSize = maximumSize * 0.9
 
+        # try to use os.scandir or scandir.scandir
+        # fall back to os.walk if not found
+        try:
+            import scandir
+            walker = scandir.walk
+        except ImportError:
+            walker = os.walk
+
         objects = [os.path.join(root, "object")
-                   for root, folder, files in os.walk(self.objectsDir)
+                   for root, folder, files in walker(self.objectsDir)
                    if "object" in files]
 
         objectInfos = [(os.stat(fn), fn) for fn in objects]
