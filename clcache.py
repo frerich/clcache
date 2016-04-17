@@ -163,6 +163,9 @@ class ObjectCache:
         objectInfos = [(os.stat(fn), fn) for fn in objects]
         objectInfos.sort(key=lambda t: t[0].st_atime)
 
+        # compute real current size to fix up the stored cacheSize
+        currentSize = sum(x[0].st_size for x in objectInfos)
+
         for stat, fn in objectInfos:
             rmtree(os.path.split(fn)[0])
             currentSize -= stat.st_size
