@@ -231,9 +231,10 @@ class TestHits(BaseTest):
         cmd = [PYTHON_BINARY, CLCACHE_SCRIPT, "/nologo", "/EHsc", "/c", r'tests\hits-and-misses\hit.cpp']
         subprocess.check_call(cmd) # Ensure it has been compiled before
 
-        oldHits = clcache.getStatistics().numCacheHits()
+        cache = clcache.ObjectCache()
+        oldHits = clcache.CacheStatistics(cache).numCacheHits()
         subprocess.check_call(cmd) # This must hit now
-        newHits = clcache.getStatistics().numCacheHits()
+        newHits = clcache.CacheStatistics(cache).numCacheHits()
         self.assertEqual(newHits, oldHits + 1)
 
 class TestPrecompiledHeaders(BaseTest):
