@@ -33,6 +33,7 @@
 #
 import clcache
 from contextlib import contextmanager
+import glob
 import os
 import subprocess
 import sys
@@ -203,6 +204,45 @@ class TestHeaderChange(BaseTest):
             cmdRun = [os.path.abspath("main.exe")]
             output = subprocess.check_output(cmdRun).decode("ascii").strip()
             self.assertEqual(output, "2")
+
+
+class TestRunParallel(BaseTest):
+    def _zeroStats(self):
+        subprocess.check_call([PYTHON_BINARY, CLCACHE_SCRIPT, "-z"])
+
+    def _buildAll(self):
+        processes = []
+
+        for sourceFile in glob.glob('*.cpp'):
+            print("Starting compilation of {}".format(sourceFile))
+            cxx = [PYTHON_BINARY, CLCACHE_SCRIPT]
+            cxxflags = ["/c", "/nologo", "/EHsc"]
+            cmd = cxx + cxxflags + [sourceFile]
+            processes.append(subprocess.Popen(cmd))
+
+        for p in processes:
+            p.wait()
+
+    # Test counting of misses and hits in a parallel environment
+    def testParallel(self):
+        with cd(os.path.join("tests", "parallel")):
+            self._zeroStats()
+
+            # Compile first time
+            self._buildAll()
+
+            cache = clcache.ObjectCache()
+            hits = clcache.CacheStatistics(cache).numCacheHits()
+            misses = clcache.CacheStatistics(cache).numCacheMisses()
+            self.assertEqual(hits + misses, 10)
+
+            # Compile second time
+            self._buildAll()
+
+            cache = clcache.ObjectCache()
+            hits = clcache.CacheStatistics(cache).numCacheHits()
+            misses = clcache.CacheStatistics(cache).numCacheMisses()
+            self.assertEqual(hits + misses, 20)
 
 
 if __name__ == '__main__':
