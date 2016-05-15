@@ -5,6 +5,7 @@ clcache changelog
 
  * Bugfix: Support use of py2exe with Python 3.4
  * Bugfix: Support includes parsing when cl language is not English (GH #65)
+ * Bugfix: Fix bug causing statistics to get corrupted after concurrent invocations
 
 ## clcache 3.0.2 (2016-01-29)
 

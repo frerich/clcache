@@ -148,47 +148,45 @@ class ObjectCache:
         return self.dir
 
     def clean(self, stats, maximumSize):
-        with self.lock:
-            currentSize = stats.currentCacheSize()
-            if currentSize < maximumSize:
-                return
+        currentSize = stats.currentCacheSize()
+        if currentSize < maximumSize:
+            return
 
-            # Free at least 10% to avoid cleaning up too often which
-            # is a big performance hit with large caches.
-            effectiveMaximumSize = maximumSize * 0.9
+        # Free at least 10% to avoid cleaning up too often which
+        # is a big performance hit with large caches.
+        effectiveMaximumSize = maximumSize * 0.9
 
-            objects = [os.path.join(root, "object")
-                       for root, folder, files in os.walk(self.objectsDir)
-                       if "object" in files]
+        objects = [os.path.join(root, "object")
+                   for root, folder, files in os.walk(self.objectsDir)
+                   if "object" in files]
 
-            objectInfos = [(os.stat(fn), fn) for fn in objects]
-            objectInfos.sort(key=lambda t: t[0].st_atime)
+        objectInfos = [(os.stat(fn), fn) for fn in objects]
+        objectInfos.sort(key=lambda t: t[0].st_atime)
 
-            for stat, fn in objectInfos:
-                rmtree(os.path.split(fn)[0])
-                currentSize -= stat.st_size
-                if currentSize < effectiveMaximumSize:
-                    break
+        for stat, fn in objectInfos:
+            rmtree(os.path.split(fn)[0])
+            currentSize -= stat.st_size
+            if currentSize < effectiveMaximumSize:
+                break
 
-            stats.setCacheSize(currentSize)
+        stats.setCacheSize(currentSize)
 
     def removeObjects(self, stats, removedObjects):
         if len(removedObjects) == 0:
             return
-        with self.lock:
-            currentSize = stats.currentCacheSize()
-            for o in removedObjects:
-                dirPath = self._cacheEntryDir(o)
-                if not os.path.exists(dirPath):
-                    continue  # May be if object already evicted.
-                objectPath = os.path.join(dirPath, "object")
-                if os.path.exists(objectPath):
-                    # May be absent if this if cached compiler
-                    # output (for preprocess-only).
-                    fileStat = os.stat(objectPath)
-                    currentSize -= fileStat.st_size
-                rmtree(dirPath)
-            stats.setCacheSize(currentSize)
+        currentSize = stats.currentCacheSize()
+        for o in removedObjects:
+            dirPath = self._cacheEntryDir(o)
+            if not os.path.exists(dirPath):
+                continue  # May be if object already evicted.
+            objectPath = os.path.join(dirPath, "object")
+            if os.path.exists(objectPath):
+                # May be absent if this if cached compiler
+                # output (for preprocess-only).
+                fileStat = os.stat(objectPath)
+                currentSize -= fileStat.st_size
+            rmtree(dirPath)
+        stats.setCacheSize(currentSize)
 
     @staticmethod
     def getManifestHash(compilerBinary, commandLine, sourceFile):
@@ -239,39 +237,35 @@ class ObjectCache:
         return ObjectCache.getHash(manifestHash + keyInManifest)
 
     def hasEntry(self, key):
-        with self.lock:
-            return os.path.exists(self.cachedObjectName(key)) or os.path.exists(self._cachedCompilerOutputName(key))
+        return os.path.exists(self.cachedObjectName(key)) or os.path.exists(self._cachedCompilerOutputName(key))
 
     def setEntry(self, key, objectFileName, compilerOutput, compilerStderr):
-        with self.lock:
-            if not os.path.exists(self._cacheEntryDir(key)):
-                os.makedirs(self._cacheEntryDir(key))
-            if objectFileName != '':
-                copyOrLink(objectFileName, self.cachedObjectName(key))
-            with open(self._cachedCompilerOutputName(key), 'w') as f:
-                f.write(compilerOutput)
-            if compilerStderr != '':
-                with open(self._cachedCompilerStderrName(key), 'w') as f:
-                    f.write(compilerStderr)
+        if not os.path.exists(self._cacheEntryDir(key)):
+            os.makedirs(self._cacheEntryDir(key))
+        if objectFileName != '':
+            copyOrLink(objectFileName, self.cachedObjectName(key))
+        with open(self._cachedCompilerOutputName(key), 'w') as f:
+            f.write(compilerOutput)
+        if compilerStderr != '':
+            with open(self._cachedCompilerStderrName(key), 'w') as f:
+                f.write(compilerStderr)
 
     def setManifest(self, manifestHash, manifest):
-        with self.lock:
-            if not os.path.exists(self._manifestDir(manifestHash)):
-                os.makedirs(self._manifestDir(manifestHash))
-            with open(self._manifestName(manifestHash), 'wb') as outFile:
-                pickle.dump(manifest, outFile)
+        if not os.path.exists(self._manifestDir(manifestHash)):
+            os.makedirs(self._manifestDir(manifestHash))
+        with open(self._manifestName(manifestHash), 'wb') as outFile:
+            pickle.dump(manifest, outFile)
 
     def getManifest(self, manifestHash):
-        with self.lock:
-            fileName = self._manifestName(manifestHash)
-            if not os.path.exists(fileName):
+        fileName = self._manifestName(manifestHash)
+        if not os.path.exists(fileName):
+            return None
+        with open(fileName, 'rb') as inFile:
+            try:
+                return pickle.load(inFile)
+            except:
+                # Seems, file is corrupted
                 return None
-            with open(fileName, 'rb') as inFile:
-                try:
-                    return pickle.load(inFile)
-                except:
-                    # Seems, file is corrupted
-                    return None
 
     def cachedObjectName(self, key):
         return os.path.join(self._cacheEntryDir(key), "object")
@@ -352,9 +346,8 @@ class Configuration:
 
     def __init__(self, objectCache):
         self._objectCache = objectCache
-        with objectCache.lock:
-            self._cfg = PersistentJSONDict(os.path.join(objectCache.cacheDirectory(),
-                                                        "config.txt"))
+        self._cfg = PersistentJSONDict(os.path.join(objectCache.cacheDirectory(),
+                                                    "config.txt"))
         for setting, defaultValue in self._defaultValues.items():
             if setting not in self._cfg:
                 self._cfg[setting] = defaultValue
@@ -366,16 +359,14 @@ class Configuration:
         self._cfg["MaximumCacheSize"] = size
 
     def save(self):
-        with self._objectCache.lock:
-            self._cfg.save()
+        self._cfg.save()
 
 
 class CacheStatistics:
     def __init__(self, objectCache):
         self.objectCache = objectCache
-        with objectCache.lock:
-            self._stats = PersistentJSONDict(os.path.join(objectCache.cacheDirectory(),
-                                                          "stats.txt"))
+        self._stats = PersistentJSONDict(os.path.join(objectCache.cacheDirectory(),
+                                                      "stats.txt"))
         for k in ["CallsWithoutSourceFile",
                   "CallsWithMultipleSourceFiles",
                   "CallsWithPch",
@@ -476,8 +467,7 @@ class CacheStatistics:
             self._stats[k] = 0
 
     def save(self):
-        with self.objectCache.lock:
-            self._stats.save()
+        self._stats.save()
 
 
 class AnalysisResult:
@@ -890,22 +880,9 @@ def reinvokePerSourceFile(cmdLine, sourceFiles):
 
     return runJobs(commands, jobCount(cmdLine))
 
-def getConfiguration():
-    cache = ObjectCache()
-    with cache.lock:
-        config = Configuration(cache)
-    return config
-
-def getStatistics():
-    cache = ObjectCache()
-    with cache.lock:
-        stats = CacheStatistics(cache)
-    return stats
-
-def printStatistics():
-    cache = ObjectCache()
-    cfg = getConfiguration()
-    stats = getStatistics()
+def printStatistics(cache):
+    cfg = Configuration(cache)
+    stats = CacheStatistics(cache)
     out = """
 clcache statistics:
   current cache dir         : {}
@@ -942,12 +919,10 @@ clcache statistics:
     )
     print(out)
 
-def resetStatistics():
-    cache = ObjectCache()
-    with cache.lock:
-        stats = CacheStatistics(cache)
-        stats.resetCounters()
-        stats.save()
+def resetStatistics(cache):
+    stats = CacheStatistics(cache)
+    stats.resetCounters()
+    stats.save()
     print('Statistics reset')
 
 
@@ -1002,7 +977,8 @@ def addObjectToCache(stats, cache, outputFile, compilerStdout, compilerStderr, c
         cache.clean(stats, cfg.maximumCacheSize())
 
 
-def processCacheHit(stats, cache, outputFile, cachekey):
+def processCacheHit(cache, outputFile, cachekey):
+    stats = CacheStatistics(cache)
     stats.registerCacheHit()
     stats.save()
     printTraceStatement("Reusing cached object for key " + cachekey + " for " +
@@ -1017,45 +993,46 @@ def processCacheHit(stats, cache, outputFile, cachekey):
     return 0, compilerOutput, compilerStderr
 
 
-def processObjectEvicted(stats, cache, outputFile, cachekey, compiler, cmdLine):
-    stats.registerEvictedMiss()
+def postprocessObjectEvicted(cache, outputFile, cachekey, compiler, cmdLine, compilerResult):
     printTraceStatement("Cached object already evicted for key " + cachekey + " for " +
                         "output file " + outputFile)
-    returnCode, compilerOutput, compilerStderr = invokeRealCompiler(compiler, cmdLine, captureOutput=True)
-    if returnCode == 0 and (outputFile == '' or os.path.exists(outputFile)):
-        addObjectToCache(stats, cache, outputFile, compilerOutput, compilerStderr, cachekey)
-    stats.save()
-    printTraceStatement("Finished. Exit code %d" % returnCode)
-    return returnCode, compilerOutput, compilerStderr
+    returnCode, compilerOutput, compilerStderr = compilerResult
+
+    with cache.lock:
+        stats = CacheStatistics(cache)
+        stats.registerEvictedMiss()
+        if returnCode == 0 and (outputFile == '' or os.path.exists(outputFile)):
+            addObjectToCache(stats, cache, outputFile, compilerOutput, compilerStderr, cachekey)
+        stats.save()
+
+    return compilerResult
 
 
-def processHeaderChangedMiss(stats, cache, outputFile, manifest, manifestHash, keyInManifest, compiler, cmdLine):
+def postprocessHeaderChangedMiss(cache, outputFile, manifest, manifestHash, keyInManifest, compiler, cmdLine, compilerResult):
     cachekey = ObjectCache.getDirectCacheKey(manifestHash, keyInManifest)
-    stats.registerHeaderChangedMiss()
-    returnCode, compilerOutput, compilerStderr = invokeRealCompiler(compiler, cmdLine, captureOutput=True)
+    returnCode, compilerOutput, compilerStderr = compilerResult
+
+    removedItems = []
     if returnCode == 0 and (outputFile == '' or os.path.exists(outputFile)):
-        addObjectToCache(stats, cache, outputFile, compilerOutput, compilerStderr, cachekey)
-        removedItems = []
         while len(manifest.hashes) >= MAX_MANIFEST_HASHES:
             key, objectHash = manifest.hashes.popitem()
             removedItems.append(objectHash)
-        cache.removeObjects(stats, removedItems)
         manifest.hashes[keyInManifest] = cachekey
-        cache.setManifest(manifestHash, manifest)
-    stats.save()
-    printTraceStatement("Finished. Exit code %d" % returnCode)
-    return returnCode, compilerOutput, compilerStderr
+
+    with cache.lock:
+        stats = CacheStatistics(cache)
+        stats.registerHeaderChangedMiss()
+        if returnCode == 0 and (outputFile == '' or os.path.exists(outputFile)):
+            addObjectToCache(stats, cache, outputFile, compilerOutput, compilerStderr, cachekey)
+            cache.removeObjects(stats, removedItems)
+            cache.setManifest(manifestHash, manifest)
+        stats.save()
+
+    return compilerResult
 
 
-def processNoManifestMiss(stats, cache, outputFile, manifestHash, baseDir, compiler, cmdLine, sourceFile):
-    stats.registerSourceChangedMiss()
-    if '/showIncludes' in cmdLine:
-        realCompilerCmdLine = cmdLine
-        stripIncludes = False
-    else:
-        realCompilerCmdLine = ['/showIncludes'] + cmdLine
-        stripIncludes = True
-    returnCode, compilerOutput, compilerStderr = invokeRealCompiler(compiler, realCompilerCmdLine, captureOutput=True)
+def postprocessNoManifestMiss(cache, outputFile, manifestHash, baseDir, compiler, cmdLine, sourceFile, compilerResult, stripIncludes):
+    returnCode, compilerOutput, compilerStderr = compilerResult
     grabStderr = False
     # If these options present, cl.exe will list includes on stderr, not stdout
     for option in ['/E', '/EP', '/P']:
@@ -1067,18 +1044,26 @@ def processNoManifestMiss(stats, cache, outputFile, manifestHash, baseDir, compi
     else:
         listOfIncludes, compilerOutput = parseIncludesList(compilerOutput, sourceFile, baseDir, stripIncludes)
 
+    manifest = None
+    cachekey = None
+
     if returnCode == 0 and (outputFile == '' or os.path.exists(outputFile)):
         # Store compile output and manifest
         manifest = Manifest(listOfIncludes, {})
         listOfHeaderHashes = [getRelFileHash(fileName, baseDir) for fileName in listOfIncludes]
         keyInManifest = ObjectCache.getKeyInManifest(listOfHeaderHashes)
         cachekey = ObjectCache.getDirectCacheKey(manifestHash, keyInManifest)
-        addObjectToCache(stats, cache, outputFile, compilerOutput, compilerStderr, cachekey)
         manifest.hashes[keyInManifest] = cachekey
-        cache.setManifest(manifestHash, manifest)
 
-    stats.save()
-    printTraceStatement("Finished. Exit code %d" % returnCode)
+    with cache.lock:
+        stats = CacheStatistics(cache)
+        stats.registerSourceChangedMiss()
+        if returnCode == 0 and (outputFile == '' or os.path.exists(outputFile)):
+            # Store compile output and manifest
+            addObjectToCache(stats, cache, outputFile, compilerOutput, compilerStderr, cachekey)
+            cache.setManifest(manifestHash, manifest)
+        stats.save()
+
     return returnCode, compilerOutput, compilerStderr
 
 
@@ -1093,12 +1078,16 @@ clcache.py v{}
 """.strip().format(VERSION))
         return 0
 
+    cache = ObjectCache()
+
     if len(sys.argv) == 2 and sys.argv[1] == "-s":
-        printStatistics()
+        with cache.lock:
+            printStatistics(cache)
         return 0
 
     if len(sys.argv) == 2 and sys.argv[1] == "-z":
-        resetStatistics()
+        with cache.lock:
+            resetStatistics(cache)
         return 0
 
     if len(sys.argv) == 3 and sys.argv[1] == "-M":
@@ -1112,7 +1101,6 @@ clcache.py v{}
             print("Max size argument must be greater than 0.", file=sys.stderr)
             return 1
 
-        cache = ObjectCache()
         with cache.lock:
             cfg = Configuration(cache)
             cfg.setMaximumCacheSize(maxSizeValue)
@@ -1129,7 +1117,7 @@ clcache.py v{}
     if "CLCACHE_DISABLE" in os.environ:
         return invokeRealCompiler(compiler, sys.argv[1:])[0]
     try:
-        exitCode, compilerStdout, compilerStderr = processCompileRequest(compiler, sys.argv)
+        exitCode, compilerStdout, compilerStderr = processCompileRequest(cache, compiler, sys.argv)
         sys.stdout.write(compilerStdout)
         sys.stderr.write(compilerStderr)
         return exitCode
@@ -1138,7 +1126,7 @@ clcache.py v{}
         return 1
 
 
-def processCompileRequest(compiler, args):
+def processCompileRequest(cache, compiler, args):
     printTraceStatement("Parsing given commandline '%s'" % args[1:])
 
     cmdLine = expandCommandLine(sys.argv[1:])
@@ -1148,10 +1136,9 @@ def processCompileRequest(compiler, args):
     if analysisResult == AnalysisResult.MultipleSourceFilesSimple:
         return reinvokePerSourceFile(cmdLine, sourceFile), '', ''
 
-    cache = ObjectCache()
-    stats = CacheStatistics(cache)
     if analysisResult != AnalysisResult.Ok:
         with cache.lock:
+            stats = CacheStatistics(cache)
             if analysisResult == AnalysisResult.NoSourceFile:
                 printTraceStatement("Cannot cache invocation as %s: no source file found" % (' '.join(cmdLine)))
                 stats.registerCallWithoutSourceFile()
@@ -1170,59 +1157,71 @@ def processCompileRequest(compiler, args):
             stats.save()
         return invokeRealCompiler(compiler, args[1:])
     if 'CLCACHE_NODIRECT' in os.environ:
-        return processNoDirect(stats, cache, outputFile, compiler, cmdLine)
+        return processNoDirect(cache, outputFile, compiler, cmdLine)
     manifestHash = ObjectCache.getManifestHash(compiler, cmdLine, sourceFile)
-    manifest = cache.getManifest(manifestHash)
-    baseDir = os.environ.get('CLCACHE_BASEDIR')
-    if baseDir and not baseDir.endswith(os.path.sep):
-        baseDir += os.path.sep
-    if manifest is not None:
-        # NOTE: command line options already included in hash for manifest name
-        listOfHeaderHashes = []
-        for fileName in manifest.includeFiles:
-            fileHash = getRelFileHash(fileName, baseDir)
-            if fileHash is not None:
-                # May be if source does not use this header anymore (e.g. if that
-                # header was included through some other header, which now changed).
-                listOfHeaderHashes.append(fileHash)
-        keyInManifest = ObjectCache.getKeyInManifest(listOfHeaderHashes)
-        cachekey = manifest.hashes.get(keyInManifest)
-        if cachekey is not None:
-            if cache.hasEntry(cachekey):
-                return processCacheHit(stats, cache, outputFile, cachekey)
+    with cache.lock:
+        manifest = cache.getManifest(manifestHash)
+        baseDir = os.environ.get('CLCACHE_BASEDIR')
+        if baseDir and not baseDir.endswith(os.path.sep):
+            baseDir += os.path.sep
+        if manifest is not None:
+            # NOTE: command line options already included in hash for manifest name
+            listOfHeaderHashes = []
+            for fileName in manifest.includeFiles:
+                fileHash = getRelFileHash(fileName, baseDir)
+                if fileHash is not None:
+                    # May be if source does not use this header anymore (e.g. if that
+                    # header was included through some other header, which now changed).
+                    listOfHeaderHashes.append(fileHash)
+            keyInManifest = ObjectCache.getKeyInManifest(listOfHeaderHashes)
+            cachekey = manifest.hashes.get(keyInManifest)
+            if cachekey is not None:
+                if cache.hasEntry(cachekey):
+                    return processCacheHit(cache, outputFile, cachekey)
+                else:
+                    postProcessing = lambda compilerResult: postprocessObjectEvicted(cache, outputFile, cachekey, compiler, cmdLine, compilerResult)
             else:
-                return processObjectEvicted(stats, cache, outputFile, cachekey, compiler, cmdLine)
+                postProcessing = lambda compilerResult: postprocessHeaderChangedMiss(cache, outputFile, manifest, manifestHash, keyInManifest, compiler, cmdLine, compilerResult)
         else:
-            # Some of header files changed - recompile and add to manifest
-            return processHeaderChangedMiss(stats, cache, outputFile, manifest, manifestHash, keyInManifest, compiler, cmdLine)
-    else:
-        return processNoManifestMiss(stats, cache, outputFile, manifestHash, baseDir, compiler, cmdLine, sourceFile)
+            origCmdLine = cmdLine
+            stripIncludes = False
+            if '/showIncludes' not in cmdLine:
+                cmdLine = ['/showIncludes'] + cmdLine
+                stripIncludes = True
+            postProcessing = lambda compilerResult: postprocessNoManifestMiss(cache, outputFile, manifestHash, baseDir, compiler, origCmdLine, sourceFile, compilerResult, stripIncludes)
 
+    compilerResult = invokeRealCompiler(compiler, cmdLine, captureOutput=True)
+    compilerResult = postProcessing(compilerResult)
+    printTraceStatement("Finished. Exit code %d" % compilerResult[0])
+    return compilerResult
 
-def processNoDirect(stats, cache, outputFile, compiler, cmdLine):
+def processNoDirect(cache, outputFile, compiler, cmdLine):
     cachekey = ObjectCache.computeKey(compiler, cmdLine)
-    if cache.hasEntry(cachekey):
-        with cache.lock:
+    with cache.lock:
+        if cache.hasEntry(cachekey):
+            stats = CacheStatistics(cache)
             stats.registerCacheHit()
             stats.save()
-        printTraceStatement("Reusing cached object for key " + cachekey + " for " +
-                            "output file " + outputFile)
-        if os.path.exists(outputFile):
-            os.remove(outputFile)
-        copyOrLink(cache.cachedObjectName(cachekey), outputFile)
-        compilerStdout = cache.cachedCompilerOutput(cachekey)
-        compilerStderr = cache.cachedCompilerStderr(cachekey)
-        printTraceStatement("Finished. Exit code 0")
-        return 0, compilerStdout, compilerStderr
-    else:
-        returnCode, compilerStdout, compilerStderr = invokeRealCompiler(compiler, cmdLine, captureOutput=True)
-        with cache.lock:
-            stats.registerCacheMiss()
-            if returnCode == 0 and os.path.exists(outputFile):
-                addObjectToCache(stats, cache, outputFile, compilerStdout, compilerStderr, cachekey)
-            stats.save()
-        printTraceStatement("Finished. Exit code %d" % returnCode)
-        return returnCode, compilerStdout, compilerStderr
+            printTraceStatement("Reusing cached object for key " + cachekey + " for " +
+                                "output file " + outputFile)
+            if os.path.exists(outputFile):
+                os.remove(outputFile)
+            copyOrLink(cache.cachedObjectName(cachekey), outputFile)
+            compilerStdout = cache.cachedCompilerOutput(cachekey)
+            compilerStderr = cache.cachedCompilerStderr(cachekey)
+            printTraceStatement("Finished. Exit code 0")
+            return 0, compilerStdout, compilerStderr
+
+    returnCode, compilerStdout, compilerStderr = invokeRealCompiler(compiler, cmdLine, captureOutput=True)
+    with cache.lock:
+        stats = CacheStatistics(cache)
+        stats.registerCacheMiss()
+        if returnCode == 0 and os.path.exists(outputFile):
+            addObjectToCache(stats, cache, outputFile, compilerStdout, compilerStderr, cachekey)
+        stats.save()
+
+    printTraceStatement("Finished. Exit code %d" % returnCode)
+    return returnCode, compilerStdout, compilerStderr
 
 if __name__ == '__main__':
     sys.exit(main())
