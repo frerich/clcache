@@ -1156,8 +1156,14 @@ def processCompileRequest(cache, compiler, args):
                 stats.registerCallForExternalDebugInfo()
             stats.save()
         return invokeRealCompiler(compiler, args[1:])
+
     if 'CLCACHE_NODIRECT' in os.environ:
         return processNoDirect(cache, outputFile, compiler, cmdLine)
+    else:
+        return processDirect(cache, outputFile, compiler, cmdLine, sourceFile)
+
+
+def processDirect(cache, outputFile, compiler, cmdLine, sourceFile):
     manifestHash = ObjectCache.getManifestHash(compiler, cmdLine, sourceFile)
     with cache.lock:
         manifest = cache.getManifest(manifestHash)
@@ -1194,6 +1200,7 @@ def processCompileRequest(cache, compiler, args):
     compilerResult = postProcessing(compilerResult)
     printTraceStatement("Finished. Exit code %d" % compilerResult[0])
     return compilerResult
+
 
 def processNoDirect(cache, outputFile, compiler, cmdLine):
     cachekey = ObjectCache.computeKey(compiler, cmdLine)
