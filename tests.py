@@ -63,6 +63,11 @@ class TestSplitCommandsFile(BaseTest):
         self._genericTest(r'"-DWEBRTC_SVNREVISION=\"Unavailable(issue687)\"" -D_WIN32_WINNT=0x0602',
                           [r'-DWEBRTC_SVNREVISION=\"Unavailable(issue687)\"', '-D_WIN32_WINNT=0x0602'])
 
+    def testLineEndings(self):
+        self._genericTest('-A\n-B', ['-A', '-B'])
+        self._genericTest('-A\r\n-B', ['-A', '-B'])
+        self._genericTest('-A -B\r\n-C -D -E', ['-A', '-B', '-C', '-D', '-E'])
+
 class TestParseIncludes(BaseTest):
     def _readSampleFileDefault(self, lang=None):
         if lang == "de":
