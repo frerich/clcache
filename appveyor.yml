@@ -26,7 +26,8 @@ build_script:
   - "python clcache.py -s"
 
 test_script:
-  - "python tests.py"
+  - "python unittests.py"
+  - "python integrationtests.py"
 
 after_test:
   # Get a rough overview about what happened in the tests.
