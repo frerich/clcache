@@ -183,6 +183,7 @@ class ObjectCache:
                 break
 
         stats.setCacheSize(currentSize)
+
         stats.setNumCacheEntries(len(objectInfos) - removedItems)
 
 
@@ -190,7 +191,6 @@ class ObjectCache:
         if len(removedObjects) == 0:
             return
 
-        currentSize = stats.currentCacheSize()
         for o in removedObjects:
             dirPath = self._cacheEntryDir(o)
             if not os.path.exists(dirPath):
@@ -200,7 +200,6 @@ class ObjectCache:
                 # May be absent if this if cached compiler
                 # output (for preprocess-only).
                 fileStat = os.stat(objectPath)
-                currentSize -= fileStat.st_size
                 stats.unregisterCacheEntry(fileStat.st_size)
             rmtree(dirPath)
 
