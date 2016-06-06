@@ -171,17 +171,25 @@ class ObjectCache:
         objectInfos = [(os.stat(fn), fn) for fn in objects]
         objectInfos.sort(key=lambda t: t[0].st_atime)
 
+        # compute real current size to fix up the stored cacheSize
+        currentSize = sum(x[0].st_size for x in objectInfos)
+
+        removedItems = 0
         for stat, fn in objectInfos:
             rmtree(os.path.split(fn)[0])
+            removedItems += 1
             currentSize -= stat.st_size
             if currentSize < effectiveMaximumSize:
                 break
 
         stats.setCacheSize(currentSize)
+        stats.setNumCacheEntries(len(objectInfos) - removedItems)
+
 
     def removeObjects(self, stats, removedObjects):
         if len(removedObjects) == 0:
             return
+
         currentSize = stats.currentCacheSize()
         for o in removedObjects:
             dirPath = self._cacheEntryDir(o)
@@ -193,8 +201,8 @@ class ObjectCache:
                 # output (for preprocess-only).
                 fileStat = os.stat(objectPath)
                 currentSize -= fileStat.st_size
+                stats.unregisterCacheEntry(fileStat.st_size)
             rmtree(dirPath)
-        stats.setCacheSize(currentSize)
 
     @staticmethod
     def getManifestHash(compilerBinary, commandLine, sourceFile):
@@ -441,9 +449,16 @@ class CacheStatistics:
     def numCacheEntries(self):
         return self._stats["CacheEntries"]
 
+    def setNumCacheEntries(self, number):
+        self._stats["CacheEntries"] = number
+
     def registerCacheEntry(self, size):
         self._stats["CacheEntries"] += 1
         self._stats["CacheSize"] += size
+
+    def unregisterCacheEntry(self, size):
+        self._stats["CacheEntries"] -= 1
+        self._stats["CacheSize"] -= size
 
     def currentCacheSize(self):
         return self._stats["CacheSize"]
