@@ -85,7 +85,7 @@ class LogicException(Exception):
         return repr(self.message)
 
 
-class ObjectCacheLock:
+class ObjectCacheLock(object):
     """ Implements a lock for the object cache which
     can be used in 'with' statements. """
     INFINITE = 0xFFFFFFFF
@@ -127,7 +127,7 @@ class ObjectCacheLock:
         self._acquired = False
 
 
-class ObjectCache:
+class ObjectCache(object):
     def __init__(self):
         try:
             self.dir = os.environ["CLCACHE_DIR"]
@@ -338,7 +338,7 @@ class ObjectCache:
                 if not (arg[0] in "/-" and arg[1:].startswith(_argsToStrip))]
 
 
-class PersistentJSONDict:
+class PersistentJSONDict(object):
     def __init__(self, fileName):
         self._dirty = False
         self._dict = {}
@@ -365,7 +365,7 @@ class PersistentJSONDict:
         return key in self._dict
 
 
-class Configuration:
+class Configuration(object):
     _defaultValues = {"MaximumCacheSize": 1073741824} # 1 GiB
 
     def __init__(self, objectCache):
@@ -386,7 +386,7 @@ class Configuration:
         self._cfg.save()
 
 
-class CacheStatistics:
+class CacheStatistics(object):
     def __init__(self, objectCache):
         self.objectCache = objectCache
         self._stats = PersistentJSONDict(os.path.join(objectCache.cacheDirectory(),
@@ -501,7 +501,7 @@ class CacheStatistics:
         self._stats.save()
 
 
-class AnalysisResult:
+class AnalysisResult(object):
     Ok, NoSourceFile, MultipleSourceFilesSimple, \
         MultipleSourceFilesComplex, CalledForLink, \
         CalledWithPch, ExternalDebugInfo = list(range(7))
