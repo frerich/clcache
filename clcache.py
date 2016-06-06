@@ -987,7 +987,7 @@ def parseIncludesList(compilerOutput, sourceFile, baseDir, strip):
     # - colon
     # - one or more spaces
     # - the file path, starting with a non-whitespace character
-    reFilePath = re.compile('^(\w+): ([ \w]+):( +)(?P<file_path>\S.*)$')
+    reFilePath = re.compile(r'^(\w+): ([ \w]+):( +)(?P<file_path>\S.*)$')
 
     absSourceFile = os.path.normcase(os.path.abspath(sourceFile))
     if baseDir:
