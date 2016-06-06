@@ -166,7 +166,7 @@ class ObjectCache:
             walker = os.walk
 
         objects = [os.path.join(root, "object")
-                   for root, folder, files in walker(self.objectsDir)
+                   for root, _, files in walker(self.objectsDir)
                    if "object" in files]
 
         objectInfos = []
@@ -654,7 +654,7 @@ def expandCommandLine(cmdline):
                 codecs.BOM_UTF16_LE: 'utf-16-le',
             }
 
-            for bom, enc in list(encodingByBOM.items()):
+            for bom, _ in list(encodingByBOM.items()):
                 if rawBytes.startswith(bom):
                     encoding = encodingByBOM[bom]
                     rawBytes = rawBytes[len(bom):]
@@ -719,7 +719,7 @@ def parseCommandLine(cmdline):
 
 
 def analyzeCommandLine(cmdline):
-    options, responseFile, sourceFiles = parseCommandLine(cmdline)
+    options, _, sourceFiles = parseCommandLine(cmdline)
     compl = False
 
     # Technically, it would be possible to support /Zi: we'd just need to
@@ -1058,7 +1058,7 @@ def postprocessHeaderChangedMiss(cache, outputFile, manifest, manifestHash, keyI
     removedItems = []
     if returnCode == 0 and (outputFile == '' or os.path.exists(outputFile)):
         while len(manifest.hashes) >= MAX_MANIFEST_HASHES:
-            key, objectHash = manifest.hashes.popitem()
+            _, objectHash = manifest.hashes.popitem()
             removedItems.append(objectHash)
         manifest.hashes[keyInManifest] = cachekey
 
