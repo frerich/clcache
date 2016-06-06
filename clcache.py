@@ -949,7 +949,7 @@ def resetStatistics(cache):
     print('Statistics reset')
 
 def cleanCache(cache):
-    cfg = getConfiguration()
+    cfg = Configuration(cache)
     stats = CacheStatistics(cache)
     cache.clean(stats, cfg.maximumCacheSize())
     stats.save()
