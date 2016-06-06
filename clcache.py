@@ -1036,7 +1036,7 @@ def processCacheHit(cache, outputFile, cachekey):
     return 0, compilerOutput, compilerStderr
 
 
-def postprocessObjectEvicted(cache, outputFile, cachekey, cmdLine, compilerResult):
+def postprocessObjectEvicted(cache, outputFile, cachekey, compilerResult):
     printTraceStatement("Cached object already evicted for key " + cachekey + " for " +
                         "output file " + outputFile)
     returnCode, compilerOutput, compilerStderr = compilerResult
@@ -1051,7 +1051,7 @@ def postprocessObjectEvicted(cache, outputFile, cachekey, cmdLine, compilerResul
     return compilerResult
 
 
-def postprocessHeaderChangedMiss(cache, outputFile, manifest, manifestHash, keyInManifest, cmdLine, compilerResult):
+def postprocessHeaderChangedMiss(cache, outputFile, manifest, manifestHash, keyInManifest, compilerResult):
     cachekey = ObjectCache.getDirectCacheKey(manifestHash, keyInManifest)
     returnCode, compilerOutput, compilerStderr = compilerResult
 
@@ -1240,9 +1240,9 @@ def processDirect(cache, outputFile, compiler, cmdLine, sourceFile):
                 if cache.hasEntry(cachekey):
                     return processCacheHit(cache, outputFile, cachekey)
                 else:
-                    postProcessing = lambda compilerResult: postprocessObjectEvicted(cache, outputFile, cachekey, cmdLine, compilerResult)
+                    postProcessing = lambda compilerResult: postprocessObjectEvicted(cache, outputFile, cachekey, compilerResult)
             else:
-                postProcessing = lambda compilerResult: postprocessHeaderChangedMiss(cache, outputFile, manifest, manifestHash, keyInManifest, cmdLine, compilerResult)
+                postProcessing = lambda compilerResult: postprocessHeaderChangedMiss(cache, outputFile, manifest, manifestHash, keyInManifest, compilerResult)
         else:
             origCmdLine = cmdLine
             stripIncludes = False
