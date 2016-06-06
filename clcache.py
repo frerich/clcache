@@ -171,7 +171,7 @@ class ObjectCache:
         objectInfos = []
         for o in objects:
             try:
-                objectInfos.append((os.stat(fn), fn))
+                objectInfos.append((os.stat(o), o))
             except WindowsError:
                 pass
 
