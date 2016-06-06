@@ -54,7 +54,7 @@ import re
 
 VERSION = "3.0.3-dev"
 
-HASH_ALGORITHM = hashlib.md5
+HashAlgorithm = hashlib.md5
 
 # Manifest file will have at most this number of hash lists in it. Need to avoi
 # manifests grow too large.
@@ -236,7 +236,7 @@ class ObjectCache(object):
         compilerHash = getCompilerHash(compilerBinary)
         normalizedCmdLine = ObjectCache._normalizedCommandLine(commandLine)
 
-        h = HASH_ALGORITHM()
+        h = HashAlgorithm()
         h.update(compilerHash.encode("UTF-8"))
         h.update(' '.join(normalizedCmdLine).encode("UTF-8"))
         h.update(preprocessedSourceCode)
@@ -244,7 +244,7 @@ class ObjectCache(object):
 
     @staticmethod
     def getHash(dataString):
-        hasher = HASH_ALGORITHM()
+        hasher = HashAlgorithm()
         hasher.update(dataString.encode("UTF-8"))
         return hasher.hexdigest()
 
@@ -514,13 +514,13 @@ def getCompilerHash(compilerBinary):
                 str(stat.st_size),
                 VERSION,
             ])
-    hasher = HASH_ALGORITHM()
+    hasher = HashAlgorithm()
     hasher.update(data.encode("UTF-8"))
     return hasher.hexdigest()
 
 
 def getFileHash(filePath, additionalData=None):
-    hasher = HASH_ALGORITHM()
+    hasher = HashAlgorithm()
     with open(filePath, 'rb') as inFile:
         hasher.update(inFile.read())
     if additionalData is not None:
