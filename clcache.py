@@ -142,8 +142,8 @@ class ObjectCache:
         if not os.path.exists(self.objectsDir):
             os.makedirs(self.objectsDir)
         lockName = self.cacheDirectory().replace(':', '-').replace('\\', '-')
-        timeout_ms = int(os.environ.get('CLCACHE_OBJECT_CACHE_TIMEOUT_MS', 10 * 1000))
-        self.lock = ObjectCacheLock(lockName, timeout_ms)
+        timeoutMs = int(os.environ.get('CLCACHE_OBJECT_CACHE_TIMEOUT_MS', 10 * 1000))
+        self.lock = ObjectCacheLock(lockName, timeoutMs)
 
     def cacheDirectory(self):
         return self.dir
@@ -593,8 +593,8 @@ def findCompilerBinary():
 
 def printTraceStatement(msg):
     if "CLCACHE_LOG" in os.environ:
-        script_dir = os.path.realpath(os.path.dirname(sys.argv[0]))
-        print(os.path.join(script_dir, "clcache.py") + " " + msg)
+        scriptDir = os.path.realpath(os.path.dirname(sys.argv[0]))
+        print(os.path.join(scriptDir, "clcache.py") + " " + msg)
 
 
 def extractArgument(argument):
@@ -648,16 +648,16 @@ def expandCommandLine(cmdline):
 
             encoding = None
 
-            encodingByBOM = {
+            encodingByBom = {
                 codecs.BOM_UTF32_BE: 'utf-32-be',
                 codecs.BOM_UTF32_LE: 'utf-32-le',
                 codecs.BOM_UTF16_BE: 'utf-16-be',
                 codecs.BOM_UTF16_LE: 'utf-16-le',
             }
 
-            for bom, _ in list(encodingByBOM.items()):
+            for bom, _ in list(encodingByBom.items()):
                 if rawBytes.startswith(bom):
-                    encoding = encodingByBOM[bom]
+                    encoding = encodingByBom[bom]
                     rawBytes = rawBytes[len(bom):]
                     break
 
@@ -843,14 +843,14 @@ def jobCount(cmdLine):
 
     switches.extend(cmdLine)
 
-    mp_switches = [switch for switch in switches if re.search(r'^/MP(\d+)?$', switch) is not None]
-    if len(mp_switches) == 0:
+    mpSwitches = [switch for switch in switches if re.search(r'^/MP(\d+)?$', switch) is not None]
+    if len(mpSwitches) == 0:
         return 1
 
     # the last instance of /MP takes precedence
-    mp_switch = mp_switches.pop()
+    mpSwitch = mpSwitches.pop()
 
-    count = mp_switch[3:]
+    count = mpSwitch[3:]
     if count != "":
         return int(count)
 
