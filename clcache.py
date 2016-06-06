@@ -811,9 +811,8 @@ def invokeRealCompiler(compilerBinary, cmdLine, captureOutput=False):
 # Given a list of Popen objects, removes and returns
 # a completed Popen object.
 #
-# FIXME: this is a bit inefficient, Python on Windows does not appear
-# to provide any blocking "wait for any process to complete" out of the
-# box.
+# This is a bit inefficient but Python on Windows does not appear to
+# provide any blocking "wait for any process to complete" out of the box.
 def waitForAnyProcess(procs):
     out = [p for p in procs if p.poll() is not None]
     if len(out) >= 1:
