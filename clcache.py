@@ -78,6 +78,7 @@ class ObjectCacheLockException(Exception):
 
 class LogicException(Exception):
     def __init__(self, message):
+        super(LogicException, self).__init__(message)
         self.message = message
 
     def __str__(self):
