@@ -1036,7 +1036,7 @@ def processCacheHit(cache, outputFile, cachekey):
     return 0, compilerOutput, compilerStderr
 
 
-def postprocessObjectEvicted(cache, outputFile, cachekey, compiler, cmdLine, compilerResult):
+def postprocessObjectEvicted(cache, outputFile, cachekey, cmdLine, compilerResult):
     printTraceStatement("Cached object already evicted for key " + cachekey + " for " +
                         "output file " + outputFile)
     returnCode, compilerOutput, compilerStderr = compilerResult
@@ -1051,7 +1051,7 @@ def postprocessObjectEvicted(cache, outputFile, cachekey, compiler, cmdLine, com
     return compilerResult
 
 
-def postprocessHeaderChangedMiss(cache, outputFile, manifest, manifestHash, keyInManifest, compiler, cmdLine, compilerResult):
+def postprocessHeaderChangedMiss(cache, outputFile, manifest, manifestHash, keyInManifest, cmdLine, compilerResult):
     cachekey = ObjectCache.getDirectCacheKey(manifestHash, keyInManifest)
     returnCode, compilerOutput, compilerStderr = compilerResult
 
@@ -1074,7 +1074,7 @@ def postprocessHeaderChangedMiss(cache, outputFile, manifest, manifestHash, keyI
     return compilerResult
 
 
-def postprocessNoManifestMiss(cache, outputFile, manifestHash, baseDir, compiler, cmdLine, sourceFile, compilerResult, stripIncludes):
+def postprocessNoManifestMiss(cache, outputFile, manifestHash, baseDir, cmdLine, sourceFile, compilerResult, stripIncludes):
     returnCode, compilerOutput, compilerStderr = compilerResult
     grabStderr = False
     # If these options present, cl.exe will list includes on stderr, not stdout
@@ -1240,16 +1240,16 @@ def processDirect(cache, outputFile, compiler, cmdLine, sourceFile):
                 if cache.hasEntry(cachekey):
                     return processCacheHit(cache, outputFile, cachekey)
                 else:
-                    postProcessing = lambda compilerResult: postprocessObjectEvicted(cache, outputFile, cachekey, compiler, cmdLine, compilerResult)
+                    postProcessing = lambda compilerResult: postprocessObjectEvicted(cache, outputFile, cachekey, cmdLine, compilerResult)
             else:
-                postProcessing = lambda compilerResult: postprocessHeaderChangedMiss(cache, outputFile, manifest, manifestHash, keyInManifest, compiler, cmdLine, compilerResult)
+                postProcessing = lambda compilerResult: postprocessHeaderChangedMiss(cache, outputFile, manifest, manifestHash, keyInManifest, cmdLine, compilerResult)
         else:
             origCmdLine = cmdLine
             stripIncludes = False
             if '/showIncludes' not in cmdLine:
                 cmdLine = ['/showIncludes'] + cmdLine
                 stripIncludes = True
-            postProcessing = lambda compilerResult: postprocessNoManifestMiss(cache, outputFile, manifestHash, baseDir, compiler, origCmdLine, sourceFile, compilerResult, stripIncludes)
+            postProcessing = lambda compilerResult: postprocessNoManifestMiss(cache, outputFile, manifestHash, baseDir, origCmdLine, sourceFile, compilerResult, stripIncludes)
 
     compilerResult = invokeRealCompiler(compiler, cmdLine, captureOutput=True)
     compilerResult = postProcessing(compilerResult)
