@@ -948,6 +948,19 @@ def resetStatistics(cache):
     stats.save()
     print('Statistics reset')
 
+def cleanCache(cache):
+    cfg = getConfiguration()
+    stats = CacheStatistics(cache)
+    cache.clean(stats, cfg.maximumCacheSize())
+    stats.save()
+    print('Cache cleaned')
+
+def clearCache(cache):
+    stats = CacheStatistics(cache)
+    cache.clean(stats, 0)
+    stats.save()
+    print('Cache cleared')
+
 
 # Returns pair - list of includes and new compiler output.
 # Output changes if strip is True in that case all lines with include
@@ -1096,6 +1109,8 @@ def main():
 clcache.py v{}
   --help    : show this help
   -s        : print cache statistics
+  -c        : clean cache
+  -C        : clear cache
   -z        : reset cache statistics
   -M <size> : set maximum cache size (in bytes)
 """.strip().format(VERSION))
@@ -1106,6 +1121,16 @@ clcache.py v{}
     if len(sys.argv) == 2 and sys.argv[1] == "-s":
         with cache.lock:
             printStatistics(cache)
+        return 0
+
+    if len(sys.argv) == 2 and sys.argv[1] == "-c":
+        with cache.lock:
+            cleanCache(cache)
+        return 0
+
+    if len(sys.argv) == 2 and sys.argv[1] == "-C":
+        with cache.lock:
+            clearCache(cache)
         return 0
 
     if len(sys.argv) == 2 and sys.argv[1] == "-z":
