@@ -326,16 +326,16 @@ class ObjectCache(object):
         # preprocessor; the preprocessor's output is already included into the
         # hash sum so we don't have to care about these switches in the
         # command line as well.
-        _argsToStrip = ("AI", "C", "E", "P", "FI", "u", "X",
-                        "FU", "D", "EP", "Fx", "U", "I")
+        argsToStrip = ("AI", "C", "E", "P", "FI", "u", "X",
+                       "FU", "D", "EP", "Fx", "U", "I")
 
         # Also remove the switch for specifying the output file name; we don't
         # want two invocations which are identical except for the output file
         # name to be treated differently.
-        _argsToStrip += ("Fo",)
+        argsToStrip += ("Fo",)
 
         return [arg for arg in cmdline
-                if not (arg[0] in "/-" and arg[1:].startswith(_argsToStrip))]
+                if not (arg[0] in "/-" and arg[1:].startswith(argsToStrip))]
 
 
 class PersistentJSONDict(object):
