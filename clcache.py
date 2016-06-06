@@ -283,12 +283,13 @@ class ObjectCache:
         fileName = self._manifestName(manifestHash)
         if not os.path.exists(fileName):
             return None
-        with open(fileName, 'rb') as inFile:
-            try:
+        try:
+            with open(fileName, 'rb') as inFile:
                 return pickle.load(inFile)
-            except:
-                # Seems, file is corrupted
-                return None
+        except (IOError, pickle.UnpicklingError):
+            # - file does not exist or cannot be opened (IOError)?
+            # - file is corrupted (pickle.UnpicklingError)
+            return None
 
     def cachedObjectName(self, key):
         return os.path.join(self._cacheEntryDir(key), "object")
@@ -345,7 +346,7 @@ class PersistentJSONDict:
         try:
             with open(self._fileName, 'r') as f:
                 self._dict = json.load(f)
-        except:
+        except IOError:
             pass
 
     def save(self):
@@ -856,7 +857,7 @@ def jobCount(cmdLine):
     # /MP, but no count specified; use CPU count
     try:
         return multiprocessing.cpu_count()
-    except:
+    except NotImplementedError:
         # not expected to happen
         return 2
 
