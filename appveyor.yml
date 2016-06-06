@@ -1,3 +1,8 @@
+# whitelist branches to avoid testing feature branches twice (as branch and as pull request)
+branches:
+  only:
+    - master
+
 environment:
   matrix:
     # AppVeyor installed Python versions
