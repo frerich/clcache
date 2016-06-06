@@ -78,7 +78,7 @@ class ObjectCacheLockException(Exception):
 
 class LogicException(Exception):
     def __init__(self, message):
-        self.value = message
+        self.message = message
 
     def __str__(self):
         return repr(self.message)
