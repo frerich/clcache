@@ -89,6 +89,7 @@ class ObjectCacheLock(object):
     """ Implements a lock for the object cache which
     can be used in 'with' statements. """
     INFINITE = 0xFFFFFFFF
+    WAIT_ABANDONED_CODE = 0x00000080
 
     def __init__(self, mutexName, timeoutMs):
         mutexName = 'Local\\' + mutexName
@@ -112,10 +113,9 @@ class ObjectCacheLock(object):
         windll.kernel32.CloseHandle(self._mutex)
 
     def acquire(self):
-        WAIT_ABANDONED = 0x00000080
         result = windll.kernel32.WaitForSingleObject(
             self._mutex, wintypes.INT(self._timeoutMs))
-        if result != 0 and result != WAIT_ABANDONED:
+        if result != 0 and result != self.WAIT_ABANDONED_CODE:
             errorString = 'Error! WaitForSingleObject returns {result}, last error {error}'.format(
                 result=result,
                 error=windll.kernel32.GetLastError())
