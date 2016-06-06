@@ -168,7 +168,13 @@ class ObjectCache:
                    for root, folder, files in walker(self.objectsDir)
                    if "object" in files]
 
-        objectInfos = [(os.stat(fn), fn) for fn in objects]
+        objectInfos = []
+        for o in objects:
+            try:
+                objectInfos.append((os.stat(fn), fn))
+            except WindowsError:
+                pass
+
         objectInfos.sort(key=lambda t: t[0].st_atime)
 
         # compute real current size to fix up the stored cacheSize
@@ -176,13 +182,14 @@ class ObjectCache:
 
         removedItems = 0
         for stat, fn in objectInfos:
-            rmtree(os.path.split(fn)[0])
+            rmtree(os.path.split(fn)[0], ignore_errors=True)
             removedItems += 1
             currentSize -= stat.st_size
             if currentSize < effectiveMaximumSize:
                 break
 
         stats.setCacheSize(currentSize)
+
         stats.setNumCacheEntries(len(objectInfos) - removedItems)
 
 
@@ -190,7 +197,6 @@ class ObjectCache:
         if len(removedObjects) == 0:
             return
 
-        currentSize = stats.currentCacheSize()
         for o in removedObjects:
             dirPath = self._cacheEntryDir(o)
             if not os.path.exists(dirPath):
@@ -200,9 +206,9 @@ class ObjectCache:
                 # May be absent if this if cached compiler
                 # output (for preprocess-only).
                 fileStat = os.stat(objectPath)
-                currentSize -= fileStat.st_size
                 stats.unregisterCacheEntry(fileStat.st_size)
-            rmtree(dirPath)
+            rmtree(dirPath, ignore_errors=True)
+
 
     @staticmethod
     def getManifestHash(compilerBinary, commandLine, sourceFile):
