@@ -168,7 +168,13 @@ class ObjectCache:
                    for root, folder, files in walker(self.objectsDir)
                    if "object" in files]
 
-        objectInfos = [(os.stat(fn), fn) for fn in objects]
+        objectInfos = []
+        for o in objects:
+            try:
+                objectInfos.append((os.stat(fn), fn))
+            except WindowsError:
+                pass
+
         objectInfos.sort(key=lambda t: t[0].st_atime)
 
         # compute real current size to fix up the stored cacheSize
