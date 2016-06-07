@@ -156,11 +156,11 @@ class TestHeaderChange(BaseTest):
         if os.path.isfile("main.exe"):
             os.remove("main.exe")
 
-    def _compileAndLink(self, environment=os.environ):
+    def _compileAndLink(self, environment=None):
         cmdCompile = [PYTHON_BINARY, CLCACHE_SCRIPT, "/nologo", "/EHsc", "/c", "main.cpp"]
         cmdLink = ["link", "/nologo", "/OUT:main.exe", "main.obj"]
-        subprocess.check_call(cmdCompile, env=environment)
-        subprocess.check_call(cmdLink, env=environment)
+        subprocess.check_call(cmdCompile, env=environment or os.environ)
+        subprocess.check_call(cmdLink, env=environment or os.environ)
 
     def testDirect(self):
         with cd(os.path.join("tests", "header-change")):
