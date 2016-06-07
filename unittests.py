@@ -48,7 +48,9 @@ class TestExtractArgument(BaseTest):
         self.assertEqual(clcache.extractArgument(r''), r'')
         self.assertEqual(clcache.extractArgument(r'1'), r'1')
         self.assertEqual(clcache.extractArgument(r'myfile.cpp'), r'myfile.cpp')
-        self.assertEqual(clcache.extractArgument(r'/DEXTERNAL_DLL=__declspec(dllexport)'), r'/DEXTERNAL_DLL=__declspec(dllexport)')
+        self.assertEqual(
+            clcache.extractArgument(r'/DEXTERNAL_DLL=__declspec(dllexport)'),
+            r'/DEXTERNAL_DLL=__declspec(dllexport)')
         self.assertEqual(clcache.extractArgument(r'-DVERSION=\\"1.0\\"'), r'-DVERSION=\\"1.0\\"')
         self.assertEqual(clcache.extractArgument(r'-I"..\.."'), r'-I"..\.."')
 
@@ -140,7 +142,8 @@ class TestParseIncludes(BaseTest):
 
         self.assertEqual(len(includesSet), sample['UniqueIncludesCount'])
         self.assertTrue(r'c:\users\me\test\smartsqlite\include\smartsqlite\version.h' in includesSet)
-        self.assertTrue(r'c:\program files (x86)\microsoft visual studio 12.0\vc\include\concurrencysal.h' in includesSet)
+        self.assertTrue(
+            r'c:\program files (x86)\microsoft visual studio 12.0\vc\include\concurrencysal.h' in includesSet)
         self.assertTrue(r'' not in includesSet)
         self.assertEqual(newCompilerOutput, sample['CompilerOutput'])
 
@@ -154,7 +157,8 @@ class TestParseIncludes(BaseTest):
 
         self.assertEqual(len(includesSet), sample['UniqueIncludesCount'])
         self.assertTrue(r'c:\users\me\test\smartsqlite\include\smartsqlite\version.h' in includesSet)
-        self.assertTrue(r'c:\program files (x86)\microsoft visual studio 12.0\vc\include\concurrencysal.h' in includesSet)
+        self.assertTrue(
+            r'c:\program files (x86)\microsoft visual studio 12.0\vc\include\concurrencysal.h' in includesSet)
         self.assertTrue(r'' not in includesSet)
         self.assertEqual(newCompilerOutput, "version.cpp\n")
 
@@ -180,7 +184,8 @@ class TestParseIncludes(BaseTest):
 
         self.assertEqual(len(includesSet), sample['UniqueIncludesCount'])
         self.assertTrue(r'c:\users\me\test\smartsqlite\include\smartsqlite\version.h' in includesSet)
-        self.assertTrue(r'c:\program files (x86)\microsoft visual studio 12.0\vc\include\concurrencysal.h' in includesSet)
+        self.assertTrue(
+            r'c:\program files (x86)\microsoft visual studio 12.0\vc\include\concurrencysal.h' in includesSet)
         self.assertTrue(r'' not in includesSet)
 
 
