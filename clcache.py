@@ -567,17 +567,20 @@ def copyOrLink(srcFilePath, dstFilePath):
     copyfile(srcFilePath, dstFilePath)
 
 
+def myExecutablePath():
+    assert hasattr(sys, "frozen"), "is not frozen by py2exe"
+    if sys.version_info >= (3, 0):
+        return sys.executable.upper()
+    else:
+        return unicode(sys.executable, sys.getfilesystemencoding()).upper()
+
+
 def findCompilerBinary():
     if "CLCACHE_CL" in os.environ:
         path = os.environ["CLCACHE_CL"]
         return path if os.path.exists(path) else None
 
     frozenByPy2Exe = hasattr(sys, "frozen")
-    if frozenByPy2Exe:
-        if sys.version_info >= (3, 0):
-            myExecutablePath = sys.executable.upper()
-        else:
-            myExecutablePath = unicode(sys.executable, sys.getfilesystemencoding()).upper()
 
     for p in os.environ["PATH"].split(os.pathsep):
         path = os.path.join(p, "cl.exe")
@@ -586,7 +589,7 @@ def findCompilerBinary():
                 return path
 
             # Guard against recursively calling ourselves
-            if path.upper() != myExecutablePath:
+            if path.upper() != myExecutablePath():
                 return path
     return None
 
