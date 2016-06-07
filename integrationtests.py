@@ -109,12 +109,28 @@ class TestCompileRuns(BaseTest):
         subprocess.check_call(cmd) # Compile again
 
     def testRecompileObjectSetSameDir(self):
-        cmd = [PYTHON_BINARY, CLCACHE_SCRIPT, "/nologo", "/EHsc", "/c", "tests\\recompile2.cpp", "/Forecompile2_custom_object_name.obj"]
+        cmd = [
+            PYTHON_BINARY,
+            CLCACHE_SCRIPT,
+            "/nologo",
+            "/EHsc",
+            "/c",
+            "tests\\recompile2.cpp",
+            "/Forecompile2_custom_object_name.obj"
+        ]
         subprocess.check_call(cmd) # Compile once
         subprocess.check_call(cmd) # Compile again
 
     def testRecompileObjectSetOtherDir(self):
-        cmd = [PYTHON_BINARY, CLCACHE_SCRIPT, "/nologo", "/EHsc", "/c", "tests\\recompile3.cpp", "/Fotests\\output\\recompile2_custom_object_name.obj"]
+        cmd = [
+            PYTHON_BINARY,
+            CLCACHE_SCRIPT,
+            "/nologo",
+            "/EHsc",
+            "/c",
+            "tests\\recompile3.cpp",
+            "/Fotests\\output\\recompile2_custom_object_name.obj"
+        ]
         subprocess.check_call(cmd) # Compile once
         subprocess.check_call(cmd) # Compile again
 
