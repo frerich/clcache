@@ -46,13 +46,13 @@ CLCACHE_SCRIPT = os.path.join(os.path.dirname(os.path.realpath(__file__)), "clca
 
 
 @contextmanager
-def cd(target_directory):
-    old_directory = os.getcwd()
-    os.chdir(os.path.expanduser(target_directory))
+def cd(targetDirectory):
+    oldDirectory = os.getcwd()
+    os.chdir(os.path.expanduser(targetDirectory))
     try:
         yield
     finally:
-        os.chdir(old_directory)
+        os.chdir(oldDirectory)
 
 
 class BaseTest(unittest.TestCase):
@@ -64,20 +64,20 @@ class BaseTest(unittest.TestCase):
 class TestCommandLineArguments(BaseTest):
     @unittest.skip("Do not run this test by default because it change user's cache settings")
     def testValidMaxSize(self):
-        valid_values = ["1", "  10", "42  ", "22222222"]
-        for value in valid_values:
+        validValues = ["1", "  10", "42  ", "22222222"]
+        for value in validValues:
             cmd = [PYTHON_BINARY, CLCACHE_SCRIPT, "-M", value]
             self.assertEqual(subprocess.call(cmd), 0, "Command must not fail for max size: '" + value + "'")
 
     def testInvalidMaxSize(self):
-        invalid_values = ["ababa", "-1", "0", "1000.0"]
-        for value in invalid_values:
+        invalidValues = ["ababa", "-1", "0", "1000.0"]
+        for value in invalidValues:
             cmd = [PYTHON_BINARY, CLCACHE_SCRIPT, "-M", value]
             self.assertNotEqual(subprocess.call(cmd), 0, "Command must fail for max size: '" + value + "'")
 
 
 class TestCompileRuns(BaseTest):
-    def testBasicCompileC(self):
+    def testBasicCompileCc(self):
         cmd = [PYTHON_BINARY, CLCACHE_SCRIPT, "/nologo", "/c", "tests\\fibonacci.c"]
         subprocess.check_call(cmd)
 
@@ -85,7 +85,7 @@ class TestCompileRuns(BaseTest):
         cmd = [PYTHON_BINARY, CLCACHE_SCRIPT, "/nologo", "/EHsc", "/c", "tests\\fibonacci.cpp"]
         subprocess.check_call(cmd)
 
-    def testCompileLinkRunC(self):
+    def testCompileLinkRunCc(self):
         cmd = [PYTHON_BINARY, CLCACHE_SCRIPT, "/nologo", "/c", "tests\\fibonacci.c", "/Fofibonacci_c.obj"]
         subprocess.check_call(cmd)
         cmd = ["link", "/nologo", "/OUT:fibonacci_c.exe", "fibonacci_c.obj"]
