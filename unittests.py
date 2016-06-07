@@ -31,9 +31,12 @@
 # OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
-import clcache
+# In Python unittests are always members, not functions. Silence lint in this file.
+# pylint: disable=no-self-use
 import multiprocessing
 import unittest
+
+import clcache
 
 
 class BaseTest(unittest.TestCase):
@@ -48,17 +51,22 @@ class TestExtractArgument(BaseTest):
         self.assertEqual(clcache.extractArgument(r''), r'')
         self.assertEqual(clcache.extractArgument(r'1'), r'1')
         self.assertEqual(clcache.extractArgument(r'myfile.cpp'), r'myfile.cpp')
-        self.assertEqual(clcache.extractArgument(r'/DEXTERNAL_DLL=__declspec(dllexport)'), r'/DEXTERNAL_DLL=__declspec(dllexport)')
+        self.assertEqual(
+            clcache.extractArgument(r'/DEXTERNAL_DLL=__declspec(dllexport)'),
+            r'/DEXTERNAL_DLL=__declspec(dllexport)')
         self.assertEqual(clcache.extractArgument(r'-DVERSION=\\"1.0\\"'), r'-DVERSION=\\"1.0\\"')
         self.assertEqual(clcache.extractArgument(r'-I"..\.."'), r'-I"..\.."')
 
         # Extract
-        self.assertEqual(clcache.extractArgument(r'"-IC:\Program Files\Lib1"'),
-                                                 r'-IC:\Program Files\Lib1')
-        self.assertEqual(clcache.extractArgument(r'"/Fo"CrashReport.dir\Release\""'),
-                                                 r'/Fo"CrashReport.dir\Release\"')
-        self.assertEqual(clcache.extractArgument(r'"-DWEBRTC_SVNREVISION=\"Unavailable(issue687)\""'),
-                                                 r'-DWEBRTC_SVNREVISION=\"Unavailable(issue687)\"')
+        self.assertEqual(
+            clcache.extractArgument(r'"-IC:\Program Files\Lib1"'),
+            r'-IC:\Program Files\Lib1')
+        self.assertEqual(
+            clcache.extractArgument(r'"/Fo"CrashReport.dir\Release\""'),
+            r'/Fo"CrashReport.dir\Release\"')
+        self.assertEqual(
+            clcache.extractArgument(r'"-DWEBRTC_SVNREVISION=\"Unavailable(issue687)\""'),
+            r'-DWEBRTC_SVNREVISION=\"Unavailable(issue687)\"')
 
 
 class TestMultipleSourceFiles(BaseTest):
@@ -129,31 +137,41 @@ class TestParseIncludes(BaseTest):
 
     def testParseIncludesNoStrip(self):
         sample = self._readSampleFileDefault()
-        includesSet, newCompilerOutput = clcache.parseIncludesList(sample['CompilerOutput'],
-            r"C:\Users\me\test\smartsqlite\src\version.cpp", None, strip=False)
+        includesSet, newCompilerOutput = clcache.parseIncludesList(
+            sample['CompilerOutput'],
+            r"C:\Users\me\test\smartsqlite\src\version.cpp",
+            None,
+            strip=False)
 
         self.assertEqual(len(includesSet), sample['UniqueIncludesCount'])
         self.assertTrue(r'c:\users\me\test\smartsqlite\include\smartsqlite\version.h' in includesSet)
-        self.assertTrue(r'c:\program files (x86)\microsoft visual studio 12.0\vc\include\concurrencysal.h' in includesSet)
+        self.assertTrue(
+            r'c:\program files (x86)\microsoft visual studio 12.0\vc\include\concurrencysal.h' in includesSet)
         self.assertTrue(r'' not in includesSet)
         self.assertEqual(newCompilerOutput, sample['CompilerOutput'])
 
     def testParseIncludesStrip(self):
         sample = self._readSampleFileDefault()
-        includesSet, newCompilerOutput = clcache.parseIncludesList(sample['CompilerOutput'],
-            r"C:\Users\me\test\smartsqlite\src\version.cpp", None, strip=True)
+        includesSet, newCompilerOutput = clcache.parseIncludesList(
+            sample['CompilerOutput'],
+            r"C:\Users\me\test\smartsqlite\src\version.cpp",
+            None,
+            strip=True)
 
         self.assertEqual(len(includesSet), sample['UniqueIncludesCount'])
         self.assertTrue(r'c:\users\me\test\smartsqlite\include\smartsqlite\version.h' in includesSet)
-        self.assertTrue(r'c:\program files (x86)\microsoft visual studio 12.0\vc\include\concurrencysal.h' in includesSet)
+        self.assertTrue(
+            r'c:\program files (x86)\microsoft visual studio 12.0\vc\include\concurrencysal.h' in includesSet)
         self.assertTrue(r'' not in includesSet)
         self.assertEqual(newCompilerOutput, "version.cpp\n")
 
     def testParseIncludesNoIncludes(self):
         sample = self._readSampleFileNoIncludes()
         for stripIncludes in [True, False]:
-            includesSet, newCompilerOutput = clcache.parseIncludesList(sample['CompilerOutput'],
-                r"C:\Users\me\test\myproject\main.cpp", None,
+            includesSet, newCompilerOutput = clcache.parseIncludesList(
+                sample['CompilerOutput'],
+                r"C:\Users\me\test\myproject\main.cpp",
+                None,
                 strip=stripIncludes)
 
             self.assertEqual(len(includesSet), sample['UniqueIncludesCount'])
@@ -161,12 +179,16 @@ class TestParseIncludes(BaseTest):
 
     def testParseIncludesGerman(self):
         sample = self._readSampleFileDefault(lang="de")
-        includesSet, newCompilerOutput = clcache.parseIncludesList(sample['CompilerOutput'],
-            r"C:\Users\me\test\smartsqlite\src\version.cpp", None, strip=False)
+        includesSet, _ = clcache.parseIncludesList(
+            sample['CompilerOutput'],
+            r"C:\Users\me\test\smartsqlite\src\version.cpp",
+            None,
+            strip=False)
 
         self.assertEqual(len(includesSet), sample['UniqueIncludesCount'])
         self.assertTrue(r'c:\users\me\test\smartsqlite\include\smartsqlite\version.h' in includesSet)
-        self.assertTrue(r'c:\program files (x86)\microsoft visual studio 12.0\vc\include\concurrencysal.h' in includesSet)
+        self.assertTrue(
+            r'c:\program files (x86)\microsoft visual studio 12.0\vc\include\concurrencysal.h' in includesSet)
         self.assertTrue(r'' not in includesSet)
 
 

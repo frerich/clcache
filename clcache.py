@@ -54,7 +54,7 @@ import re
 
 VERSION = "3.0.3-dev"
 
-HASH_ALGORITHM = hashlib.md5
+HashAlgorithm = hashlib.md5
 
 # Manifest file will have at most this number of hash lists in it. Need to avoi
 # manifests grow too large.
@@ -78,16 +78,18 @@ class ObjectCacheLockException(Exception):
 
 class LogicException(Exception):
     def __init__(self, message):
+        super(LogicException, self).__init__(message)
         self.message = message
 
     def __str__(self):
         return repr(self.message)
 
 
-class ObjectCacheLock:
+class ObjectCacheLock(object):
     """ Implements a lock for the object cache which
     can be used in 'with' statements. """
     INFINITE = 0xFFFFFFFF
+    WAIT_ABANDONED_CODE = 0x00000080
 
     def __init__(self, mutexName, timeoutMs):
         mutexName = 'Local\\' + mutexName
@@ -111,10 +113,9 @@ class ObjectCacheLock:
         windll.kernel32.CloseHandle(self._mutex)
 
     def acquire(self):
-        WAIT_ABANDONED = 0x00000080
         result = windll.kernel32.WaitForSingleObject(
             self._mutex, wintypes.INT(self._timeoutMs))
-        if result != 0 and result != WAIT_ABANDONED:
+        if result != 0 and result != self.WAIT_ABANDONED_CODE:
             errorString = 'Error! WaitForSingleObject returns {result}, last error {error}'.format(
                 result=result,
                 error=windll.kernel32.GetLastError())
@@ -126,7 +127,7 @@ class ObjectCacheLock:
         self._acquired = False
 
 
-class ObjectCache:
+class ObjectCache(object):
     def __init__(self):
         try:
             self.dir = os.environ["CLCACHE_DIR"]
@@ -141,8 +142,8 @@ class ObjectCache:
         if not os.path.exists(self.objectsDir):
             os.makedirs(self.objectsDir)
         lockName = self.cacheDirectory().replace(':', '-').replace('\\', '-')
-        timeout_ms = int(os.environ.get('CLCACHE_OBJECT_CACHE_TIMEOUT_MS', 10 * 1000))
-        self.lock = ObjectCacheLock(lockName, timeout_ms)
+        timeoutMs = int(os.environ.get('CLCACHE_OBJECT_CACHE_TIMEOUT_MS', 10 * 1000))
+        self.lock = ObjectCacheLock(lockName, timeoutMs)
 
     def cacheDirectory(self):
         return self.dir
@@ -165,7 +166,7 @@ class ObjectCache:
             walker = os.walk
 
         objects = [os.path.join(root, "object")
-                   for root, folder, files in walker(self.objectsDir)
+                   for root, _, files in walker(self.objectsDir)
                    if "object" in files]
 
         objectInfos = []
@@ -235,7 +236,7 @@ class ObjectCache:
         compilerHash = getCompilerHash(compilerBinary)
         normalizedCmdLine = ObjectCache._normalizedCommandLine(commandLine)
 
-        h = HASH_ALGORITHM()
+        h = HashAlgorithm()
         h.update(compilerHash.encode("UTF-8"))
         h.update(' '.join(normalizedCmdLine).encode("UTF-8"))
         h.update(preprocessedSourceCode)
@@ -243,7 +244,7 @@ class ObjectCache:
 
     @staticmethod
     def getHash(dataString):
-        hasher = HASH_ALGORITHM()
+        hasher = HashAlgorithm()
         hasher.update(dataString.encode("UTF-8"))
         return hasher.hexdigest()
 
@@ -282,12 +283,13 @@ class ObjectCache:
         fileName = self._manifestName(manifestHash)
         if not os.path.exists(fileName):
             return None
-        with open(fileName, 'rb') as inFile:
-            try:
+        try:
+            with open(fileName, 'rb') as inFile:
                 return pickle.load(inFile)
-            except:
-                # Seems, file is corrupted
-                return None
+        except (IOError, pickle.UnpicklingError):
+            # - file does not exist or cannot be opened (IOError)?
+            # - file is corrupted (pickle.UnpicklingError)
+            return None
 
     def cachedObjectName(self, key):
         return os.path.join(self._cacheEntryDir(key), "object")
@@ -324,19 +326,19 @@ class ObjectCache:
         # preprocessor; the preprocessor's output is already included into the
         # hash sum so we don't have to care about these switches in the
         # command line as well.
-        _argsToStrip = ("AI", "C", "E", "P", "FI", "u", "X",
-                        "FU", "D", "EP", "Fx", "U", "I")
+        argsToStrip = ("AI", "C", "E", "P", "FI", "u", "X",
+                       "FU", "D", "EP", "Fx", "U", "I")
 
         # Also remove the switch for specifying the output file name; we don't
         # want two invocations which are identical except for the output file
         # name to be treated differently.
-        _argsToStrip += ("Fo",)
+        argsToStrip += ("Fo",)
 
         return [arg for arg in cmdline
-                if not (arg[0] in "/-" and arg[1:].startswith(_argsToStrip))]
+                if not (arg[0] in "/-" and arg[1:].startswith(argsToStrip))]
 
 
-class PersistentJSONDict:
+class PersistentJSONDict(object):
     def __init__(self, fileName):
         self._dirty = False
         self._dict = {}
@@ -344,7 +346,7 @@ class PersistentJSONDict:
         try:
             with open(self._fileName, 'r') as f:
                 self._dict = json.load(f)
-        except:
+        except IOError:
             pass
 
     def save(self):
@@ -363,7 +365,7 @@ class PersistentJSONDict:
         return key in self._dict
 
 
-class Configuration:
+class Configuration(object):
     _defaultValues = {"MaximumCacheSize": 1073741824} # 1 GiB
 
     def __init__(self, objectCache):
@@ -384,7 +386,7 @@ class Configuration:
         self._cfg.save()
 
 
-class CacheStatistics:
+class CacheStatistics(object):
     def __init__(self, objectCache):
         self.objectCache = objectCache
         self._stats = PersistentJSONDict(os.path.join(objectCache.cacheDirectory(),
@@ -499,7 +501,7 @@ class CacheStatistics:
         self._stats.save()
 
 
-class AnalysisResult:
+class AnalysisResult(object):
     Ok, NoSourceFile, MultipleSourceFilesSimple, \
         MultipleSourceFilesComplex, CalledForLink, \
         CalledWithPch, ExternalDebugInfo = list(range(7))
@@ -508,17 +510,17 @@ class AnalysisResult:
 def getCompilerHash(compilerBinary):
     stat = os.stat(compilerBinary)
     data = '|'.join([
-                str(stat.st_mtime),
-                str(stat.st_size),
-                VERSION,
-            ])
-    hasher = HASH_ALGORITHM()
+        str(stat.st_mtime),
+        str(stat.st_size),
+        VERSION,
+        ])
+    hasher = HashAlgorithm()
     hasher.update(data.encode("UTF-8"))
     return hasher.hexdigest()
 
 
 def getFileHash(filePath, additionalData=None):
-    hasher = HASH_ALGORITHM()
+    hasher = HashAlgorithm()
     with open(filePath, 'rb') as inFile:
         hasher.update(inFile.read())
     if additionalData is not None:
@@ -565,17 +567,20 @@ def copyOrLink(srcFilePath, dstFilePath):
     copyfile(srcFilePath, dstFilePath)
 
 
+def myExecutablePath():
+    assert hasattr(sys, "frozen"), "is not frozen by py2exe"
+    if sys.version_info >= (3, 0):
+        return sys.executable.upper()
+    else:
+        return unicode(sys.executable, sys.getfilesystemencoding()).upper()
+
+
 def findCompilerBinary():
     if "CLCACHE_CL" in os.environ:
         path = os.environ["CLCACHE_CL"]
         return path if os.path.exists(path) else None
 
     frozenByPy2Exe = hasattr(sys, "frozen")
-    if frozenByPy2Exe:
-        if sys.version_info >= (3, 0):
-            myExecutablePath = sys.executable.upper()
-        else:
-            myExecutablePath = unicode(sys.executable, sys.getfilesystemencoding()).upper()
 
     for p in os.environ["PATH"].split(os.pathsep):
         path = os.path.join(p, "cl.exe")
@@ -584,15 +589,15 @@ def findCompilerBinary():
                 return path
 
             # Guard against recursively calling ourselves
-            if path.upper() != myExecutablePath:
+            if path.upper() != myExecutablePath():
                 return path
     return None
 
 
 def printTraceStatement(msg):
     if "CLCACHE_LOG" in os.environ:
-        script_dir = os.path.realpath(os.path.dirname(sys.argv[0]))
-        print(os.path.join(script_dir, "clcache.py") + " " + msg)
+        scriptDir = os.path.realpath(os.path.dirname(sys.argv[0]))
+        print(os.path.join(scriptDir, "clcache.py") + " " + msg)
 
 
 def extractArgument(argument):
@@ -646,16 +651,16 @@ def expandCommandLine(cmdline):
 
             encoding = None
 
-            encodingByBOM = {
+            encodingByBom = {
                 codecs.BOM_UTF32_BE: 'utf-32-be',
                 codecs.BOM_UTF32_LE: 'utf-32-le',
                 codecs.BOM_UTF16_BE: 'utf-16-be',
                 codecs.BOM_UTF16_LE: 'utf-16-le',
             }
 
-            for bom, enc in list(encodingByBOM.items()):
+            for bom, _ in list(encodingByBom.items()):
                 if rawBytes.startswith(bom):
-                    encoding = encodingByBOM[bom]
+                    encoding = encodingByBom[bom]
                     rawBytes = rawBytes[len(bom):]
                     break
 
@@ -718,7 +723,7 @@ def parseCommandLine(cmdline):
 
 
 def analyzeCommandLine(cmdline):
-    options, responseFile, sourceFiles = parseCommandLine(cmdline)
+    options, _, sourceFiles = parseCommandLine(cmdline)
     compl = False
 
     # Technically, it would be possible to support /Zi: we'd just need to
@@ -809,9 +814,8 @@ def invokeRealCompiler(compilerBinary, cmdLine, captureOutput=False):
 # Given a list of Popen objects, removes and returns
 # a completed Popen object.
 #
-# FIXME: this is a bit inefficient, Python on Windows does not appear
-# to provide any blocking "wait for any process to complete" out of the
-# box.
+# This is a bit inefficient but Python on Windows does not appear to
+# provide any blocking "wait for any process to complete" out of the box.
 def waitForAnyProcess(procs):
     out = [p for p in procs if p.poll() is not None]
     if len(out) >= 1:
@@ -841,21 +845,21 @@ def jobCount(cmdLine):
 
     switches.extend(cmdLine)
 
-    mp_switches = [switch for switch in switches if re.search(r'^/MP(\d+)?$', switch) is not None]
-    if len(mp_switches) == 0:
+    mpSwitches = [switch for switch in switches if re.search(r'^/MP(\d+)?$', switch) is not None]
+    if len(mpSwitches) == 0:
         return 1
 
     # the last instance of /MP takes precedence
-    mp_switch = mp_switches.pop()
+    mpSwitch = mpSwitches.pop()
 
-    count = mp_switch[3:]
+    count = mpSwitch[3:]
     if count != "":
         return int(count)
 
     # /MP, but no count specified; use CPU count
     try:
         return multiprocessing.cpu_count()
-    except:
+    except NotImplementedError:
         # not expected to happen
         return 2
 
@@ -929,8 +933,7 @@ clcache statistics:
     called for external debug  : {}
     called w/o source          : {}
     called w/ multiple sources : {}
-    called w/ PCH              : {}
-""".strip().format(
+    called w/ PCH              : {}""".strip().format(
         cache.cacheDirectory(),
         stats.currentCacheSize(),
         cfg.maximumCacheSize(),
@@ -1035,7 +1038,7 @@ def processCacheHit(cache, outputFile, cachekey):
     return 0, compilerOutput, compilerStderr
 
 
-def postprocessObjectEvicted(cache, outputFile, cachekey, compiler, cmdLine, compilerResult):
+def postprocessObjectEvicted(cache, outputFile, cachekey, compilerResult):
     printTraceStatement("Cached object already evicted for key " + cachekey + " for " +
                         "output file " + outputFile)
     returnCode, compilerOutput, compilerStderr = compilerResult
@@ -1050,14 +1053,14 @@ def postprocessObjectEvicted(cache, outputFile, cachekey, compiler, cmdLine, com
     return compilerResult
 
 
-def postprocessHeaderChangedMiss(cache, outputFile, manifest, manifestHash, keyInManifest, compiler, cmdLine, compilerResult):
+def postprocessHeaderChangedMiss(cache, outputFile, manifest, manifestHash, keyInManifest, compilerResult):
     cachekey = ObjectCache.getDirectCacheKey(manifestHash, keyInManifest)
     returnCode, compilerOutput, compilerStderr = compilerResult
 
     removedItems = []
     if returnCode == 0 and (outputFile == '' or os.path.exists(outputFile)):
         while len(manifest.hashes) >= MAX_MANIFEST_HASHES:
-            key, objectHash = manifest.hashes.popitem()
+            _, objectHash = manifest.hashes.popitem()
             removedItems.append(objectHash)
         manifest.hashes[keyInManifest] = cachekey
 
@@ -1073,7 +1076,8 @@ def postprocessHeaderChangedMiss(cache, outputFile, manifest, manifestHash, keyI
     return compilerResult
 
 
-def postprocessNoManifestMiss(cache, outputFile, manifestHash, baseDir, compiler, cmdLine, sourceFile, compilerResult, stripIncludes):
+def postprocessNoManifestMiss(
+        cache, outputFile, manifestHash, baseDir, cmdLine, sourceFile, compilerResult, stripIncludes):
     returnCode, compilerOutput, compilerStderr = compilerResult
     grabStderr = False
     # If these options present, cl.exe will list includes on stderr, not stdout
@@ -1194,19 +1198,21 @@ def processCompileRequest(cache, compiler, args):
         with cache.lock:
             stats = CacheStatistics(cache)
             if analysisResult == AnalysisResult.NoSourceFile:
-                printTraceStatement("Cannot cache invocation as %s: no source file found" % (' '.join(cmdLine)))
+                printTraceStatement("Cannot cache invocation as {}: no source file found".format(cmdLine))
                 stats.registerCallWithoutSourceFile()
             elif analysisResult == AnalysisResult.MultipleSourceFilesComplex:
-                printTraceStatement("Cannot cache invocation as %s: multiple source files found" % (' '.join(cmdLine)))
+                printTraceStatement("Cannot cache invocation as {}: multiple source files found".format(cmdLine))
                 stats.registerCallWithMultipleSourceFiles()
             elif analysisResult == AnalysisResult.CalledWithPch:
-                printTraceStatement("Cannot cache invocation as %s: precompiled headers in use" % (' '.join(cmdLine)))
+                printTraceStatement("Cannot cache invocation as {}: precompiled headers in use".format(cmdLine))
                 stats.registerCallWithPch()
             elif analysisResult == AnalysisResult.CalledForLink:
-                printTraceStatement("Cannot cache invocation as %s: called for linking" % (' '.join(cmdLine)))
+                printTraceStatement("Cannot cache invocation as {}: called for linking".format(cmdLine))
                 stats.registerCallForLinking()
             elif analysisResult == AnalysisResult.ExternalDebugInfo:
-                printTraceStatement("Cannot cache invocation as %s: external debug information (/Zi) is not supported" % (' '.join(cmdLine)))
+                printTraceStatement(
+                    "Cannot cache invocation as {}: external debug information (/Zi) is not supported".format(cmdLine)
+                )
                 stats.registerCallForExternalDebugInfo()
             stats.save()
         return invokeRealCompiler(compiler, args[1:])
@@ -1239,16 +1245,19 @@ def processDirect(cache, outputFile, compiler, cmdLine, sourceFile):
                 if cache.hasEntry(cachekey):
                     return processCacheHit(cache, outputFile, cachekey)
                 else:
-                    postProcessing = lambda compilerResult: postprocessObjectEvicted(cache, outputFile, cachekey, compiler, cmdLine, compilerResult)
+                    postProcessing = lambda compilerResult: postprocessObjectEvicted(
+                        cache, outputFile, cachekey, compilerResult)
             else:
-                postProcessing = lambda compilerResult: postprocessHeaderChangedMiss(cache, outputFile, manifest, manifestHash, keyInManifest, compiler, cmdLine, compilerResult)
+                postProcessing = lambda compilerResult: postprocessHeaderChangedMiss(
+                    cache, outputFile, manifest, manifestHash, keyInManifest, compilerResult)
         else:
             origCmdLine = cmdLine
             stripIncludes = False
             if '/showIncludes' not in cmdLine:
                 cmdLine = ['/showIncludes'] + cmdLine
                 stripIncludes = True
-            postProcessing = lambda compilerResult: postprocessNoManifestMiss(cache, outputFile, manifestHash, baseDir, compiler, origCmdLine, sourceFile, compilerResult, stripIncludes)
+            postProcessing = lambda compilerResult: postprocessNoManifestMiss(
+                cache, outputFile, manifestHash, baseDir, origCmdLine, sourceFile, compilerResult, stripIncludes)
 
     compilerResult = invokeRealCompiler(compiler, cmdLine, captureOutput=True)
     compilerResult = postProcessing(compilerResult)

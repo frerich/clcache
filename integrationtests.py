@@ -31,7 +31,9 @@
 # OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
-import clcache
+# In Python unittests are always members, not functions. Silence lint in this file.
+# pylint: disable=no-self-use
+from __future__ import print_function
 from contextlib import contextmanager
 import glob
 import os
@@ -39,19 +41,21 @@ import subprocess
 import sys
 import unittest
 
+import clcache
+
 
 PYTHON_BINARY = sys.executable
 CLCACHE_SCRIPT = os.path.join(os.path.dirname(os.path.realpath(__file__)), "clcache.py")
 
 
 @contextmanager
-def cd(target_directory):
-    old_directory = os.getcwd()
-    os.chdir(os.path.expanduser(target_directory))
+def cd(targetDirectory):
+    oldDirectory = os.getcwd()
+    os.chdir(os.path.expanduser(targetDirectory))
     try:
         yield
     finally:
-        os.chdir(old_directory)
+        os.chdir(oldDirectory)
 
 
 class BaseTest(unittest.TestCase):
@@ -63,20 +67,20 @@ class BaseTest(unittest.TestCase):
 class TestCommandLineArguments(BaseTest):
     @unittest.skip("Do not run this test by default because it change user's cache settings")
     def testValidMaxSize(self):
-        valid_values = ["1", "  10", "42  ", "22222222"]
-        for value in valid_values:
+        validValues = ["1", "  10", "42  ", "22222222"]
+        for value in validValues:
             cmd = [PYTHON_BINARY, CLCACHE_SCRIPT, "-M", value]
             self.assertEqual(subprocess.call(cmd), 0, "Command must not fail for max size: '" + value + "'")
 
     def testInvalidMaxSize(self):
-        invalid_values = ["ababa", "-1", "0", "1000.0"]
-        for value in invalid_values:
+        invalidValues = ["ababa", "-1", "0", "1000.0"]
+        for value in invalidValues:
             cmd = [PYTHON_BINARY, CLCACHE_SCRIPT, "-M", value]
             self.assertNotEqual(subprocess.call(cmd), 0, "Command must fail for max size: '" + value + "'")
 
 
 class TestCompileRuns(BaseTest):
-    def testBasicCompileC(self):
+    def testBasicCompileCc(self):
         cmd = [PYTHON_BINARY, CLCACHE_SCRIPT, "/nologo", "/c", "tests\\fibonacci.c"]
         subprocess.check_call(cmd)
 
@@ -84,7 +88,7 @@ class TestCompileRuns(BaseTest):
         cmd = [PYTHON_BINARY, CLCACHE_SCRIPT, "/nologo", "/EHsc", "/c", "tests\\fibonacci.cpp"]
         subprocess.check_call(cmd)
 
-    def testCompileLinkRunC(self):
+    def testCompileLinkRunCc(self):
         cmd = [PYTHON_BINARY, CLCACHE_SCRIPT, "/nologo", "/c", "tests\\fibonacci.c", "/Fofibonacci_c.obj"]
         subprocess.check_call(cmd)
         cmd = ["link", "/nologo", "/OUT:fibonacci_c.exe", "fibonacci_c.obj"]
@@ -108,12 +112,28 @@ class TestCompileRuns(BaseTest):
         subprocess.check_call(cmd) # Compile again
 
     def testRecompileObjectSetSameDir(self):
-        cmd = [PYTHON_BINARY, CLCACHE_SCRIPT, "/nologo", "/EHsc", "/c", "tests\\recompile2.cpp", "/Forecompile2_custom_object_name.obj"]
+        cmd = [
+            PYTHON_BINARY,
+            CLCACHE_SCRIPT,
+            "/nologo",
+            "/EHsc",
+            "/c",
+            "tests\\recompile2.cpp",
+            "/Forecompile2_custom_object_name.obj"
+        ]
         subprocess.check_call(cmd) # Compile once
         subprocess.check_call(cmd) # Compile again
 
     def testRecompileObjectSetOtherDir(self):
-        cmd = [PYTHON_BINARY, CLCACHE_SCRIPT, "/nologo", "/EHsc", "/c", "tests\\recompile3.cpp", "/Fotests\\output\\recompile2_custom_object_name.obj"]
+        cmd = [
+            PYTHON_BINARY,
+            CLCACHE_SCRIPT,
+            "/nologo",
+            "/EHsc",
+            "/c",
+            "tests\\recompile3.cpp",
+            "/Fotests\\output\\recompile2_custom_object_name.obj"
+        ]
         subprocess.check_call(cmd) # Compile once
         subprocess.check_call(cmd) # Compile again
 
@@ -155,11 +175,11 @@ class TestHeaderChange(BaseTest):
         if os.path.isfile("main.exe"):
             os.remove("main.exe")
 
-    def _compileAndLink(self, environment = os.environ):
+    def _compileAndLink(self, environment=None):
         cmdCompile = [PYTHON_BINARY, CLCACHE_SCRIPT, "/nologo", "/EHsc", "/c", "main.cpp"]
         cmdLink = ["link", "/nologo", "/OUT:main.exe", "main.obj"]
-        subprocess.check_call(cmdCompile, env=environment)
-        subprocess.check_call(cmdLink, env=environment)
+        subprocess.check_call(cmdCompile, env=environment or os.environ)
+        subprocess.check_call(cmdLink, env=environment or os.environ)
 
     def testDirect(self):
         with cd(os.path.join("tests", "header-change")):

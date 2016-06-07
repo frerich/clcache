@@ -21,17 +21,27 @@ install:
   - cl
 
   # Prepend Python installation to PATH
-  - "SET PATH=%PYTHON_INSTALL%;%PATH%"
+  - set PATH=%PYTHON_INSTALL%;%PATH%
+
+  # Prepend Python Sripts to PATH (e.g. pip, pytest, pylint)
+  - set PATH=%PYTHON_INSTALL%\\Scripts;%PATH%
 
   # Check Python version
-  - "python --version"
+  - python --version
 
   # Install pytest
-  - "%PYTHON_INSTALL%\\Scripts\\pip install pytest"
+  - pip install pytest
+
+  # Install pylint (installs pylint.exe in %PYTHON_INSTALL%\Scripts)
+  - pip install pylint
+  - pylint --version
 
 build_script:
-  - "python clcache.py --help"
-  - "python clcache.py -s"
+  - python clcache.py --help
+  - python clcache.py -s
+  - pylint --rcfile=.pylintrc clcache.py
+  - pylint --rcfile=.pylintrc unittests.py
+  - pylint --rcfile=.pylintrc integrationtests.py
 
 test_script:
   # Run test files via py.test and generate JUnit XML. Then push test results
@@ -47,8 +57,7 @@ test_script:
 
       $wc.UploadFile("https://ci.appveyor.com/api/testresults/junit/$($env:APPVEYOR_JOB_ID)", (Resolve-Path .\integrationtests.xml))
 
-
 after_test:
   # Get a rough overview about what happened in the tests.
   # This is not part of the actual testing but pure convenience.
-  - "python clcache.py -s"
+  - python clcache.py -s
