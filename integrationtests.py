@@ -34,13 +34,14 @@
 # In Python unittests are always members, not functions. Silence lint in this file.
 # pylint: disable=no-self-use
 from __future__ import print_function
-import clcache
 from contextlib import contextmanager
 import glob
 import os
 import subprocess
 import sys
 import unittest
+
+import clcache
 
 
 PYTHON_BINARY = sys.executable
