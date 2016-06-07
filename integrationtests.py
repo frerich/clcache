@@ -156,7 +156,7 @@ class TestHeaderChange(BaseTest):
         if os.path.isfile("main.exe"):
             os.remove("main.exe")
 
-    def _compileAndLink(self, environment = os.environ):
+    def _compileAndLink(self, environment=os.environ):
         cmdCompile = [PYTHON_BINARY, CLCACHE_SCRIPT, "/nologo", "/EHsc", "/c", "main.cpp"]
         cmdLink = ["link", "/nologo", "/OUT:main.exe", "main.obj"]
         subprocess.check_call(cmdCompile, env=environment)
