@@ -510,10 +510,10 @@ class AnalysisResult(object):
 def getCompilerHash(compilerBinary):
     stat = os.stat(compilerBinary)
     data = '|'.join([
-                str(stat.st_mtime),
-                str(stat.st_size),
-                VERSION,
-            ])
+        str(stat.st_mtime),
+        str(stat.st_size),
+        VERSION,
+        ])
     hasher = HashAlgorithm()
     hasher.update(data.encode("UTF-8"))
     return hasher.hexdigest()
@@ -933,8 +933,7 @@ clcache statistics:
     called for external debug  : {}
     called w/o source          : {}
     called w/ multiple sources : {}
-    called w/ PCH              : {}
-""".strip().format(
+    called w/ PCH              : {}""".strip().format(
         cache.cacheDirectory(),
         stats.currentCacheSize(),
         cfg.maximumCacheSize(),
