@@ -1197,19 +1197,21 @@ def processCompileRequest(cache, compiler, args):
         with cache.lock:
             stats = CacheStatistics(cache)
             if analysisResult == AnalysisResult.NoSourceFile:
-                printTraceStatement("Cannot cache invocation as %s: no source file found" % (' '.join(cmdLine)))
+                printTraceStatement("Cannot cache invocation as {}: no source file found".format(cmdLine))
                 stats.registerCallWithoutSourceFile()
             elif analysisResult == AnalysisResult.MultipleSourceFilesComplex:
-                printTraceStatement("Cannot cache invocation as %s: multiple source files found" % (' '.join(cmdLine)))
+                printTraceStatement("Cannot cache invocation as {}: multiple source files found".format(cmdLine))
                 stats.registerCallWithMultipleSourceFiles()
             elif analysisResult == AnalysisResult.CalledWithPch:
-                printTraceStatement("Cannot cache invocation as %s: precompiled headers in use" % (' '.join(cmdLine)))
+                printTraceStatement("Cannot cache invocation as {}: precompiled headers in use".format(cmdLine))
                 stats.registerCallWithPch()
             elif analysisResult == AnalysisResult.CalledForLink:
-                printTraceStatement("Cannot cache invocation as %s: called for linking" % (' '.join(cmdLine)))
+                printTraceStatement("Cannot cache invocation as {}: called for linking".format(cmdLine))
                 stats.registerCallForLinking()
             elif analysisResult == AnalysisResult.ExternalDebugInfo:
-                printTraceStatement("Cannot cache invocation as %s: external debug information (/Zi) is not supported" % (' '.join(cmdLine)))
+                printTraceStatement(
+                    "Cannot cache invocation as {}: external debug information (/Zi) is not supported".format(cmdLine)
+                )
                 stats.registerCallForExternalDebugInfo()
             stats.save()
         return invokeRealCompiler(compiler, args[1:])
