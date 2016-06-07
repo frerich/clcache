@@ -269,7 +269,10 @@ dummy-variables-rgx=_$|dummy
 
 # List of additional names supposed to be defined in builtins. Remember that
 # you should avoid to define new builtins when possible.
-additional-builtins=
+#
+# 'unicode' is defined in Python 2 and clcache only uses it inside of a case distinction.
+# Still, pylint running on Python 3 calls this an error. Silence it.
+additional-builtins=unicode
 
 # List of strings which can identify a callback function by name. A callback
 # name must start or end with one of those strings.
