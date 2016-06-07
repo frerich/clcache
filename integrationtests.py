@@ -31,6 +31,8 @@
 # OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
+# In Python unittests are always members, not functions. Silence lint in this file.
+# pylint: disable=no-self-use
 from __future__ import print_function
 import clcache
 from contextlib import contextmanager
