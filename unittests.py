@@ -161,7 +161,7 @@ class TestParseIncludes(BaseTest):
 
     def testParseIncludesGerman(self):
         sample = self._readSampleFileDefault(lang="de")
-        includesSet, newCompilerOutput = clcache.parseIncludesList(sample['CompilerOutput'],
+        includesSet, _ = clcache.parseIncludesList(sample['CompilerOutput'],
             r"C:\Users\me\test\smartsqlite\src\version.cpp", None, strip=False)
 
         self.assertEqual(len(includesSet), sample['UniqueIncludesCount'])
