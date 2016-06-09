@@ -564,8 +564,11 @@ def copyOrLink(srcFilePath, dstFilePath):
             return
 
     # If hardlinking fails for some reason (or it's not enabled), just
-    # fall back to moving bytes around...
-    copyfile(srcFilePath, dstFilePath)
+    # fall back to moving bytes around. Always to a temporary path first to
+    # lower the chances of corrupting it.
+    tempDst = dstFilePath + '.tmp'
+    copyfile(srcFilePath, tempDst)
+    os.rename(tempDst, dstFilePath)
 
 
 def myExecutablePath():
