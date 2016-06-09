@@ -44,6 +44,12 @@ Options
 -s::
     Print some statistics about the cache (cache hits, cache misses, cache
     size etc.)
+-c::
+    Clean the cache: trim the cache size to 90% of its maximum by removing
+    the oldest objects.
+-C::
+    Clear the cache: remove all cached objects, but keep the cache statistics
+    (hits, misses, etc.).
 -z::
     Reset the cache statistics, i.e. number of cache hits, cache misses etc..
     Doesn't actually clear the cache, so the number of cached objects and the
