@@ -3,7 +3,8 @@ clcache changelog
 
 ## Upcoming release
 
-  * Nothing yet.
+  * Improvement: better protection against storing corrupt objects in the cache
+    in case clcache is terminated in the middle of storing a new cache entry.
 
 ## clcache 3.1.0 (2016-06-09)
 
