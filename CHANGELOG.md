@@ -3,6 +3,10 @@ clcache changelog
 
 ## Upcoming release
 
+  * Nothing yet.
+
+## clcache 3.1.0 (2016-06-09)
+
  * Cached objects are no longer shared between different clcache versions to
    avoid restoring objects which were stored incorrectly in older clcache
    versions.
