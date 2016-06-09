@@ -19,7 +19,7 @@ clcache changelog
  * Improvement: cleaning outdated cache entries is now a lot faster
  * Bugfix: Support use of py2exe with Python 3.4
  * Bugfix: Support includes parsing when cl language is not English (GH #65)
- * Bugfix: Fix bug causing statistics to get corrupted after concurrent invocations
+ * Bugfix: Fix bug causing statistics to get corrupted after concurrent invocations (GH #70).
  * Bugfix: Invalid values passed via `-M` are now handle gracefully.
  * Bugfix: The cache size and the number of cached entries is now updated
    correctly after pruning outdated objects.
