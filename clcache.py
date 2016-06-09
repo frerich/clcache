@@ -4,6 +4,7 @@
 #
 # Copyright (c) 2010, 2011, 2012, 2013, 2016 froglogic GmbH <raabe@froglogic.com>
 #               2016 Simon Warta (Kullo GmbH)
+#               2016 Tim Blechmann (Kullo GmbH)
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
