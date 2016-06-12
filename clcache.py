@@ -630,7 +630,7 @@ def splitCommandsLine(line):
         if line[i] == ' ' and not insideQuotes and wordStart is not None:
             result.append(extractArgument(line[wordStart:i]))
             wordStart = None
-        if line[i] == '"' and ((i == 0) or (i > 0 and line[i - 1] != '\\')):
+        if line[i] == '"':
             insideQuotes = not insideQuotes
         if line[i] != ' ' and wordStart is None:
             wordStart = i
