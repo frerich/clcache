@@ -701,7 +701,7 @@ class CommandLineAnalyzer(object):
         while i < len(cmdline):
             arg = cmdline[i]
 
-            # Plain arguments startign with / or -
+            # Plain arguments starting with / or -
             if arg[0] == '/' or arg[0] == '-':
                 isParametrized = False
                 for opt in optionsWithParameter:
@@ -719,7 +719,7 @@ class CommandLineAnalyzer(object):
                 if not isParametrized:
                     options[arg[1:]] = []
 
-            # Reponse file
+            # Response file
             elif arg[0] == '@':
                 responseFile = arg[1:]
 
