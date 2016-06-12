@@ -619,7 +619,7 @@ def extractArgument(argument):
     return argument.strip()
 
 
-def splitCommandsFile(line):
+def splitCommandsLine(line):
     # Note, we must treat lines in quotes as one argument. We do not use shlex
     # since seems it difficult to set up it to correctly parse escaped quotes.
     i = 0
@@ -640,6 +640,12 @@ def splitCommandsFile(line):
         result.append(extractArgument(line[wordStart:]))
     return result
 
+def splitCommandsFile(content):
+    ret = []
+    for line in content.splitlines(True):
+        ret.extend(splitCommandsLine(line.strip()))
+
+    return ret
 
 def expandCommandLine(cmdline):
     ret = []

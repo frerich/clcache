@@ -87,6 +87,17 @@ class TestSplitCommandsFile(BaseTest):
                 r'-DMYPATH=\"C:\Path\"'
             ])
 
+    def testLineEndings(self):
+        self.assertEqual(
+            clcache.splitCommandsFile('-A\n-B'),
+            ['-A', '-B'])
+        self.assertEqual(
+            clcache.splitCommandsFile('-A\r\n-B'),
+            ['-A', '-B'])
+        self.assertEqual(
+            clcache.splitCommandsFile('-A -B\r\n-C -D -E'),
+            ['-A', '-B', '-C', '-D', '-E'])
+
 
 class TestMultipleSourceFiles(BaseTest):
     CPU_CORES = multiprocessing.cpu_count()
