@@ -98,6 +98,12 @@ class TestSplitCommandsFile(BaseTest):
         self._genericTest(r'"/Fo"something\main.obj"" /nologo', [r'/Fo"something\main.obj"', '/nologo'])
         self._genericTest(r'/c "/Fo"something\main.obj"" /nologo', ['/c', r'/Fo"something\main.obj"', '/nologo'])
 
+    def testBackslashBeforeQuote(self):
+        self._genericTest(r'/Fo"C:\out dir\"', [r'/Fo"C:\out dir\"'])
+        self._genericTest(r'/c /Fo"C:\out dir\"', ['/c', r'/Fo"C:\out dir\"'])
+        self._genericTest(r'/Fo"C:\out dir\" /nologo', [r'/Fo"C:\out dir\"', '/nologo'])
+        self._genericTest(r'/c /Fo"C:\out dir\" /nologo', ['/c', r'/Fo"C:\out dir\"', '/nologo'])
+
     def testVyachselavCase(self):
         self._genericTest(
             r'"-IC:\Program files\Some library" -DX=1 -DVERSION=\"1.0\" -I..\.. -I"..\..\lib" -DMYPATH=\"C:\Path\"',
