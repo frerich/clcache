@@ -5,6 +5,7 @@ clcache changelog
 
   * Improvement: better protection against storing corrupt objects in the cache
     in case clcache is terminated in the middle of storing a new cache entry.
+  * Bugfix: Command files with multiple lines are now handled correctly.
 
 ## clcache 3.1.0 (2016-06-09)
 
