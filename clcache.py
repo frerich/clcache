@@ -695,7 +695,6 @@ class CommandLineAnalyzer(object):
                                 'W', 'Yc', 'Yl', 'Tp', 'we',
                                 'Yu', 'Zm', 'F', 'Fi']
         options = defaultdict(list)
-        responseFile = ""
         sourceFiles = []
         i = 0
         while i < len(cmdline):
@@ -721,7 +720,7 @@ class CommandLineAnalyzer(object):
 
             # Response file
             elif arg[0] == '@':
-                responseFile = arg[1:]
+                raise AssertionError("No response file arguments (starting with @) must be left here.")
 
             # Source file arguments
             else:
@@ -729,11 +728,11 @@ class CommandLineAnalyzer(object):
 
             i += 1
 
-        return options, responseFile, sourceFiles
+        return options, sourceFiles
 
     @staticmethod
     def analyze(cmdline):
-        options, _, sourceFiles = CommandLineAnalyzer._parseOptionsAndFiles(cmdline)
+        options, sourceFiles = CommandLineAnalyzer._parseOptionsAndFiles(cmdline)
         compl = False
 
         # Technically, it would be possible to support /Zi: we'd just need to
