@@ -622,9 +622,6 @@ def extractArgument(argument):
 def splitCommandsFile(line):
     # Note, we must treat lines in quotes as one argument. We do not use shlex
     # since seems it difficult to set up it to correctly parse escaped quotes.
-    # A good test line to split is
-    # '"-IC:\\Program files\\Some library" -DX=1 -DVERSION=\\"1.0\\"
-    # -I..\\.. -I"..\\..\\lib" -DMYPATH=\\"C:\\Path\\"'
     i = 0
     wordStart = -1
     insideQuotes = False
