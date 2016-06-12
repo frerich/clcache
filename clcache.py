@@ -623,20 +623,20 @@ def splitCommandsLine(line):
     # Note, we must treat lines in quotes as one argument. We do not use shlex
     # since seems it difficult to set up it to correctly parse escaped quotes.
     i = 0
-    wordStart = -1
+    wordStart = None
     insideQuotes = False
     result = []
     while i < len(line):
-        if line[i] == ' ' and not insideQuotes and wordStart >= 0:
+        if line[i] == ' ' and not insideQuotes and wordStart is not None:
             result.append(extractArgument(line[wordStart:i]))
-            wordStart = -1
+            wordStart = None
         if line[i] == '"' and ((i == 0) or (i > 0 and line[i - 1] != '\\')):
             insideQuotes = not insideQuotes
-        if line[i] != ' ' and wordStart < 0:
+        if line[i] != ' ' and wordStart is None:
             wordStart = i
         i += 1
 
-    if wordStart >= 0:
+    if wordStart is not None:
         result.append(extractArgument(line[wordStart:]))
     return result
 
