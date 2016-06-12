@@ -70,14 +70,15 @@ class TestExtractArgument(BaseTest):
 
 
 class TestSplitCommandsFile(BaseTest):
+    def _genericTest(self, commandLine, expected):
+        self.assertEqual(clcache.splitCommandsFile(commandLine), expected)
+
     def testEmpty(self):
-        self.assertEqual(clcache.splitCommandsFile(''), [])
+        self._genericTest('', [])
 
     def testVyachselavCase(self):
-        commandsFile = \
-            r'"-IC:\Program files\Some library" -DX=1 -DVERSION=\"1.0\" -I..\.. -I"..\..\lib" -DMYPATH=\"C:\Path\"'
-        self.assertEqual(
-            clcache.splitCommandsFile(commandsFile),
+        self._genericTest(
+            r'"-IC:\Program files\Some library" -DX=1 -DVERSION=\"1.0\" -I..\.. -I"..\..\lib" -DMYPATH=\"C:\Path\"',
             [
                 r'-IC:\Program files\Some library',
                 r'-DX=1',
@@ -88,15 +89,9 @@ class TestSplitCommandsFile(BaseTest):
             ])
 
     def testLineEndings(self):
-        self.assertEqual(
-            clcache.splitCommandsFile('-A\n-B'),
-            ['-A', '-B'])
-        self.assertEqual(
-            clcache.splitCommandsFile('-A\r\n-B'),
-            ['-A', '-B'])
-        self.assertEqual(
-            clcache.splitCommandsFile('-A -B\r\n-C -D -E'),
-            ['-A', '-B', '-C', '-D', '-E'])
+        self._genericTest('-A\n-B', ['-A', '-B'])
+        self._genericTest('-A\r\n-B', ['-A', '-B'])
+        self._genericTest('-A -B\r\n-C -D -E', ['-A', '-B', '-C', '-D', '-E'])
 
 
 class TestMultipleSourceFiles(BaseTest):
