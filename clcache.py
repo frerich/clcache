@@ -683,121 +683,124 @@ def expandCommandLine(cmdline):
     return ret
 
 
-def parseCommandLine(cmdline):
-    optionsWithParameter = ['Ob', 'Gs', 'Fa', 'Fd', 'Fm',
-                            'Fp', 'FR', 'doc', 'FA', 'Fe',
-                            'Fo', 'Fr', 'AI', 'FI', 'FU',
-                            'D', 'U', 'I', 'Zp', 'vm',
-                            'MP', 'Tc', 'V', 'wd', 'wo',
-                            'W', 'Yc', 'Yl', 'Tp', 'we',
-                            'Yu', 'Zm', 'F', 'Fi']
-    options = defaultdict(list)
-    responseFile = ""
-    sourceFiles = []
-    i = 0
-    while i < len(cmdline):
-        arg = cmdline[i]
+class CommandLineAnalyzer(object):
 
-        # Plain arguments startign with / or -
-        if arg[0] == '/' or arg[0] == '-':
-            isParametrized = False
-            for opt in optionsWithParameter:
-                if arg[1:len(opt) + 1] == opt:
-                    isParametrized = True
-                    key = opt
-                    if len(arg) > len(opt) + 1:
-                        value = arg[len(opt) + 1:]
-                    else:
-                        value = cmdline[i + 1]
-                        i += 1
-                    options[key].append(value)
-                    break
+    @staticmethod
+    def _parseOptionsAndFiles(cmdline):
+        optionsWithParameter = ['Ob', 'Gs', 'Fa', 'Fd', 'Fm',
+                                'Fp', 'FR', 'doc', 'FA', 'Fe',
+                                'Fo', 'Fr', 'AI', 'FI', 'FU',
+                                'D', 'U', 'I', 'Zp', 'vm',
+                                'MP', 'Tc', 'V', 'wd', 'wo',
+                                'W', 'Yc', 'Yl', 'Tp', 'we',
+                                'Yu', 'Zm', 'F', 'Fi']
+        options = defaultdict(list)
+        responseFile = ""
+        sourceFiles = []
+        i = 0
+        while i < len(cmdline):
+            arg = cmdline[i]
 
-            if not isParametrized:
-                options[arg[1:]] = []
+            # Plain arguments startign with / or -
+            if arg[0] == '/' or arg[0] == '-':
+                isParametrized = False
+                for opt in optionsWithParameter:
+                    if arg[1:len(opt) + 1] == opt:
+                        isParametrized = True
+                        key = opt
+                        if len(arg) > len(opt) + 1:
+                            value = arg[len(opt) + 1:]
+                        else:
+                            value = cmdline[i + 1]
+                            i += 1
+                        options[key].append(value)
+                        break
 
-        # Reponse file
-        elif arg[0] == '@':
-            responseFile = arg[1:]
+                if not isParametrized:
+                    options[arg[1:]] = []
 
-        # Source file arguments
-        else:
-            sourceFiles.append(arg)
+            # Reponse file
+            elif arg[0] == '@':
+                responseFile = arg[1:]
 
-        i += 1
-
-    return options, responseFile, sourceFiles
-
-
-def analyzeCommandLine(cmdline):
-    options, _, sourceFiles = parseCommandLine(cmdline)
-    compl = False
-
-    # Technically, it would be possible to support /Zi: we'd just need to
-    # copy the generated .pdb files into/out of the cache.
-    if 'Zi' in options:
-        return AnalysisResult.ExternalDebugInfo, None, None
-    if 'Yc' in options or 'Yu' in options:
-        return AnalysisResult.CalledWithPch, None, None
-    if 'Tp' in options:
-        sourceFiles += options['Tp']
-        compl = True
-    if 'Tc' in options:
-        sourceFiles += options['Tc']
-        compl = True
-
-    preprocessing = False
-
-    for opt in ['E', 'EP', 'P']:
-        if opt in options:
-            preprocessing = True
-            break
-
-    if 'link' in options or ('c' not in options and not preprocessing):
-        return AnalysisResult.CalledForLink, None, None
-
-    if len(sourceFiles) == 0:
-        return AnalysisResult.NoSourceFile, None, None
-
-    if len(sourceFiles) > 1:
-        if compl:
-            return AnalysisResult.MultipleSourceFilesComplex, None, None
-        return AnalysisResult.MultipleSourceFilesSimple, sourceFiles, None
-
-    outputFile = None
-    if 'Fo' in options:
-        outputFile = options['Fo'][0]
-
-        if os.path.isdir(outputFile):
-            srcFileName = os.path.basename(sourceFiles[0])
-            outputFile = os.path.join(outputFile,
-                                      os.path.splitext(srcFileName)[0] + ".obj")
-    elif preprocessing:
-        if 'P' in options:
-            # Preprocess to file.
-            if 'Fi' in options:
-                outputFile = options['Fi'][0]
+            # Source file arguments
             else:
+                sourceFiles.append(arg)
+
+            i += 1
+
+        return options, responseFile, sourceFiles
+
+    @staticmethod
+    def analyze(cmdline):
+        options, _, sourceFiles = CommandLineAnalyzer._parseOptionsAndFiles(cmdline)
+        compl = False
+
+        # Technically, it would be possible to support /Zi: we'd just need to
+        # copy the generated .pdb files into/out of the cache.
+        if 'Zi' in options:
+            return AnalysisResult.ExternalDebugInfo, None, None
+        if 'Yc' in options or 'Yu' in options:
+            return AnalysisResult.CalledWithPch, None, None
+        if 'Tp' in options:
+            sourceFiles += options['Tp']
+            compl = True
+        if 'Tc' in options:
+            sourceFiles += options['Tc']
+            compl = True
+
+        preprocessing = False
+
+        for opt in ['E', 'EP', 'P']:
+            if opt in options:
+                preprocessing = True
+                break
+
+        if 'link' in options or ('c' not in options and not preprocessing):
+            return AnalysisResult.CalledForLink, None, None
+
+        if len(sourceFiles) == 0:
+            return AnalysisResult.NoSourceFile, None, None
+
+        if len(sourceFiles) > 1:
+            if compl:
+                return AnalysisResult.MultipleSourceFilesComplex, None, None
+            return AnalysisResult.MultipleSourceFilesSimple, sourceFiles, None
+
+        outputFile = None
+        if 'Fo' in options:
+            outputFile = options['Fo'][0]
+
+            if os.path.isdir(outputFile):
                 srcFileName = os.path.basename(sourceFiles[0])
-                outputFile = os.path.join(os.getcwd(),
-                                          os.path.splitext(srcFileName)[0] + ".i")
+                outputFile = os.path.join(outputFile,
+                                          os.path.splitext(srcFileName)[0] + ".obj")
+        elif preprocessing:
+            if 'P' in options:
+                # Preprocess to file.
+                if 'Fi' in options:
+                    outputFile = options['Fi'][0]
+                else:
+                    srcFileName = os.path.basename(sourceFiles[0])
+                    outputFile = os.path.join(os.getcwd(),
+                                              os.path.splitext(srcFileName)[0] + ".i")
+            else:
+                # Preprocess to stdout. Use empty string rather then None to ease
+                # output to log.
+                outputFile = ''
         else:
-            # Preprocess to stdout. Use empty string rather then None to ease
-            # output to log.
-            outputFile = ''
-    else:
-        srcFileName = os.path.basename(sourceFiles[0])
-        outputFile = os.path.join(os.getcwd(),
-                                  os.path.splitext(srcFileName)[0] + ".obj")
+            srcFileName = os.path.basename(sourceFiles[0])
+            outputFile = os.path.join(os.getcwd(),
+                                      os.path.splitext(srcFileName)[0] + ".obj")
 
-    # Strip quotes around file names; seems to happen with source files
-    # with spaces in their names specified via a response file generated
-    # by Visual Studio.
-    if outputFile.startswith('"') and outputFile.endswith('"'):
-        outputFile = outputFile[1:-1]
+        # Strip quotes around file names; seems to happen with source files
+        # with spaces in their names specified via a response file generated
+        # by Visual Studio.
+        if outputFile.startswith('"') and outputFile.endswith('"'):
+            outputFile = outputFile[1:-1]
 
-    printTraceStatement("Compiler output file: '%s'" % outputFile)
-    return AnalysisResult.Ok, sourceFiles[0], outputFile
+        printTraceStatement("Compiler output file: '%s'" % outputFile)
+        return AnalysisResult.Ok, sourceFiles[0], outputFile
 
 
 def invokeRealCompiler(compilerBinary, cmdLine, captureOutput=False):
@@ -1196,7 +1199,7 @@ def processCompileRequest(cache, compiler, args):
 
     cmdLine = expandCommandLine(sys.argv[1:])
     printTraceStatement("Expanded commandline '%s'" % cmdLine)
-    analysisResult, sourceFile, outputFile = analyzeCommandLine(cmdLine)
+    analysisResult, sourceFile, outputFile = CommandLineAnalyzer.analyze(cmdLine)
 
     if analysisResult == AnalysisResult.MultipleSourceFilesSimple:
         return reinvokePerSourceFile(cmdLine, sourceFile), '', ''
