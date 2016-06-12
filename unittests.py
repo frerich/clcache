@@ -69,6 +69,25 @@ class TestExtractArgument(BaseTest):
             r'-DWEBRTC_SVNREVISION=\"Unavailable(issue687)\"')
 
 
+class TestSplitCommandsFile(BaseTest):
+    def testEmpty(self):
+        self.assertEqual(clcache.splitCommandsFile(''), [])
+
+    def testVyachselavCase(self):
+        commandsFile = \
+            r'"-IC:\Program files\Some library" -DX=1 -DVERSION=\"1.0\" -I..\.. -I"..\..\lib" -DMYPATH=\"C:\Path\"'
+        self.assertEqual(
+            clcache.splitCommandsFile(commandsFile),
+            [
+                r'-IC:\Program files\Some library',
+                r'-DX=1',
+                r'-DVERSION=\"1.0\"',
+                r'-I..\..',
+                r'-I"..\..\lib"',
+                r'-DMYPATH=\"C:\Path\"'
+            ])
+
+
 class TestMultipleSourceFiles(BaseTest):
     CPU_CORES = multiprocessing.cpu_count()
 
