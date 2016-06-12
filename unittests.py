@@ -76,6 +76,16 @@ class TestSplitCommandsFile(BaseTest):
     def testEmpty(self):
         self._genericTest('', [])
 
+    def testSimple(self):
+        self._genericTest('/nologo', ['/nologo'])
+        self._genericTest('/nologo /c', ['/nologo', '/c'])
+        self._genericTest('/nologo /c -I.', ['/nologo', '/c', '-I.'])
+
+    def testWhitespace(self):
+        self._genericTest('-A -B    -C', ['-A', '-B', '-C'])
+        self._genericTest('   -A -B -C', ['-A', '-B', '-C'])
+        self._genericTest('-A -B -C   ', ['-A', '-B', '-C'])
+
     def testVyachselavCase(self):
         self._genericTest(
             r'"-IC:\Program files\Some library" -DX=1 -DVERSION=\"1.0\" -I..\.. -I"..\..\lib" -DMYPATH=\"C:\Path\"',
