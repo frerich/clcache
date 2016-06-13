@@ -802,7 +802,7 @@ def analyzeCommandLine(cmdline):
 
 def invokeRealCompiler(compilerBinary, cmdLine, captureOutput=False):
     realCmdline = [compilerBinary] + cmdLine
-    printTraceStatement("Invoking real compiler as '%s'" % ' '.join(realCmdline))
+    printTraceStatement("Invoking real compiler as {}".format(realCmdline))
 
     returnCode = None
     stdout = ''
@@ -898,8 +898,7 @@ def runJobs(commands, j=1):
 # Used when called via nmake 'batch mode'.
 # Returns the first non-zero exit code encountered, or 0 if all jobs succeed.
 def reinvokePerSourceFile(cmdLine, sourceFiles):
-
-    printTraceStatement("Will reinvoke self for: [%s]" % '] ['.join(sourceFiles))
+    printTraceStatement("Will reinvoke self for: {}".format(sourceFiles))
     commands = []
     for sourceFile in sourceFiles:
         # The child command consists of clcache.py ...
@@ -915,7 +914,7 @@ def reinvokePerSourceFile(cmdLine, sourceFiles):
             elif arg not in sourceFiles:
                 newCmdLine.append(arg)
 
-        printTraceStatement("Child: [%s]" % '] ['.join(newCmdLine))
+        printTraceStatement("Child: {}".format(newCmdLine))
         commands.append(newCmdLine)
 
     return runJobs(commands, jobCount(cmdLine))
