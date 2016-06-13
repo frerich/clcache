@@ -86,6 +86,24 @@ class TestSplitCommandsFile(BaseTest):
         self._genericTest('   -A -B -C', ['-A', '-B', '-C'])
         self._genericTest('-A -B -C   ', ['-A', '-B', '-C'])
 
+    def testQuotesAroundArgument(self):
+        self._genericTest(r'/Fo"C:\out dir\main.obj"', [r'/Fo"C:\out dir\main.obj"'])
+        self._genericTest(r'/c /Fo"C:\out dir\main.obj"', ['/c', r'/Fo"C:\out dir\main.obj"'])
+        self._genericTest(r'/Fo"C:\out dir\main.obj" /nologo', [r'/Fo"C:\out dir\main.obj"', '/nologo'])
+        self._genericTest(r'/c /Fo"C:\out dir\main.obj" /nologo', ['/c', r'/Fo"C:\out dir\main.obj"', '/nologo'])
+
+    def testDoubleQuoted(self):
+        self._genericTest(r'"/Fo"something\main.obj""', [r'/Fo"something\main.obj"'])
+        self._genericTest(r'/c "/Fo"something\main.obj""', ['/c', r'/Fo"something\main.obj"'])
+        self._genericTest(r'"/Fo"something\main.obj"" /nologo', [r'/Fo"something\main.obj"', '/nologo'])
+        self._genericTest(r'/c "/Fo"something\main.obj"" /nologo', ['/c', r'/Fo"something\main.obj"', '/nologo'])
+
+    def testBackslashBeforeQuote(self):
+        self._genericTest(r'/Fo"C:\out dir\"', [r'/Fo"C:\out dir\"'])
+        self._genericTest(r'/c /Fo"C:\out dir\"', ['/c', r'/Fo"C:\out dir\"'])
+        self._genericTest(r'/Fo"C:\out dir\" /nologo', [r'/Fo"C:\out dir\"', '/nologo'])
+        self._genericTest(r'/c /Fo"C:\out dir\" /nologo', ['/c', r'/Fo"C:\out dir\"', '/nologo'])
+
     def testVyachselavCase(self):
         self._genericTest(
             r'"-IC:\Program files\Some library" -DX=1 -DVERSION=\"1.0\" -I..\.. -I"..\..\lib" -DMYPATH=\"C:\Path\"',
