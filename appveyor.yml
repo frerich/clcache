@@ -51,11 +51,22 @@ test_script:
 
       & $env:PYTHON_INSTALL\Scripts\py.test --junitxml .\unittests.xml unittests.py
 
+      $testsExitCode = $lastexitcode
+
       $wc.UploadFile("https://ci.appveyor.com/api/testresults/junit/$($env:APPVEYOR_JOB_ID)", (Resolve-Path .\unittests.xml))
+
+      if ($testsExitCode -ne 0) {exit $testsExitCode}
+
+  - ps: >-
+      $wc = New-Object 'System.Net.WebClient'
 
       & $env:PYTHON_INSTALL\Scripts\py.test --junitxml .\integrationtests.xml integrationtests.py
 
+      $testsExitCode = $lastexitcode
+
       $wc.UploadFile("https://ci.appveyor.com/api/testresults/junit/$($env:APPVEYOR_JOB_ID)", (Resolve-Path .\integrationtests.xml))
+
+      if ($testsExitCode -ne 0) {exit $testsExitCode}
 
 after_test:
   # Get a rough overview about what happened in the tests.
