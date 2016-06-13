@@ -802,7 +802,7 @@ def analyzeCommandLine(cmdline):
 
 def invokeRealCompiler(compilerBinary, cmdLine, captureOutput=False):
     realCmdline = [compilerBinary] + cmdLine
-    printTraceStatement("Invoking real compiler as '%s'" % ' '.join(realCmdline))
+    printTraceStatement("Invoking real compiler as {}".format(realCmdline))
 
     returnCode = None
     stdout = ''
