@@ -34,7 +34,6 @@
 # In Python unittests are always members, not functions. Silence lint in this file.
 # pylint: disable=no-self-use
 import multiprocessing
-import os
 import unittest
 
 import clcache
