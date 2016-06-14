@@ -755,11 +755,11 @@ class CommandLineAnalyzer(object):
                 preprocessing = True
                 break
 
-        if 'link' in options or ('c' not in options and not preprocessing):
-            return AnalysisResult.CalledForLink, None, None
-
         if len(sourceFiles) == 0:
             return AnalysisResult.NoSourceFile, None, None
+
+        if 'link' in options or ('c' not in options and not preprocessing):
+            return AnalysisResult.CalledForLink, None, None
 
         if len(sourceFiles) > 1:
             if compl:
