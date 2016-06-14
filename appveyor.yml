@@ -46,7 +46,7 @@ build_script:
 test_script:
   # Run test files via py.test and generate JUnit XML. Then push test results
   # to appveyor.
-  - ps: >-
+  - ps: |
       & py.test --junitxml .\unittests.xml unittests.py
       $testsExitCode = $lastexitcode
 
@@ -55,7 +55,7 @@ test_script:
 
       if ($testsExitCode -ne 0) {exit $testsExitCode}
 
-  - ps: >-
+  - ps: |
       & py.test --junitxml .\integrationtests.xml integrationtests.py
       $testsExitCode = $lastexitcode
 
