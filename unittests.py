@@ -34,9 +34,12 @@
 # In Python unittests are always members, not functions. Silence lint in this file.
 # pylint: disable=no-self-use
 import multiprocessing
+import os
 import unittest
 
 import clcache
+from clcache import AnalysisResult
+from clcache import CommandLineAnalyzer
 
 
 class BaseTest(unittest.TestCase):
@@ -120,6 +123,34 @@ class TestSplitCommandsFile(BaseTest):
         self._genericTest('-A\n-B', ['-A', '-B'])
         self._genericTest('-A\r\n-B', ['-A', '-B'])
         self._genericTest('-A -B\r\n-C -D -E', ['-A', '-B', '-C', '-D', '-E'])
+
+
+class TestAnalyzeCommandLine(BaseTest):
+    def _testShort(self, cmdLine, expectedResult):
+        result, _, _ = CommandLineAnalyzer.analyze(cmdLine)
+        self.assertEqual(result, expectedResult)
+
+    def _testFull(self, cmdLine, expectedResult, expectedSourceFile, expectedOutputFile):
+        result, sourceFile, outputFile = CommandLineAnalyzer.analyze(cmdLine)
+        self.assertEqual(result, expectedResult)
+        self.assertEqual(sourceFile, expectedSourceFile)
+        self.assertEqual(outputFile, expectedOutputFile)
+
+    def testEmpty(self):
+        self._testShort([], AnalysisResult.NoSourceFile)
+
+    def testNoSource(self):
+        self._testShort(['/c'], AnalysisResult.NoSourceFile)
+        self._testShort(['/c', '/nologo'], AnalysisResult.NoSourceFile)
+        self._testShort(['/c', '/nologo', '/Zi'], AnalysisResult.NoSourceFile)
+
+    def testSimple(self):
+        self._testFull(["/c", "main.cpp"],
+                       AnalysisResult.Ok, "main.cpp", os.path.abspath("main.obj"))
+
+    def testLink(self):
+        self._testShort(["main.cpp"], AnalysisResult.CalledForLink)
+        self._testShort(["/nologo", "main.cpp"], AnalysisResult.CalledForLink)
 
 
 class TestMultipleSourceFiles(BaseTest):
