@@ -734,13 +734,6 @@ class CommandLineAnalyzer(object):
     def analyze(cmdline):
         options, sourceFiles = CommandLineAnalyzer._parseOptionsAndFiles(cmdline)
         compl = False
-
-        # Technically, it would be possible to support /Zi: we'd just need to
-        # copy the generated .pdb files into/out of the cache.
-        if 'Zi' in options:
-            return AnalysisResult.ExternalDebugInfo, None, None
-        if 'Yc' in options or 'Yu' in options:
-            return AnalysisResult.CalledWithPch, None, None
         if 'Tp' in options:
             sourceFiles += options['Tp']
             compl = True
@@ -749,7 +742,6 @@ class CommandLineAnalyzer(object):
             compl = True
 
         preprocessing = False
-
         for opt in ['E', 'EP', 'P']:
             if opt in options:
                 preprocessing = True
@@ -757,6 +749,14 @@ class CommandLineAnalyzer(object):
 
         if len(sourceFiles) == 0:
             return AnalysisResult.NoSourceFile, None, None
+
+        # Technically, it would be possible to support /Zi: we'd just need to
+        # copy the generated .pdb files into/out of the cache.
+        if 'Zi' in options:
+            return AnalysisResult.ExternalDebugInfo, None, None
+
+        if 'Yc' in options or 'Yu' in options:
+            return AnalysisResult.CalledWithPch, None, None
 
         if 'link' in options or ('c' not in options and not preprocessing):
             return AnalysisResult.CalledForLink, None, None
