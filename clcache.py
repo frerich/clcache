@@ -196,9 +196,6 @@ class ObjectCache(object):
 
 
     def removeObjects(self, stats, removedObjects):
-        if len(removedObjects) == 0:
-            return
-
         for o in removedObjects:
             dirPath = self._cacheEntryDir(o)
             if not os.path.exists(dirPath):
