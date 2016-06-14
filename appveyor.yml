@@ -47,23 +47,19 @@ test_script:
   # Run test files via py.test and generate JUnit XML. Then push test results
   # to appveyor.
   - ps: >-
-      $wc = New-Object 'System.Net.WebClient'
-
-      & $env:PYTHON_INSTALL\Scripts\py.test --junitxml .\unittests.xml unittests.py
-
+      & py.test --junitxml .\unittests.xml unittests.py
       $testsExitCode = $lastexitcode
 
+      $wc = New-Object 'System.Net.WebClient'
       $wc.UploadFile("https://ci.appveyor.com/api/testresults/junit/$($env:APPVEYOR_JOB_ID)", (Resolve-Path .\unittests.xml))
 
       if ($testsExitCode -ne 0) {exit $testsExitCode}
 
   - ps: >-
-      $wc = New-Object 'System.Net.WebClient'
-
-      & $env:PYTHON_INSTALL\Scripts\py.test --junitxml .\integrationtests.xml integrationtests.py
-
+      & py.test --junitxml .\integrationtests.xml integrationtests.py
       $testsExitCode = $lastexitcode
 
+      $wc = New-Object 'System.Net.WebClient'
       $wc.UploadFile("https://ci.appveyor.com/api/testresults/junit/$($env:APPVEYOR_JOB_ID)", (Resolve-Path .\integrationtests.xml))
 
       if ($testsExitCode -ne 0) {exit $testsExitCode}
