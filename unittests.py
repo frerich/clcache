@@ -139,14 +139,34 @@ class TestAnalyzeCommandLine(BaseTest):
     def testEmpty(self):
         self._testShort([], AnalysisResult.NoSourceFile)
 
+    def testSimple(self):
+        self._testShort(["/c", "main.cpp"], AnalysisResult.Ok)
+
     def testNoSource(self):
         self._testShort(['/c'], AnalysisResult.NoSourceFile)
         self._testShort(['/c', '/nologo'], AnalysisResult.NoSourceFile)
         self._testShort(['/c', '/nologo', '/Zi'], AnalysisResult.NoSourceFile)
 
-    def testSimple(self):
-        self._testFull(["/c", "main.cpp"],
-                       AnalysisResult.Ok, "main.cpp", os.path.abspath("main.obj"))
+    def testOutputFile(self):
+        # Given object filename (default extension .obj)
+        self._testFull(['/c', '/FoTheOutFile.obj', 'main.cpp'],
+                       AnalysisResult.Ok, "main.cpp", 'TheOutFile.obj')
+
+        # Given object filename (custom extension .dat)
+        self._testFull(['/c', '/FoTheOutFile.dat', 'main.cpp'],
+                       AnalysisResult.Ok, "main.cpp", 'TheOutFile.dat')
+
+        # Don't touch input when .obj file is given. This is not a Windows path separator but we just pass it
+        self._testFull(['/c', '/FoDebug/TheOutFile.obj', 'main.cpp'],
+                       AnalysisResult.Ok, 'main.cpp', 'Debug/TheOutFile.obj')
+
+        # Generate from .cpp filename
+        self._testFull(['/c', 'main.cpp'],
+                       AnalysisResult.Ok, 'main.cpp', 'main.obj')
+
+        # Existing directory
+        self._testFull(['/c', '/Fo.', 'main.cpp'],
+                       AnalysisResult.Ok, 'main.cpp', r'.\main.obj')
 
     def testLink(self):
         self._testShort(["main.cpp"], AnalysisResult.CalledForLink)
