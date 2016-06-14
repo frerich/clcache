@@ -23,7 +23,7 @@ install:
   # Prepend Python installation to PATH
   - set PATH=%PYTHON_INSTALL%;%PATH%
 
-  # Prepend Python Sripts to PATH (e.g. pip, pytest, pylint)
+  # Prepend Python scripts to PATH (e.g. pip, py.test, pylint)
   - set PATH=%PYTHON_INSTALL%\\Scripts;%PATH%
 
   # Check Python version
