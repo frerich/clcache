@@ -134,14 +134,10 @@ class ObjectCache(object):
             self.dir = os.environ["CLCACHE_DIR"]
         except KeyError:
             self.dir = os.path.join(os.path.expanduser("~"), "clcache")
-        if not os.path.exists(self.dir):
-            os.makedirs(self.dir)
         self.manifestsDir = os.path.join(self.dir, "manifests")
-        if not os.path.exists(self.manifestsDir):
-            os.makedirs(self.manifestsDir)
+        ensureDirectoryExists(self.manifestsDir)
         self.objectsDir = os.path.join(self.dir, "objects")
-        if not os.path.exists(self.objectsDir):
-            os.makedirs(self.objectsDir)
+        ensureDirectoryExists(self.objectsDir)
         lockName = self.cacheDirectory().replace(':', '-').replace('\\', '-')
         timeoutMs = int(os.environ.get('CLCACHE_OBJECT_CACHE_TIMEOUT_MS', 10 * 1000))
         self.lock = ObjectCacheLock(lockName, timeoutMs)
@@ -261,8 +257,7 @@ class ObjectCache(object):
         return os.path.exists(self.cachedObjectName(key)) or os.path.exists(self._cachedCompilerOutputName(key))
 
     def setEntry(self, key, objectFileName, compilerOutput, compilerStderr):
-        if not os.path.exists(self._cacheEntryDir(key)):
-            os.makedirs(self._cacheEntryDir(key))
+        ensureDirectoryExists(self._cacheEntryDir(key))
         if objectFileName != '':
             copyOrLink(objectFileName, self.cachedObjectName(key))
         with open(self._cachedCompilerOutputName(key), 'w') as f:
@@ -272,8 +267,7 @@ class ObjectCache(object):
                 f.write(compilerStderr)
 
     def setManifest(self, manifestHash, manifest):
-        if not os.path.exists(self._manifestDir(manifestHash)):
-            os.makedirs(self._manifestDir(manifestHash))
+        ensureDirectoryExists(self._manifestDir(manifestHash))
         with open(self._manifestName(manifestHash), 'wb') as outFile:
             pickle.dump(manifest, outFile)
 
@@ -540,13 +534,16 @@ def getRelFileHash(filePath, baseDir):
     return getFileHash(absFilePath)
 
 
-def copyOrLink(srcFilePath, dstFilePath):
-    # Ensure the destination folder exists
+def ensureDirectoryExists(path):
     try:
-        os.makedirs(os.path.dirname(os.path.abspath(dstFilePath)))
+        os.makedirs(path)
     except OSError as e:
         if e.errno != errno.EEXIST:
             raise
+
+
+def copyOrLink(srcFilePath, dstFilePath):
+    ensureDirectoryExists(os.path.dirname(os.path.abspath(dstFilePath)))
 
     if "CLCACHE_HARDLINK" in os.environ:
         ret = windll.kernel32.CreateHardLinkW(str(dstFilePath), str(srcFilePath), None)
