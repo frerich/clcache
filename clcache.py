@@ -134,7 +134,6 @@ class ObjectCache(object):
             self.dir = os.environ["CLCACHE_DIR"]
         except KeyError:
             self.dir = os.path.join(os.path.expanduser("~"), "clcache")
-        ensureDirectoryExists(self.dir)
         self.manifestsDir = os.path.join(self.dir, "manifests")
         ensureDirectoryExists(self.manifestsDir)
         self.objectsDir = os.path.join(self.dir, "objects")
