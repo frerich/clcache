@@ -768,6 +768,8 @@ class CommandLineAnalyzer(object):
                 srcFileName = os.path.basename(sourceFiles[0])
                 outputFile = os.path.join(outputFile,
                                           os.path.splitext(srcFileName)[0] + ".obj")
+            else:
+                outputFile = os.path.normpath(outputFile)
         elif preprocessing:
             if 'P' in options:
                 # Preprocess to file.
