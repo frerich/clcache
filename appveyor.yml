@@ -23,7 +23,7 @@ install:
   # Prepend Python installation to PATH
   - set PATH=%PYTHON_INSTALL%;%PATH%
 
-  # Prepend Python Sripts to PATH (e.g. pip, pytest, pylint)
+  # Prepend Python scripts to PATH (e.g. pip, py.test, pylint)
   - set PATH=%PYTHON_INSTALL%\\Scripts;%PATH%
 
   # Check Python version
@@ -46,24 +46,20 @@ build_script:
 test_script:
   # Run test files via py.test and generate JUnit XML. Then push test results
   # to appveyor.
-  - ps: >-
-      $wc = New-Object 'System.Net.WebClient'
-
-      & $env:PYTHON_INSTALL\Scripts\py.test --junitxml .\unittests.xml unittests.py
-
+  - ps: |
+      & py.test --junitxml .\unittests.xml unittests.py
       $testsExitCode = $lastexitcode
 
+      $wc = New-Object 'System.Net.WebClient'
       $wc.UploadFile("https://ci.appveyor.com/api/testresults/junit/$($env:APPVEYOR_JOB_ID)", (Resolve-Path .\unittests.xml))
 
       if ($testsExitCode -ne 0) {exit $testsExitCode}
 
-  - ps: >-
-      $wc = New-Object 'System.Net.WebClient'
-
-      & $env:PYTHON_INSTALL\Scripts\py.test --junitxml .\integrationtests.xml integrationtests.py
-
+  - ps: |
+      & py.test --junitxml .\integrationtests.xml integrationtests.py
       $testsExitCode = $lastexitcode
 
+      $wc = New-Object 'System.Net.WebClient'
       $wc.UploadFile("https://ci.appveyor.com/api/testresults/junit/$($env:APPVEYOR_JOB_ID)", (Resolve-Path .\integrationtests.xml))
 
       if ($testsExitCode -ne 0) {exit $testsExitCode}
