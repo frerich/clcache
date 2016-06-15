@@ -783,8 +783,7 @@ class CommandLineAnalyzer(object):
                 outputFile = ''
         else:
             srcFileName = os.path.basename(sourceFiles[0])
-            outputFile = os.path.join(os.getcwd(),
-                                      os.path.splitext(srcFileName)[0] + ".obj")
+            outputFile = os.path.splitext(srcFileName)[0] + ".obj"
 
         # Strip quotes around file names; seems to happen with source files
         # with spaces in their names specified via a response file generated
