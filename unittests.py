@@ -155,10 +155,6 @@ class TestAnalyzeCommandLine(BaseTest):
         self._testFull(['/c', '/FoTheOutFile.dat', 'main.cpp'],
                        AnalysisResult.Ok, "main.cpp", 'TheOutFile.dat')
 
-        # Don't touch input when .obj file is given. This is not a Windows path separator but we just pass it
-        self._testFull(['/c', '/FoDebug/TheOutFile.obj', 'main.cpp'],
-                       AnalysisResult.Ok, 'main.cpp', 'Debug/TheOutFile.obj')
-
         # Generate from .cpp filename
         self._testFull(['/c', 'main.cpp'],
                        AnalysisResult.Ok, 'main.cpp', 'main.obj')
@@ -166,6 +162,25 @@ class TestAnalyzeCommandLine(BaseTest):
         # Existing directory
         self._testFull(['/c', '/Fo.', 'main.cpp'],
                        AnalysisResult.Ok, 'main.cpp', r'.\main.obj')
+
+    def testOutputFileNormalizePath(self):
+        # Out dir does not exist, but preserve path. Compiler will complain
+        self._testFull(['/c', r'/FoDebug\TheOutFile.obj', 'main.cpp'],
+                       AnalysisResult.Ok, 'main.cpp', r'Debug\TheOutFile.obj')
+
+        # Convert to Windows path separatores (like cl does too)
+        self._testFull(['/c', r'/FoDebug/TheOutFile.obj', 'main.cpp'],
+                       AnalysisResult.Ok, 'main.cpp', r'Debug\TheOutFile.obj')
+
+        # Different separators work as well
+        self._testFull(['/c', r'/FoDe\bug/TheOutFile.obj', 'main.cpp'],
+                       AnalysisResult.Ok, 'main.cpp', r'De\bug\TheOutFile.obj')
+
+        # Double slash
+        self._testFull(['/c', r'/FoDebug//TheOutFile.obj', 'main.cpp'],
+                       AnalysisResult.Ok, 'main.cpp', r'Debug\TheOutFile.obj')
+        self._testFull(['/c', r'/FoDebug\\TheOutFile.obj', 'main.cpp'],
+                       AnalysisResult.Ok, 'main.cpp', r'Debug\TheOutFile.obj')
 
     def testLink(self):
         self._testShort(["main.cpp"], AnalysisResult.CalledForLink)
