@@ -809,7 +809,7 @@ def invokeRealCompiler(compilerBinary, cmdLine, captureOutput=False):
         stdout, stderr = compilerProcess.communicate()
         returnCode = compilerProcess.returncode
     else:
-        returnCode = subprocess.call(realCmdline, universal_newlines=True)
+        returnCode = subprocess.call(realCmdline)
 
     printTraceStatement("Real compiler returned code %d" % returnCode)
     return returnCode, stdout, stderr
