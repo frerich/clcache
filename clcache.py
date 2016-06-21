@@ -805,8 +805,10 @@ def invokeRealCompiler(compilerBinary, cmdLine, captureOutput=False):
     stdout = ''
     stderr = ''
     if captureOutput:
-        compilerProcess = Popen(realCmdline, universal_newlines=True, stdout=PIPE, stderr=PIPE)
-        stdout, stderr = compilerProcess.communicate()
+        compilerProcess = Popen(realCmdline, stdout=PIPE, stderr=PIPE)
+        stdoutBinary, stderrBinary = compilerProcess.communicate()
+        stdout = stdoutBinary.decode('mbcs')
+        stderr = stderrBinary.decode('mbcs')
         returnCode = compilerProcess.returncode
     else:
         returnCode = subprocess.call(realCmdline)
