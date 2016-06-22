@@ -64,6 +64,9 @@ HashAlgorithm = hashlib.md5
 # For possible values see https://docs.python.org/2/library/codecs.html
 CACHE_COMPILER_OUTPUT_STORAGE_CODEC = 'utf-8'
 
+# The cl default codec
+CL_DEFAULT_CODEC = 'mbcs'
+
 # Manifest file will have at most this number of hash lists in it. Need to avoi
 # manifests grow too large.
 MAX_MANIFEST_HASHES = 100
@@ -78,6 +81,11 @@ BASEDIR_REPLACEMENT = '?'
 # Key - cumulative hash of all include files in includeFiles;
 # Value - key in the cache, under which output file is stored.
 Manifest = namedtuple('Manifest', ['includeFiles', 'hashes'])
+
+
+def printBinary(outstream, rawData):
+    with os.fdopen(outstream.fileno(), 'wb') as fp:
+        fp.write(rawData)
 
 
 class ObjectCacheLockException(Exception):
@@ -1188,8 +1196,8 @@ clcache.py v{}
         return invokeRealCompiler(compiler, sys.argv[1:])[0]
     try:
         exitCode, compilerStdout, compilerStderr = processCompileRequest(cache, compiler, sys.argv)
-        sys.stdout.write(compilerStdout)
-        sys.stderr.write(compilerStderr)
+        printBinary(sys.stdout, compilerStdout.encode(CL_DEFAULT_CODEC))
+        printBinary(sys.stderr, compilerStderr.encode(CL_DEFAULT_CODEC))
         return exitCode
     except LogicException as e:
         print(e)
