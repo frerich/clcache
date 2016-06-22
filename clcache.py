@@ -57,6 +57,13 @@ VERSION = "3.1.1-dev"
 
 HashAlgorithm = hashlib.md5
 
+
+# The codec that is used by clcache to store compiler STDOUR and STDERR in
+# output.txt and stderr.txt.
+# This codec is up to us and only used for clcache internal storage.
+# For possible values see https://docs.python.org/2/library/codecs.html
+CACHE_COMPILER_OUTPUT_STORAGE_CODEC = 'utf-8'
+
 # Manifest file will have at most this number of hash lists in it. Need to avoi
 # manifests grow too large.
 MAX_MANIFEST_HASHES = 100
@@ -260,11 +267,11 @@ class ObjectCache(object):
         ensureDirectoryExists(self._cacheEntryDir(key))
         if objectFileName != '':
             copyOrLink(objectFileName, self.cachedObjectName(key))
-        with open(self._cachedCompilerOutputName(key), 'w') as f:
-            f.write(compilerOutput)
+        with open(self._cachedCompilerOutputName(key), 'wb') as f:
+            f.write(compilerOutput.encode(CACHE_COMPILER_OUTPUT_STORAGE_CODEC))
         if compilerStderr != '':
-            with open(self._cachedCompilerStderrName(key), 'w') as f:
-                f.write(compilerStderr)
+            with open(self._cachedCompilerStderrName(key), 'wb') as f:
+                f.write(compilerStderr.encode(CACHE_COMPILER_OUTPUT_STORAGE_CODEC))
 
     def setManifest(self, manifestHash, manifest):
         ensureDirectoryExists(self._manifestDir(manifestHash))
@@ -287,14 +294,14 @@ class ObjectCache(object):
         return os.path.join(self._cacheEntryDir(key), "object")
 
     def cachedCompilerOutput(self, key):
-        with open(self._cachedCompilerOutputName(key), 'r') as f:
-            return f.read()
+        with open(self._cachedCompilerOutputName(key), 'rb') as f:
+            return f.read().decode(CACHE_COMPILER_OUTPUT_STORAGE_CODEC)
 
     def cachedCompilerStderr(self, key):
         fileName = self._cachedCompilerStderrName(key)
         if os.path.exists(fileName):
-            with open(fileName, 'r') as f:
-                return f.read()
+            with open(fileName, 'rb') as f:
+                return f.read().decode(CACHE_COMPILER_OUTPUT_STORAGE_CODEC)
         return ''
 
     def _cacheEntryDir(self, key):
