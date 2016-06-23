@@ -138,6 +138,14 @@ class TestCompileRuns(BaseTest):
         subprocess.check_call(cmd) # Compile again
 
 
+class TestCompilerEncoding(BaseTest):
+    def testNonAsciiMessage(self):
+        with cd(os.path.join("tests", "integrationtests", "compiler-encoding")):
+            for filename in ['non-ascii-message-ansi.c', 'non-ascii-message-utf16.c']:
+                cmd = [PYTHON_BINARY, CLCACHE_SCRIPT, "/nologo", "/c", filename]
+                subprocess.check_call(cmd)
+
+
 class TestHits(BaseTest):
     def testHitsSimple(self):
         cmd = [PYTHON_BINARY, CLCACHE_SCRIPT, "/nologo", "/EHsc", "/c", r'tests\hits-and-misses\hit.cpp']
