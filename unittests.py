@@ -88,6 +88,13 @@ class TestSplitCommandsFile(BaseTest):
         self._genericTest('   -A -B -C', ['-A', '-B', '-C'])
         self._genericTest('-A -B -C   ', ['-A', '-B', '-C'])
 
+    def testMicrosoftExamples(self):
+        # https://msdn.microsoft.com/en-us/library/17w5ykft.aspx
+        self._genericTest(r'"abc" d e', ['abc', 'd', 'e'])
+        self._genericTest(r'a\\b d"e f"g h', [r'a\\b', 'de fg', 'h'])
+        self._genericTest(r'a\\\"b c d', [r'a\"b', 'c', 'd'])
+        self._genericTest(r'a\\\\"b c" d e', [r'a\\b c', 'd', 'e'])
+
     def testQuotesAroundArgument(self):
         self._genericTest(r'/Fo"C:\out dir\main.obj"', [r'/Fo"C:\out dir\main.obj"'])
         self._genericTest(r'/c /Fo"C:\out dir\main.obj"', ['/c', r'/Fo"C:\out dir\main.obj"'])
