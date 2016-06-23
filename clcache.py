@@ -83,8 +83,8 @@ BASEDIR_REPLACEMENT = '?'
 Manifest = namedtuple('Manifest', ['includeFiles', 'hashes'])
 
 
-def printBinary(outstream, rawData):
-    with os.fdopen(outstream.fileno(), 'wb') as fp:
+def printBinary(rawData, stream):
+    with os.fdopen(stream.fileno(), 'wb') as fp:
         fp.write(rawData)
 
 
@@ -1196,8 +1196,8 @@ clcache.py v{}
         return invokeRealCompiler(compiler, sys.argv[1:])[0]
     try:
         exitCode, compilerStdout, compilerStderr = processCompileRequest(cache, compiler, sys.argv)
-        printBinary(sys.stdout, compilerStdout.encode(CL_DEFAULT_CODEC))
-        printBinary(sys.stderr, compilerStderr.encode(CL_DEFAULT_CODEC))
+        printBinary(compilerStdout.encode(CL_DEFAULT_CODEC), stream=sys.stdout)
+        printBinary(compilerStderr.encode(CL_DEFAULT_CODEC), stream=sys.stderr)
         return exitCode
     except LogicException as e:
         print(e)
