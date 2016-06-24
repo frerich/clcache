@@ -108,10 +108,17 @@ class TestSplitCommandsFile(BaseTest):
         self._genericTest(r'/c "/Fo"something\main.obj"" /nologo', ['/c', r'/Fosomething\main.obj', '/nologo'])
 
     def testBackslashBeforeQuote(self):
+        # Pathological cases of escaping the quote incorrectly.
         self._genericTest(r'/Fo"C:\out dir\"', [r'/FoC:\out dir"'])
         self._genericTest(r'/c /Fo"C:\out dir\"', ['/c', r'/FoC:\out dir"'])
         self._genericTest(r'/Fo"C:\out dir\" /nologo', [r'/FoC:\out dir" /nologo'])
         self._genericTest(r'/c /Fo"C:\out dir\" /nologo', ['/c', r'/FoC:\out dir" /nologo'])
+
+        # Sane cases of escaping the backslash correctly.
+        self._genericTest(r'/Fo"C:\out dir\\"', [r'/FoC:\out dir' '\\'])
+        self._genericTest(r'/c /Fo"C:\out dir\\"', ['/c', r'/FoC:\out dir' '\\'])
+        self._genericTest(r'/Fo"C:\out dir\\" /nologo', [r'/FoC:\out dir' '\\', r'/nologo'])
+        self._genericTest(r'/c /Fo"C:\out dir\\" /nologo', ['/c', r'/FoC:\out dir' '\\', r'/nologo'])
 
     def testVyachselavCase(self):
         self._genericTest(
