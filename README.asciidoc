@@ -36,6 +36,17 @@ renamed and forward all the arguments to the real compiler executable.
 This way, simply running 'cl' will invoke the script instead of the real
 compiler.
 
+Installation For Visual Studio
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Some users have reported (see e.g. GitHub issue #18) that in order to make Visual Studio pick up `clcache`, the original compiler binary needs to be moved out of the
+way and replaced with the executable generated via the `py2exe` script:
+
+1. Rename `cl.exe` to e.g. `cl_original.exe`
+2. Rename `cl.exe.config` to e.g. `cl_original.exe.config`
+3. Copy `clcache.exe` to `cl.exe`
+4. Set `CLCACHE_CL` environment variable to point to `cl_original.exe`.
+
 Options
 ~~~~~~~
 
