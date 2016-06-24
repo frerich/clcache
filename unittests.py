@@ -96,16 +96,16 @@ class TestSplitCommandsFile(BaseTest):
         self._genericTest(r'a\\\\"b c" d e', [r'a\\b c', 'd', 'e'])
 
     def testQuotesAroundArgument(self):
-        self._genericTest(r'/Fo"C:\out dir\main.obj"', [r'/Fo"C:\out dir\main.obj"'])
-        self._genericTest(r'/c /Fo"C:\out dir\main.obj"', ['/c', r'/Fo"C:\out dir\main.obj"'])
-        self._genericTest(r'/Fo"C:\out dir\main.obj" /nologo', [r'/Fo"C:\out dir\main.obj"', '/nologo'])
-        self._genericTest(r'/c /Fo"C:\out dir\main.obj" /nologo', ['/c', r'/Fo"C:\out dir\main.obj"', '/nologo'])
+        self._genericTest(r'/Fo"C:\out dir\main.obj"', [r'/FoC:\out dir\main.obj'])
+        self._genericTest(r'/c /Fo"C:\out dir\main.obj"', ['/c', r'/FoC:\out dir\main.obj'])
+        self._genericTest(r'/Fo"C:\out dir\main.obj" /nologo', [r'/FoC:\out dir\main.obj', '/nologo'])
+        self._genericTest(r'/c /Fo"C:\out dir\main.obj" /nologo', ['/c', r'/FoC:\out dir\main.obj', '/nologo'])
 
     def testDoubleQuoted(self):
-        self._genericTest(r'"/Fo"something\main.obj""', [r'/Fo"something\main.obj"'])
-        self._genericTest(r'/c "/Fo"something\main.obj""', ['/c', r'/Fo"something\main.obj"'])
-        self._genericTest(r'"/Fo"something\main.obj"" /nologo', [r'/Fo"something\main.obj"', '/nologo'])
-        self._genericTest(r'/c "/Fo"something\main.obj"" /nologo', ['/c', r'/Fo"something\main.obj"', '/nologo'])
+        self._genericTest(r'"/Fo"something\main.obj""', [r'/Fosomething\main.obj'])
+        self._genericTest(r'/c "/Fo"something\main.obj""', ['/c', r'/Fosomething\main.obj'])
+        self._genericTest(r'"/Fo"something\main.obj"" /nologo', [r'/Fosomething\main.obj', '/nologo'])
+        self._genericTest(r'/c "/Fo"something\main.obj"" /nologo', ['/c', r'/Fosomething\main.obj', '/nologo'])
 
     def testBackslashBeforeQuote(self):
         self._genericTest(r'/Fo"C:\out dir\"', [r'/Fo"C:\out dir\"'])
