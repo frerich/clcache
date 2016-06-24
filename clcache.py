@@ -838,12 +838,6 @@ class CommandLineAnalyzer(object):
             srcFileName = os.path.basename(sourceFiles[0])
             outputFile = os.path.splitext(srcFileName)[0] + ".obj"
 
-        # Strip quotes around file names; seems to happen with source files
-        # with spaces in their names specified via a response file generated
-        # by Visual Studio.
-        if outputFile.startswith('"') and outputFile.endswith('"'):
-            outputFile = outputFile[1:-1]
-
         printTraceStatement("Compiler output file: '%s'" % outputFile)
         return AnalysisResult.Ok, sourceFiles[0], outputFile
 
