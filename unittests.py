@@ -33,12 +33,24 @@
 #
 # In Python unittests are always members, not functions. Silence lint in this file.
 # pylint: disable=no-self-use
+from contextlib import contextmanager
 import multiprocessing
+import os
 import unittest
 
 import clcache
 from clcache import AnalysisResult
 from clcache import CommandLineAnalyzer
+
+
+@contextmanager
+def cd(targetDirectory):
+    oldDirectory = os.getcwd()
+    os.chdir(os.path.expanduser(targetDirectory))
+    try:
+        yield
+    finally:
+        os.chdir(oldDirectory)
 
 
 class BaseTest(unittest.TestCase):
@@ -156,7 +168,10 @@ class TestAnalyzeCommandLine(BaseTest):
         self._testFo('/FoThe Out File.obj', 'The Out File.obj')
 
         # Existing directory
-        self._testFo('/Fo.', r'.\main.obj')
+        with cd(os.path.join("tests", "unittests")):
+            self._testFo(r'/Fo.', r'.\main.obj')
+            self._testFo(r'/Fofo-build-debug', r'fo-build-debug\main.obj')
+            self._testFo(r'/Fofo-build-debug\\', r'fo-build-debug\main.obj')
 
     def testOutputFileNormalizePath(self):
         # Out dir does not exist, but preserve path. Compiler will complain
