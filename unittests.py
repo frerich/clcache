@@ -47,30 +47,6 @@ class BaseTest(unittest.TestCase):
         super(BaseTest, self).__init__(*args, **kwargs)
 
 
-class TestExtractArgument(BaseTest):
-    def testSimple(self):
-        # Keep
-        self.assertEqual(clcache.extractArgument(r''), r'')
-        self.assertEqual(clcache.extractArgument(r'1'), r'1')
-        self.assertEqual(clcache.extractArgument(r'myfile.cpp'), r'myfile.cpp')
-        self.assertEqual(
-            clcache.extractArgument(r'/DEXTERNAL_DLL=__declspec(dllexport)'),
-            r'/DEXTERNAL_DLL=__declspec(dllexport)')
-        self.assertEqual(clcache.extractArgument(r'-DVERSION=\\"1.0\\"'), r'-DVERSION=\\"1.0\\"')
-        self.assertEqual(clcache.extractArgument(r'-I"..\.."'), r'-I"..\.."')
-
-        # Extract
-        self.assertEqual(
-            clcache.extractArgument(r'"-IC:\Program Files\Lib1"'),
-            r'-IC:\Program Files\Lib1')
-        self.assertEqual(
-            clcache.extractArgument(r'"/Fo"CrashReport.dir\Release\""'),
-            r'/Fo"CrashReport.dir\Release\"')
-        self.assertEqual(
-            clcache.extractArgument(r'"-DWEBRTC_SVNREVISION=\"Unavailable(issue687)\""'),
-            r'-DWEBRTC_SVNREVISION=\"Unavailable(issue687)\"')
-
-
 class TestSplitCommandsFile(BaseTest):
     def _genericTest(self, commandLine, expected):
         self.assertEqual(clcache.splitCommandsFile(commandLine), expected)

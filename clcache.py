@@ -614,21 +614,6 @@ def printTraceStatement(msg):
         print(os.path.join(scriptDir, "clcache.py") + " " + msg)
 
 
-def extractArgument(argument):
-    # If there are quotes from both sides of argument, remove them
-    # "-Isome path" must becomse -Isome path
-    if not argument:
-        return ""
-
-    if argument == '"':
-        raise Exception("Invalid argument: '\"'")
-
-    if argument[0] == '"' and argument[-1] == '"':
-        argument = argument[1:-1] # Cut first and last character
-
-    return argument.strip()
-
-
 class CommandLineTokenizer(object):
     def __init__(self, content):
         self.argv = []
@@ -704,8 +689,7 @@ class CommandLineTokenizer(object):
 
 
 def splitCommandsFile(content):
-    tokenizer = CommandLineTokenizer(content)
-    return [extractArgument(arg) for arg in tokenizer.argv]
+    return CommandLineTokenizer(content).argv
 
 
 def expandCommandLine(cmdline):
