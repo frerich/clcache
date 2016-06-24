@@ -8,6 +8,8 @@ clcache changelog
  * Improvement: The README now explains an approach to making Visual Studio
    pick up clcache.
  * Bugfix: Command files with multiple lines are now handled correctly.
+ * Bugfix: Command files which contribute arguments ending in a backslash are
+   now parsed correctly (GH #108).
  * Bugfix: Properly handle non-ASCII compiler output (GH #64)
 
 ## clcache 3.1.0 (2016-06-09)

@@ -47,30 +47,6 @@ class BaseTest(unittest.TestCase):
         super(BaseTest, self).__init__(*args, **kwargs)
 
 
-class TestExtractArgument(BaseTest):
-    def testSimple(self):
-        # Keep
-        self.assertEqual(clcache.extractArgument(r''), r'')
-        self.assertEqual(clcache.extractArgument(r'1'), r'1')
-        self.assertEqual(clcache.extractArgument(r'myfile.cpp'), r'myfile.cpp')
-        self.assertEqual(
-            clcache.extractArgument(r'/DEXTERNAL_DLL=__declspec(dllexport)'),
-            r'/DEXTERNAL_DLL=__declspec(dllexport)')
-        self.assertEqual(clcache.extractArgument(r'-DVERSION=\\"1.0\\"'), r'-DVERSION=\\"1.0\\"')
-        self.assertEqual(clcache.extractArgument(r'-I"..\.."'), r'-I"..\.."')
-
-        # Extract
-        self.assertEqual(
-            clcache.extractArgument(r'"-IC:\Program Files\Lib1"'),
-            r'-IC:\Program Files\Lib1')
-        self.assertEqual(
-            clcache.extractArgument(r'"/Fo"CrashReport.dir\Release\""'),
-            r'/Fo"CrashReport.dir\Release\"')
-        self.assertEqual(
-            clcache.extractArgument(r'"-DWEBRTC_SVNREVISION=\"Unavailable(issue687)\""'),
-            r'-DWEBRTC_SVNREVISION=\"Unavailable(issue687)\"')
-
-
 class TestSplitCommandsFile(BaseTest):
     def _genericTest(self, commandLine, expected):
         self.assertEqual(clcache.splitCommandsFile(commandLine), expected)
@@ -88,23 +64,37 @@ class TestSplitCommandsFile(BaseTest):
         self._genericTest('   -A -B -C', ['-A', '-B', '-C'])
         self._genericTest('-A -B -C   ', ['-A', '-B', '-C'])
 
+    def testMicrosoftExamples(self):
+        # https://msdn.microsoft.com/en-us/library/17w5ykft.aspx
+        self._genericTest(r'"abc" d e', ['abc', 'd', 'e'])
+        self._genericTest(r'a\\b d"e f"g h', [r'a\\b', 'de fg', 'h'])
+        self._genericTest(r'a\\\"b c d', [r'a\"b', 'c', 'd'])
+        self._genericTest(r'a\\\\"b c" d e', [r'a\\b c', 'd', 'e'])
+
     def testQuotesAroundArgument(self):
-        self._genericTest(r'/Fo"C:\out dir\main.obj"', [r'/Fo"C:\out dir\main.obj"'])
-        self._genericTest(r'/c /Fo"C:\out dir\main.obj"', ['/c', r'/Fo"C:\out dir\main.obj"'])
-        self._genericTest(r'/Fo"C:\out dir\main.obj" /nologo', [r'/Fo"C:\out dir\main.obj"', '/nologo'])
-        self._genericTest(r'/c /Fo"C:\out dir\main.obj" /nologo', ['/c', r'/Fo"C:\out dir\main.obj"', '/nologo'])
+        self._genericTest(r'/Fo"C:\out dir\main.obj"', [r'/FoC:\out dir\main.obj'])
+        self._genericTest(r'/c /Fo"C:\out dir\main.obj"', ['/c', r'/FoC:\out dir\main.obj'])
+        self._genericTest(r'/Fo"C:\out dir\main.obj" /nologo', [r'/FoC:\out dir\main.obj', '/nologo'])
+        self._genericTest(r'/c /Fo"C:\out dir\main.obj" /nologo', ['/c', r'/FoC:\out dir\main.obj', '/nologo'])
 
     def testDoubleQuoted(self):
-        self._genericTest(r'"/Fo"something\main.obj""', [r'/Fo"something\main.obj"'])
-        self._genericTest(r'/c "/Fo"something\main.obj""', ['/c', r'/Fo"something\main.obj"'])
-        self._genericTest(r'"/Fo"something\main.obj"" /nologo', [r'/Fo"something\main.obj"', '/nologo'])
-        self._genericTest(r'/c "/Fo"something\main.obj"" /nologo', ['/c', r'/Fo"something\main.obj"', '/nologo'])
+        self._genericTest(r'"/Fo"something\main.obj""', [r'/Fosomething\main.obj'])
+        self._genericTest(r'/c "/Fo"something\main.obj""', ['/c', r'/Fosomething\main.obj'])
+        self._genericTest(r'"/Fo"something\main.obj"" /nologo', [r'/Fosomething\main.obj', '/nologo'])
+        self._genericTest(r'/c "/Fo"something\main.obj"" /nologo', ['/c', r'/Fosomething\main.obj', '/nologo'])
 
     def testBackslashBeforeQuote(self):
-        self._genericTest(r'/Fo"C:\out dir\"', [r'/Fo"C:\out dir\"'])
-        self._genericTest(r'/c /Fo"C:\out dir\"', ['/c', r'/Fo"C:\out dir\"'])
-        self._genericTest(r'/Fo"C:\out dir\" /nologo', [r'/Fo"C:\out dir\"', '/nologo'])
-        self._genericTest(r'/c /Fo"C:\out dir\" /nologo', ['/c', r'/Fo"C:\out dir\"', '/nologo'])
+        # Pathological cases of escaping the quote incorrectly.
+        self._genericTest(r'/Fo"C:\out dir\"', [r'/FoC:\out dir"'])
+        self._genericTest(r'/c /Fo"C:\out dir\"', ['/c', r'/FoC:\out dir"'])
+        self._genericTest(r'/Fo"C:\out dir\" /nologo', [r'/FoC:\out dir" /nologo'])
+        self._genericTest(r'/c /Fo"C:\out dir\" /nologo', ['/c', r'/FoC:\out dir" /nologo'])
+
+        # Sane cases of escaping the backslash correctly.
+        self._genericTest(r'/Fo"C:\out dir\\"', [r'/FoC:\out dir' '\\'])
+        self._genericTest(r'/c /Fo"C:\out dir\\"', ['/c', r'/FoC:\out dir' '\\'])
+        self._genericTest(r'/Fo"C:\out dir\\" /nologo', [r'/FoC:\out dir' '\\', r'/nologo'])
+        self._genericTest(r'/c /Fo"C:\out dir\\" /nologo', ['/c', r'/FoC:\out dir' '\\', r'/nologo'])
 
     def testVyachselavCase(self):
         self._genericTest(
@@ -112,10 +102,10 @@ class TestSplitCommandsFile(BaseTest):
             [
                 r'-IC:\Program files\Some library',
                 r'-DX=1',
-                r'-DVERSION=\"1.0\"',
+                r'-DVERSION="1.0"',
                 r'-I..\..',
-                r'-I"..\..\lib"',
-                r'-DMYPATH=\"C:\Path\"'
+                r'-I..\..\lib',
+                r'-DMYPATH="C:\Path"'
             ])
 
     def testLineEndings(self):
