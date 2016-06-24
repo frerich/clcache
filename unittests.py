@@ -152,6 +152,9 @@ class TestAnalyzeCommandLine(BaseTest):
         # Given object filename (custom extension .dat)
         self._testFo('/FoTheOutFile.dat', 'TheOutFile.dat')
 
+        # Given object filename (with spaces)
+        self._testFo('/FoThe Out File.obj', 'The Out File.obj')
+
         # Existing directory
         self._testFo('/Fo.', r'.\main.obj')
 
