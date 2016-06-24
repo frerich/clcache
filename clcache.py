@@ -628,33 +628,84 @@ def extractArgument(argument):
     return argument.strip()
 
 
-def splitCommandsLine(line):
-    # Note, we must treat lines in quotes as one argument. We do not use shlex
-    # since seems it difficult to set up it to correctly parse escaped quotes.
-    i = 0
-    wordStart = None
-    insideQuotes = False
-    result = []
-    while i < len(line):
-        if line[i] == ' ' and not insideQuotes and wordStart is not None:
-            result.append(extractArgument(line[wordStart:i]))
-            wordStart = None
-        if line[i] == '"':
-            insideQuotes = not insideQuotes
-        if line[i] != ' ' and wordStart is None:
-            wordStart = i
-        i += 1
+class CommandLineTokenizer(object):
+    def __init__(self, content):
+        self.argv = []
+        self._content = content
+        self._pos = 0
+        self._token = ''
+        self._parser = self._initialState
 
-    if wordStart is not None:
-        result.append(extractArgument(line[wordStart:]))
-    return result
+        while self._pos < len(self._content):
+            self._parser = self._parser(self._content[self._pos])
+            self._pos += 1
+
+        if self._token:
+            self.argv.append(self._token)
+
+    def _initialState(self, currentChar):
+        if currentChar.isspace():
+            return self._initialState
+
+        if currentChar == '"':
+            return self._quotedState
+
+        if currentChar == '\\':
+            self._parseBackslash()
+            return self._unquotedState
+
+        self._token += currentChar
+        return self._unquotedState
+
+    def _unquotedState(self, currentChar):
+        if currentChar.isspace():
+            self.argv.append(self._token)
+            self._token = ''
+            return self._initialState
+
+        if currentChar == '"':
+            return self._quotedState
+
+        if currentChar == '\\':
+            self._parseBackslash()
+            return self._unquotedState
+
+        self._token += currentChar
+        return self._unquotedState
+
+    def _quotedState(self, currentChar):
+        if currentChar == '"':
+            return self._unquotedState
+
+        if currentChar == '\\':
+            self._parseBackslash()
+            return self._quotedState
+
+        self._token += currentChar
+        return self._quotedState
+
+    def _parseBackslash(self):
+        numBackslashes = 0
+        while self._pos < len(self._content) and self._content[self._pos] == '\\':
+            self._pos += 1
+            numBackslashes += 1
+
+        followedByDoubleQuote = self._pos < len(self._content) and self._content[self._pos] == '"'
+        if followedByDoubleQuote:
+            self._token += '\\' * (numBackslashes / 2)
+            if numBackslashes % 2 == 0:
+                self._pos -= 1
+            else:
+                self._token += '"'
+        else:
+            self._token += '\\' * numBackslashes
+            self._pos -= 1
+
 
 def splitCommandsFile(content):
-    ret = []
-    for line in content.splitlines(True):
-        ret.extend(splitCommandsLine(line.strip()))
+    tokenizer = CommandLineTokenizer(content)
+    return [extractArgument(arg) for arg in tokenizer.argv]
 
-    return ret
 
 def expandCommandLine(cmdline):
     ret = []
