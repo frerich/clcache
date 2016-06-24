@@ -5,6 +5,8 @@ clcache changelog
 
  * Improvement: better protection against storing corrupt objects in the cache
    in case clcache is terminated in the middle of storing a new cache entry.
+ * Improvement: The README now explains an approach to making Visual Studio
+   pick up clcache.
  * Bugfix: Command files with multiple lines are now handled correctly.
  * Bugfix: Properly handle non-ASCII compiler output (GH #64)
 
