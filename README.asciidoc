@@ -109,7 +109,6 @@ line must be true:
 * The +/link+ switch must not be present
 * The +/c+ switch must be present
 * The +/Zi+ switch must not be present (+/Z7+ is okay though)
-* There must be exactly one source file present on the command line.
 
 If all the above requirements are met, clcache forwards the call to the
 preprocessor by replacing +/c+ with +/EP+ in the command line and then
