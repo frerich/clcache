@@ -34,6 +34,7 @@ from __future__ import print_function
 # All string literals are unicode strings. Requires Python 3.3+
 # (http://python-future.org/faq.html#which-versions-of-python-does-python-future-support)
 from __future__ import unicode_literals
+from __future__ import division
 
 from ctypes import windll, wintypes
 import codecs
@@ -692,7 +693,7 @@ class CommandLineTokenizer(object):
 
         followedByDoubleQuote = self._pos < len(self._content) and self._content[self._pos] == '"'
         if followedByDoubleQuote:
-            self._token += '\\' * (numBackslashes / 2)
+            self._token += '\\' * (numBackslashes // 2)
             if numBackslashes % 2 == 0:
                 self._pos -= 1
             else:
