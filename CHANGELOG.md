@@ -6,6 +6,8 @@ clcache changelog
  * Improvement: better protection against storing corrupt objects in the cache
    in case clcache is terminated in the middle of storing a new cache entry.
  * Bugfix: Command files with multiple lines are now handled correctly.
+ * Bugfix: Command files which contribute arguments ending in a backslash are
+   now parsed correctly (GH #108).
  * Bugfix: Properly handle non-ASCII compiler output (GH #64)
 
 ## clcache 3.1.0 (2016-06-09)
