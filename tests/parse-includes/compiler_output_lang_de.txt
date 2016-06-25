@@ -1,5 +1,5 @@
 version.cpp
-Hinweis: Einlesen der Datei: C:\Users\me\test\smartsqlite\include\smartsqlite/version.h
+Hinweis: Einlesen der Datei: C:\Projects\test\smartsqlite\include\smartsqlite/version.h
 Hinweis: Einlesen der Datei:  C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\INCLUDE\string
 Hinweis: Einlesen der Datei:   C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\INCLUDE\iterator
 Hinweis: Einlesen der Datei:    C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\INCLUDE\istream
@@ -97,6 +97,6 @@ Hinweis: Einlesen der Datei:            C:\Program Files (x86)\Microsoft Visual 
 Hinweis: Einlesen der Datei:             C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\INCLUDE\crtdefs.h
 Hinweis: Einlesen der Datei:          C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\INCLUDE\share.h
 Hinweis: Einlesen der Datei: C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\INCLUDE\iostream
-Hinweis: Einlesen der Datei: C:\Users\me\test\smartsqlite\include\smartsqlite/sqlite3.h
+Hinweis: Einlesen der Datei: C:\Projects\test\smartsqlite\include\smartsqlite/sqlite3.h
 Hinweis: Einlesen der Datei:  C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\INCLUDE\stdarg.h
 Hinweis: Einlesen der Datei:   C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\INCLUDE\crtdefs.h

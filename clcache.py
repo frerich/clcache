@@ -33,11 +33,8 @@
 # OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
-
 from __future__ import print_function
-# All string literals are unicode strings. Requires Python 3.3+
-# (http://python-future.org/faq.html#which-versions-of-python-does-python-future-support)
-from __future__ import unicode_literals
+from __future__ import unicode_literals # All string literals are unicode strings. Requires Python 3.3+
 from __future__ import division
 
 from ctypes import windll, wintypes

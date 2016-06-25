@@ -1,5 +1,5 @@
 version.cpp
-Note: including file: C:\Users\me\test\smartsqlite\include\smartsqlite/version.h
+Note: including file: C:\Projects\test\smartsqlite\include\smartsqlite/version.h
 Note: including file:  C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\INCLUDE\string
 Note: including file:   C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\INCLUDE\iterator
 Note: including file:    C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\INCLUDE\istream
@@ -99,6 +99,6 @@ Note: including file:            C:\Program Files (x86)\Microsoft Visual Studio 
 Note: including file:             C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\INCLUDE\crtdefs.h
 Note: including file:          C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\INCLUDE\share.h
 Note: including file: C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\INCLUDE\iostream
-Note: including file: C:\Users\me\test\smartsqlite\include\smartsqlite/sqlite3.h
+Note: including file: C:\Projects\test\smartsqlite\include\smartsqlite/sqlite3.h
 Note: including file:  C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\INCLUDE\stdarg.h
 Note: including file:   C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\INCLUDE\crtdefs.h

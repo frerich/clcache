@@ -33,7 +33,11 @@
 #
 # In Python unittests are always members, not functions. Silence lint in this file.
 # pylint: disable=no-self-use
+#
 from __future__ import print_function
+from __future__ import unicode_literals # All string literals are unicode strings. Requires Python 3.3+
+from __future__ import division
+
 from contextlib import contextmanager
 import glob
 import os
@@ -163,17 +167,20 @@ class TestPrecompiledHeaders(BaseTest):
         with cd(os.path.join("tests", "precompiled-headers")):
             cpp = PYTHON_BINARY + " " + CLCACHE_SCRIPT
 
+            # Note: explicit str() because environment needs native str type in Python 2 and Python 3
+            testEnvironment = dict(os.environ, CPP=str(cpp))
+
             cmd = ["nmake", "/nologo"]
-            subprocess.check_call(cmd, env=dict(os.environ, CPP=cpp))
+            subprocess.check_call(cmd, env=testEnvironment)
 
             cmd = ["myapp.exe"]
             subprocess.check_call(cmd)
 
             cmd = ["nmake", "/nologo", "clean"]
-            subprocess.check_call(cmd, env=dict(os.environ, CPP=cpp))
+            subprocess.check_call(cmd, env=testEnvironment)
 
             cmd = ["nmake", "/nologo"]
-            subprocess.check_call(cmd, env=dict(os.environ, CPP=cpp))
+            subprocess.check_call(cmd, env=testEnvironment)
 
 
 class TestHeaderChange(BaseTest):
@@ -218,7 +225,10 @@ class TestHeaderChange(BaseTest):
             with open("version.h", "w") as header:
                 header.write("#define VERSION 1")
 
-            self._compileAndLink(dict(os.environ, CLCACHE_NODIRECT="1"))
+            # Note: explicit str() because environment needs native str type in Python 2 and Python 3
+            testEnvironment = dict(os.environ, CLCACHE_NODIRECT=str("1"))
+
+            self._compileAndLink(testEnvironment)
             cmdRun = [os.path.abspath("main.exe")]
             output = subprocess.check_output(cmdRun).decode("ascii").strip()
             self.assertEqual(output, "1")
@@ -228,7 +238,7 @@ class TestHeaderChange(BaseTest):
             with open("version.h", "w") as header:
                 header.write("#define VERSION 2")
 
-            self._compileAndLink(dict(os.environ, CLCACHE_NODIRECT="1"))
+            self._compileAndLink(testEnvironment)
             cmdRun = [os.path.abspath("main.exe")]
             output = subprocess.check_output(cmdRun).decode("ascii").strip()
             self.assertEqual(output, "2")
