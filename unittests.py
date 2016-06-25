@@ -33,6 +33,11 @@
 #
 # In Python unittests are always members, not functions. Silence lint in this file.
 # pylint: disable=no-self-use
+#
+from __future__ import print_function
+from __future__ import unicode_literals # All string literals are unicode strings. Requires Python 3.3+
+from __future__ import division
+
 from contextlib import contextmanager
 import multiprocessing
 import os
