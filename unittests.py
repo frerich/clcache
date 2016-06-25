@@ -33,12 +33,24 @@
 #
 # In Python unittests are always members, not functions. Silence lint in this file.
 # pylint: disable=no-self-use
+from contextlib import contextmanager
 import multiprocessing
+import os
 import unittest
 
 import clcache
 from clcache import AnalysisResult
 from clcache import CommandLineAnalyzer
+
+
+@contextmanager
+def cd(targetDirectory):
+    oldDirectory = os.getcwd()
+    os.chdir(os.path.expanduser(targetDirectory))
+    try:
+        yield
+    finally:
+        os.chdir(oldDirectory)
 
 
 class BaseTest(unittest.TestCase):
@@ -125,6 +137,10 @@ class TestAnalyzeCommandLine(BaseTest):
         self.assertEqual(sourceFile, expectedSourceFile)
         self.assertEqual(outputFile, expectedOutputFile)
 
+    def _testFo(self, foArgument, expectedObjectFilepath):
+        self._testFull(['/c', foArgument, 'main.cpp'],
+                       AnalysisResult.Ok, "main.cpp", expectedObjectFilepath)
+
     def testEmpty(self):
         self._testShort([], AnalysisResult.NoSourceFile)
 
@@ -136,41 +152,40 @@ class TestAnalyzeCommandLine(BaseTest):
         self._testShort(['/c', '/nologo'], AnalysisResult.NoSourceFile)
         self._testShort(['/c', '/nologo', '/Zi'], AnalysisResult.NoSourceFile)
 
-    def testOutputFile(self):
-        # Given object filename (default extension .obj)
-        self._testFull(['/c', '/FoTheOutFile.obj', 'main.cpp'],
-                       AnalysisResult.Ok, "main.cpp", 'TheOutFile.obj')
-
-        # Given object filename (custom extension .dat)
-        self._testFull(['/c', '/FoTheOutFile.dat', 'main.cpp'],
-                       AnalysisResult.Ok, "main.cpp", 'TheOutFile.dat')
-
+    def testOutputFileFromSourcefile(self):
         # Generate from .cpp filename
         self._testFull(['/c', 'main.cpp'],
                        AnalysisResult.Ok, 'main.cpp', 'main.obj')
 
+    def testOutputFile(self):
+        # Given object filename (default extension .obj)
+        self._testFo('/FoTheOutFile.obj', 'TheOutFile.obj')
+
+        # Given object filename (custom extension .dat)
+        self._testFo('/FoTheOutFile.dat', 'TheOutFile.dat')
+
+        # Given object filename (with spaces)
+        self._testFo('/FoThe Out File.obj', 'The Out File.obj')
+
         # Existing directory
-        self._testFull(['/c', '/Fo.', 'main.cpp'],
-                       AnalysisResult.Ok, 'main.cpp', r'.\main.obj')
+        with cd(os.path.join("tests", "unittests")):
+            self._testFo(r'/Fo.', r'.\main.obj')
+            self._testFo(r'/Fofo-build-debug', r'fo-build-debug\main.obj')
+            self._testFo(r'/Fofo-build-debug\\', r'fo-build-debug\main.obj')
 
     def testOutputFileNormalizePath(self):
         # Out dir does not exist, but preserve path. Compiler will complain
-        self._testFull(['/c', r'/FoDebug\TheOutFile.obj', 'main.cpp'],
-                       AnalysisResult.Ok, 'main.cpp', r'Debug\TheOutFile.obj')
+        self._testFo(r'/FoDebug\TheOutFile.obj', r'Debug\TheOutFile.obj')
 
         # Convert to Windows path separatores (like cl does too)
-        self._testFull(['/c', r'/FoDebug/TheOutFile.obj', 'main.cpp'],
-                       AnalysisResult.Ok, 'main.cpp', r'Debug\TheOutFile.obj')
+        self._testFo(r'/FoDebug/TheOutFile.obj', r'Debug\TheOutFile.obj')
 
         # Different separators work as well
-        self._testFull(['/c', r'/FoDe\bug/TheOutFile.obj', 'main.cpp'],
-                       AnalysisResult.Ok, 'main.cpp', r'De\bug\TheOutFile.obj')
+        self._testFo(r'/FoDe\bug/TheOutFile.obj', r'De\bug\TheOutFile.obj')
 
         # Double slash
-        self._testFull(['/c', r'/FoDebug//TheOutFile.obj', 'main.cpp'],
-                       AnalysisResult.Ok, 'main.cpp', r'Debug\TheOutFile.obj')
-        self._testFull(['/c', r'/FoDebug\\TheOutFile.obj', 'main.cpp'],
-                       AnalysisResult.Ok, 'main.cpp', r'Debug\TheOutFile.obj')
+        self._testFo(r'/FoDebug//TheOutFile.obj', r'Debug\TheOutFile.obj')
+        self._testFo(r'/FoDebug\\TheOutFile.obj', r'Debug\TheOutFile.obj')
 
     def testLink(self):
         self._testShort(["main.cpp"], AnalysisResult.CalledForLink)
