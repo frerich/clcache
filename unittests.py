@@ -64,6 +64,21 @@ class BaseTest(unittest.TestCase):
         super(BaseTest, self).__init__(*args, **kwargs)
 
 
+class TestHelperFunctions(BaseTest):
+    def testBasenameWithoutExtension(self):
+        self.assertEqual(clcache.basenameWithoutExtension(r"README.asciidoc"), "README")
+        self.assertEqual(clcache.basenameWithoutExtension(r"/home/user/README.asciidoc"), "README")
+        self.assertEqual(clcache.basenameWithoutExtension(r"C:\Project\README.asciidoc"), "README")
+
+        self.assertEqual(clcache.basenameWithoutExtension(r"READ ME.asciidoc"), "READ ME")
+        self.assertEqual(clcache.basenameWithoutExtension(r"/home/user/READ ME.asciidoc"), "READ ME")
+        self.assertEqual(clcache.basenameWithoutExtension(r"C:\Project\READ ME.asciidoc"), "READ ME")
+
+        self.assertEqual(clcache.basenameWithoutExtension(r"README.asciidoc.tmp"), "README.asciidoc")
+        self.assertEqual(clcache.basenameWithoutExtension(r"/home/user/README.asciidoc.tmp"), "README.asciidoc")
+        self.assertEqual(clcache.basenameWithoutExtension(r"C:\Project\README.asciidoc.tmp"), "README.asciidoc")
+
+
 class TestSplitCommandsFile(BaseTest):
     def _genericTest(self, commandLine, expected):
         self.assertEqual(clcache.splitCommandsFile(commandLine), expected)

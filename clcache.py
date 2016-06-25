@@ -90,6 +90,11 @@ def printBinary(rawData, stream):
         fp.write(rawData)
 
 
+def basenameWithoutExtension(path):
+    basename = os.path.basename(path)
+    return os.path.splitext(basename)[0]
+
+
 class ObjectCacheLockException(Exception):
     pass
 
@@ -818,9 +823,7 @@ class CommandLineAnalyzer(object):
             outputFile = os.path.normpath(outputFile)
 
             if os.path.isdir(outputFile):
-                srcFileName = os.path.basename(sourceFiles[0])
-                outputFile = os.path.join(outputFile,
-                                          os.path.splitext(srcFileName)[0] + ".obj")
+                outputFile = os.path.join(outputFile, basenameWithoutExtension(sourceFiles[0]) + ".obj")
 
         elif preprocessing:
             if 'P' in options:
@@ -828,16 +831,13 @@ class CommandLineAnalyzer(object):
                 if 'Fi' in options:
                     outputFile = options['Fi'][0]
                 else:
-                    srcFileName = os.path.basename(sourceFiles[0])
-                    outputFile = os.path.join(os.getcwd(),
-                                              os.path.splitext(srcFileName)[0] + ".i")
+                    outputFile = os.path.join(os.getcwd(), basenameWithoutExtension(sourceFiles[0]) + ".i")
             else:
                 # Preprocess to stdout. Use empty string rather then None to ease
                 # output to log.
                 outputFile = ''
         else:
-            srcFileName = os.path.basename(sourceFiles[0])
-            outputFile = os.path.splitext(srcFileName)[0] + ".obj"
+            outputFile = basenameWithoutExtension(sourceFiles[0]) + ".obj"
 
         printTraceStatement("Compiler output file: '%s'" % outputFile)
         return AnalysisResult.Ok, sourceFiles[0], outputFile
