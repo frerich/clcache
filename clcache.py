@@ -814,13 +814,13 @@ class CommandLineAnalyzer(object):
         outputFile = None
         if 'Fo' in options:
             outputFile = options['Fo'][0]
+            outputFile = os.path.normpath(outputFile)
 
             if os.path.isdir(outputFile):
                 srcFileName = os.path.basename(sourceFiles[0])
                 outputFile = os.path.join(outputFile,
                                           os.path.splitext(srcFileName)[0] + ".obj")
-            else:
-                outputFile = os.path.normpath(outputFile)
+
         elif preprocessing:
             if 'P' in options:
                 # Preprocess to file.
