@@ -267,12 +267,12 @@ class TestParseIncludes(BaseTest):
         sample = self._readSampleFileDefault()
         includesSet, newCompilerOutput = clcache.parseIncludesList(
             sample['CompilerOutput'],
-            r"C:\Users\me\test\smartsqlite\src\version.cpp",
+            r'C:\Projects\test\smartsqlite\src\version.cpp',
             None,
             strip=False)
 
         self.assertEqual(len(includesSet), sample['UniqueIncludesCount'])
-        self.assertTrue(r'c:\users\me\test\smartsqlite\include\smartsqlite\version.h' in includesSet)
+        self.assertTrue(r'c:\projects\test\smartsqlite\include\smartsqlite\version.h' in includesSet)
         self.assertTrue(
             r'c:\program files (x86)\microsoft visual studio 12.0\vc\include\concurrencysal.h' in includesSet)
         self.assertTrue(r'' not in includesSet)
@@ -282,12 +282,12 @@ class TestParseIncludes(BaseTest):
         sample = self._readSampleFileDefault()
         includesSet, newCompilerOutput = clcache.parseIncludesList(
             sample['CompilerOutput'],
-            r"C:\Users\me\test\smartsqlite\src\version.cpp",
+            r'C:\Projects\test\smartsqlite\src\version.cpp',
             None,
             strip=True)
 
         self.assertEqual(len(includesSet), sample['UniqueIncludesCount'])
-        self.assertTrue(r'c:\users\me\test\smartsqlite\include\smartsqlite\version.h' in includesSet)
+        self.assertTrue(r'c:\projects\test\smartsqlite\include\smartsqlite\version.h' in includesSet)
         self.assertTrue(
             r'c:\program files (x86)\microsoft visual studio 12.0\vc\include\concurrencysal.h' in includesSet)
         self.assertTrue(r'' not in includesSet)
@@ -298,7 +298,7 @@ class TestParseIncludes(BaseTest):
         for stripIncludes in [True, False]:
             includesSet, newCompilerOutput = clcache.parseIncludesList(
                 sample['CompilerOutput'],
-                r"C:\Users\me\test\myproject\main.cpp",
+                r"C:\Projects\test\myproject\main.cpp",
                 None,
                 strip=stripIncludes)
 
@@ -309,12 +309,12 @@ class TestParseIncludes(BaseTest):
         sample = self._readSampleFileDefault(lang="de")
         includesSet, _ = clcache.parseIncludesList(
             sample['CompilerOutput'],
-            r"C:\Users\me\test\smartsqlite\src\version.cpp",
+            r"C:\Projects\test\smartsqlite\src\version.cpp",
             None,
             strip=False)
 
         self.assertEqual(len(includesSet), sample['UniqueIncludesCount'])
-        self.assertTrue(r'c:\users\me\test\smartsqlite\include\smartsqlite\version.h' in includesSet)
+        self.assertTrue(r'c:\projects\test\smartsqlite\include\smartsqlite\version.h' in includesSet)
         self.assertTrue(
             r'c:\program files (x86)\microsoft visual studio 12.0\vc\include\concurrencysal.h' in includesSet)
         self.assertTrue(r'' not in includesSet)
