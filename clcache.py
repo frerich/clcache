@@ -58,7 +58,7 @@ import sys
 import multiprocessing
 import re
 
-VERSION = "3.1.1"
+VERSION = "3.1.2-dev"
 
 HashAlgorithm = hashlib.md5
 
