@@ -817,14 +817,7 @@ class CommandLineAnalyzer(object):
                 return AnalysisResult.MultipleSourceFilesComplex, None, None
             return AnalysisResult.MultipleSourceFilesSimple, sourceFiles, None
 
-        if 'Fo' in options:
-            outputFile = options['Fo'][0]
-            outputFile = os.path.normpath(outputFile)
-
-            if os.path.isdir(outputFile):
-                outputFile = os.path.join(outputFile, basenameWithoutExtension(sourceFiles[0]) + ".obj")
-
-        elif preprocessing:
+        if preprocessing:
             if 'P' in options:
                 # Preprocess to file.
                 if 'Fi' in options:
@@ -836,7 +829,14 @@ class CommandLineAnalyzer(object):
                 # output to log.
                 outputFile = ''
         else:
-            outputFile = basenameWithoutExtension(sourceFiles[0]) + ".obj"
+            if 'Fo' in options:
+                outputFile = options['Fo'][0]
+                outputFile = os.path.normpath(outputFile)
+
+                if os.path.isdir(outputFile):
+                    outputFile = os.path.join(outputFile, basenameWithoutExtension(sourceFiles[0]) + ".obj")
+            else:
+                outputFile = basenameWithoutExtension(sourceFiles[0]) + ".obj"
 
         printTraceStatement("Compiler output file: '%s'" % outputFile)
         return AnalysisResult.Ok, sourceFiles[0], outputFile
