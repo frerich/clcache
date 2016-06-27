@@ -817,7 +817,6 @@ class CommandLineAnalyzer(object):
                 return AnalysisResult.MultipleSourceFilesComplex, None, None
             return AnalysisResult.MultipleSourceFilesSimple, sourceFiles, None
 
-        outputFile = None
         if 'Fo' in options:
             outputFile = options['Fo'][0]
             outputFile = os.path.normpath(outputFile)
