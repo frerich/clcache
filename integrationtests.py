@@ -50,6 +50,7 @@ import clcache
 
 PYTHON_BINARY = sys.executable
 CLCACHE_SCRIPT = os.path.join(os.path.dirname(os.path.realpath(__file__)), "clcache.py")
+ASSETS_DIR = os.path.join("tests", "integrationtests")
 
 
 @contextmanager
@@ -85,33 +86,42 @@ class TestCommandLineArguments(BaseTest):
 
 class TestCompileRuns(BaseTest):
     def testBasicCompileCc(self):
-        cmd = [PYTHON_BINARY, CLCACHE_SCRIPT, "/nologo", "/c", "tests\\fibonacci.c"]
+        cmd = [PYTHON_BINARY, CLCACHE_SCRIPT, "/nologo", "/c", os.path.join(ASSETS_DIR, "fibonacci.c")]
         subprocess.check_call(cmd)
 
     def testBasicCompileCpp(self):
-        cmd = [PYTHON_BINARY, CLCACHE_SCRIPT, "/nologo", "/EHsc", "/c", "tests\\fibonacci.cpp"]
+        cmd = [PYTHON_BINARY, CLCACHE_SCRIPT, "/nologo", "/EHsc", "/c", os.path.join(ASSETS_DIR, "fibonacci.cpp")]
         subprocess.check_call(cmd)
 
     def testCompileLinkRunCc(self):
-        cmd = [PYTHON_BINARY, CLCACHE_SCRIPT, "/nologo", "/c", "tests\\fibonacci.c", "/Fofibonacci_c.obj"]
-        subprocess.check_call(cmd)
-        cmd = ["link", "/nologo", "/OUT:fibonacci_c.exe", "fibonacci_c.obj"]
-        subprocess.check_call(cmd)
-        cmd = ["fibonacci_c.exe"]
-        output = subprocess.check_output(cmd).decode("ascii").strip()
-        self.assertEqual(output, "0 1 1 2 3 5 8 13 21 34 55 89 144 233 377")
+        with cd(ASSETS_DIR):
+            cmd = [PYTHON_BINARY, CLCACHE_SCRIPT, "/nologo", "/c", "fibonacci.c", "/Fofibonacci_c.obj"]
+            subprocess.check_call(cmd)
+            cmd = ["link", "/nologo", "/OUT:fibonacci_c.exe", "fibonacci_c.obj"]
+            subprocess.check_call(cmd)
+            cmd = ["fibonacci_c.exe"]
+            output = subprocess.check_output(cmd).decode("ascii").strip()
+            self.assertEqual(output, "0 1 1 2 3 5 8 13 21 34 55 89 144 233 377")
 
     def testCompileLinkRunCpp(self):
-        cmd = [PYTHON_BINARY, CLCACHE_SCRIPT, "/nologo", "/EHsc", "/c", "tests\\fibonacci.cpp", "/Fofibonacci_cpp.obj"]
-        subprocess.check_call(cmd)
-        cmd = ["link", "/nologo", "/OUT:fibonacci_cpp.exe", "fibonacci_cpp.obj"]
-        subprocess.check_call(cmd)
-        cmd = ["fibonacci_cpp.exe"]
-        output = subprocess.check_output(cmd).decode("ascii").strip()
-        self.assertEqual(output, "0 1 1 2 3 5 8 13 21 34 55 89 144 233 377")
+        with cd(ASSETS_DIR):
+            cmd = [PYTHON_BINARY, CLCACHE_SCRIPT, "/nologo", "/EHsc", "/c", "fibonacci.cpp", "/Fofibonacci_cpp.obj"]
+            subprocess.check_call(cmd)
+            cmd = ["link", "/nologo", "/OUT:fibonacci_cpp.exe", "fibonacci_cpp.obj"]
+            subprocess.check_call(cmd)
+            cmd = ["fibonacci_cpp.exe"]
+            output = subprocess.check_output(cmd).decode("ascii").strip()
+            self.assertEqual(output, "0 1 1 2 3 5 8 13 21 34 55 89 144 233 377")
 
     def testRecompile(self):
-        cmd = [PYTHON_BINARY, CLCACHE_SCRIPT, "/nologo", "/EHsc", "/c", "tests\\recompile1.cpp"]
+        cmd = [
+            PYTHON_BINARY,
+            CLCACHE_SCRIPT,
+            "/nologo",
+            "/EHsc",
+            "/c",
+            os.path.join(ASSETS_DIR, "recompile1.cpp")
+        ]
         subprocess.check_call(cmd) # Compile once
         subprocess.check_call(cmd) # Compile again
 
@@ -122,7 +132,7 @@ class TestCompileRuns(BaseTest):
             "/nologo",
             "/EHsc",
             "/c",
-            "tests\\recompile2.cpp",
+            os.path.join(ASSETS_DIR, "recompile2.cpp"),
             "/Forecompile2_custom_object_name.obj"
         ]
         subprocess.check_call(cmd) # Compile once
@@ -135,7 +145,7 @@ class TestCompileRuns(BaseTest):
             "/nologo",
             "/EHsc",
             "/c",
-            "tests\\recompile3.cpp",
+            os.path.join(ASSETS_DIR, "recompile3.cpp"),
             "/Fotests\\output\\recompile2_custom_object_name.obj"
         ]
         subprocess.check_call(cmd) # Compile once
@@ -144,7 +154,7 @@ class TestCompileRuns(BaseTest):
 
 class TestCompilerEncoding(BaseTest):
     def testNonAsciiMessage(self):
-        with cd(os.path.join("tests", "integrationtests", "compiler-encoding")):
+        with cd(os.path.join(ASSETS_DIR, "compiler-encoding")):
             for filename in ['non-ascii-message-ansi.c', 'non-ascii-message-utf16.c']:
                 cmd = [PYTHON_BINARY, CLCACHE_SCRIPT, "/nologo", "/c", filename]
                 subprocess.check_call(cmd)
@@ -152,19 +162,20 @@ class TestCompilerEncoding(BaseTest):
 
 class TestHits(BaseTest):
     def testHitsSimple(self):
-        cmd = [PYTHON_BINARY, CLCACHE_SCRIPT, "/nologo", "/EHsc", "/c", r'tests\hits-and-misses\hit.cpp']
-        subprocess.check_call(cmd) # Ensure it has been compiled before
+        with cd(os.path.join(ASSETS_DIR, "hits-and-misses")):
+            cmd = [PYTHON_BINARY, CLCACHE_SCRIPT, "/nologo", "/EHsc", "/c", 'hit.cpp']
+            subprocess.check_call(cmd) # Ensure it has been compiled before
 
-        cache = clcache.ObjectCache()
-        oldHits = clcache.CacheStatistics(cache).numCacheHits()
-        subprocess.check_call(cmd) # This must hit now
-        newHits = clcache.CacheStatistics(cache).numCacheHits()
-        self.assertEqual(newHits, oldHits + 1)
+            cache = clcache.ObjectCache()
+            oldHits = clcache.CacheStatistics(cache).numCacheHits()
+            subprocess.check_call(cmd) # This must hit now
+            newHits = clcache.CacheStatistics(cache).numCacheHits()
+            self.assertEqual(newHits, oldHits + 1)
 
 
 class TestPrecompiledHeaders(BaseTest):
     def testSampleproject(self):
-        with cd(os.path.join("tests", "precompiled-headers")):
+        with cd(os.path.join(ASSETS_DIR, "precompiled-headers")):
             cpp = PYTHON_BINARY + " " + CLCACHE_SCRIPT
 
             # Note: explicit str() because environment needs native str type in Python 2 and Python 3
@@ -197,7 +208,7 @@ class TestHeaderChange(BaseTest):
         subprocess.check_call(cmdLink, env=environment or os.environ)
 
     def testDirect(self):
-        with cd(os.path.join("tests", "header-change")):
+        with cd(os.path.join(ASSETS_DIR, "header-change")):
             self._clean()
 
             with open("version.h", "w") as header:
@@ -219,7 +230,7 @@ class TestHeaderChange(BaseTest):
             self.assertEqual(output, "2")
 
     def testNoDirect(self):
-        with cd(os.path.join("tests", "header-change")):
+        with cd(os.path.join(ASSETS_DIR, "header-change")):
             self._clean()
 
             with open("version.h", "w") as header:
@@ -263,7 +274,7 @@ class TestRunParallel(BaseTest):
 
     # Test counting of misses and hits in a parallel environment
     def testParallel(self):
-        with cd(os.path.join("tests", "parallel")):
+        with cd(os.path.join(ASSETS_DIR, "parallel")):
             self._zeroStats()
 
             # Compile first time
@@ -305,7 +316,7 @@ class TestClearing(BaseTest):
         cache = clcache.ObjectCache()
 
         # Compile a random file to populate cache
-        cmd = [PYTHON_BINARY, CLCACHE_SCRIPT, "/nologo", "/EHsc", "/c", "tests\\fibonacci.cpp"]
+        cmd = [PYTHON_BINARY, CLCACHE_SCRIPT, "/nologo", "/EHsc", "/c", os.path.join(ASSETS_DIR, "fibonacci.cpp")]
         subprocess.check_call(cmd)
 
         # Now there should be something in the cache
