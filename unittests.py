@@ -48,6 +48,9 @@ from clcache import AnalysisResult
 from clcache import CommandLineAnalyzer
 
 
+ASSETS_DIR = os.path.join("tests", "unittests")
+
+
 @contextmanager
 def cd(targetDirectory):
     oldDirectory = os.getcwd()
@@ -188,7 +191,7 @@ class TestAnalyzeCommandLine(BaseTest):
         self._testFo('/FoThe Out File.obj', 'The Out File.obj')
 
         # Existing directory
-        with cd(os.path.join("tests", "unittests")):
+        with cd(ASSETS_DIR):
             self._testFo(r'/Fo.', r'.\main.obj')
             self._testFo(r'/Fofo-build-debug', r'fo-build-debug\main.obj')
             self._testFo(r'/Fofo-build-debug\\', r'fo-build-debug\main.obj')
@@ -259,10 +262,10 @@ class TestMultipleSourceFiles(BaseTest):
 class TestParseIncludes(BaseTest):
     def _readSampleFileDefault(self, lang=None):
         if lang == "de":
-            filePath = r'tests\parse-includes\compiler_output_lang_de.txt'
+            filePath = os.path.join(ASSETS_DIR, 'parse-includes', 'compiler_output_lang_de.txt')
             uniqueIncludesCount = 82
         else:
-            filePath = r'tests\parse-includes\compiler_output.txt'
+            filePath = os.path.join(ASSETS_DIR, 'parse-includes', 'compiler_output.txt')
             uniqueIncludesCount = 83
 
         with open(filePath, 'r') as infile:
@@ -272,7 +275,7 @@ class TestParseIncludes(BaseTest):
             }
 
     def _readSampleFileNoIncludes(self):
-        with open(r'tests\parse-includes\compiler_output_no_includes.txt', 'r') as infile:
+        with open(os.path.join(ASSETS_DIR, 'parse-includes', 'compiler_output_no_includes.txt'), 'r') as infile:
             return {
                 'CompilerOutput': infile.read(),
                 'UniqueIncludesCount': 0
