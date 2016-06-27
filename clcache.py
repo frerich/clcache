@@ -831,7 +831,7 @@ class CommandLineAnalyzer(object):
                 if 'Fi' in options:
                     outputFile = options['Fi'][0]
                 else:
-                    outputFile = os.path.join(os.getcwd(), basenameWithoutExtension(sourceFiles[0]) + ".i")
+                    outputFile = basenameWithoutExtension(sourceFiles[0]) + ".i"
             else:
                 # Preprocess to stdout. Use empty string rather then None to ease
                 # output to log.
