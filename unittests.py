@@ -176,9 +176,12 @@ class TestAnalyzeCommandLine(BaseTest):
         self._testShort(['/c', '/nologo', '/Zi'], AnalysisResult.NoSourceFile)
 
     def testOutputFileFromSourcefile(self):
-        # Generate from .cpp filename
+        # For object file
         self._testFull(['/c', 'main.cpp'],
                        AnalysisResult.Ok, 'main.cpp', 'main.obj')
+        # For preprocessor file
+        self._testFull(['/c', '/P', 'main.cpp'],
+                       AnalysisResult.Ok, 'main.cpp', 'main.i')
 
     def testOutputFile(self):
         # Given object filename (default extension .obj)
