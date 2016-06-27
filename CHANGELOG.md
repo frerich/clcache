@@ -3,6 +3,9 @@ clcache changelog
 
 ## Upcoming release
 
+ * Bugfix: When preprocessing was used together with an /Fo argument (which makes
+   no sense), the handling was wrong.
+
 ## clcache 3.1.1 (2016-06-25)
 
  * Improvement: better protection against storing corrupt objects in the cache
