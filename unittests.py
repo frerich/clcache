@@ -164,6 +164,9 @@ class TestAnalyzeCommandLine(BaseTest):
         self._testFull(['/c', foArgument, 'main.cpp'],
                        AnalysisResult.Ok, "main.cpp", expectedObjectFilepath)
 
+    def _testPreprocessingOutfile(self, cmdLine, expectedOutputFile):
+        self._testFull(cmdLine, AnalysisResult.Ok, 'main.cpp', expectedOutputFile)
+
     def testEmpty(self):
         self._testShort([], AnalysisResult.NoSourceFile)
 
@@ -182,6 +185,14 @@ class TestAnalyzeCommandLine(BaseTest):
         # For preprocessor file
         self._testFull(['/c', '/P', 'main.cpp'],
                        AnalysisResult.Ok, 'main.cpp', 'main.i')
+
+    def testPreprocessIgnoresOtherArguments(self):
+        # All those inputs must ignore the /Fo, /Fa and /Fm argument according
+        # to the documentation of /E, /P and /EP
+        self._testPreprocessingOutfile(['/c', '/P', 'main.cpp'], 'main.i')
+        self._testPreprocessingOutfile(['/c', '/P', '/FoSome.obj', 'main.cpp'], 'main.i')
+        self._testPreprocessingOutfile(['/c', '/P', '/FaListing.asm', 'main.cpp'], 'main.i')
+        self._testPreprocessingOutfile(['/c', '/P', '/FmMapfile.map', 'main.cpp'], 'main.i')
 
     def testOutputFile(self):
         # Given object filename (default extension .obj)
