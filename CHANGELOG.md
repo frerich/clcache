@@ -5,6 +5,7 @@ clcache changelog
 
  * Bugfix: When preprocessing was used together with an /Fo argument (which makes
    no sense), the handling was wrong.
+ * Bugfix: Properly handle /Fi arguments
 
 ## clcache 3.1.1 (2016-06-25)
 
