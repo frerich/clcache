@@ -164,6 +164,9 @@ class TestAnalyzeCommandLine(BaseTest):
         self._testFull(['/c', foArgument, 'main.cpp'],
                        AnalysisResult.Ok, "main.cpp", expectedObjectFilepath)
 
+    def _testPreprocessingOutfile(self, cmdLine, expectedOutputFile):
+        self._testFull(cmdLine, AnalysisResult.Ok, 'main.cpp', expectedOutputFile)
+
     def testEmpty(self):
         self._testShort([], AnalysisResult.NoSourceFile)
 
@@ -182,6 +185,35 @@ class TestAnalyzeCommandLine(BaseTest):
         # For preprocessor file
         self._testFull(['/c', '/P', 'main.cpp'],
                        AnalysisResult.Ok, 'main.cpp', 'main.i')
+
+    def testPreprocessIgnoresOtherArguments(self):
+        # All those inputs must ignore the /Fo, /Fa and /Fm argument according
+        # to the documentation of /E, /P and /EP
+
+        # to file (/P)
+        self._testPreprocessingOutfile(['/c', '/P', 'main.cpp'], 'main.i')
+        self._testPreprocessingOutfile(['/c', '/P', '/FoSome.obj', 'main.cpp'], 'main.i')
+        self._testPreprocessingOutfile(['/c', '/P', '/FaListing.asm', 'main.cpp'], 'main.i')
+        self._testPreprocessingOutfile(['/c', '/P', '/FmMapfile.map', 'main.cpp'], 'main.i')
+
+        # to file (/P /EP)
+        # Note: documentation bug in https://msdn.microsoft.com/en-us/library/becb7sys.aspx
+        self._testPreprocessingOutfile(['/c', '/P', '/EP', 'main.cpp'], 'main.i')
+        self._testPreprocessingOutfile(['/c', '/P', '/EP', '/FoSome.obj', 'main.cpp'], 'main.i')
+        self._testPreprocessingOutfile(['/c', '/P', '/EP', '/FaListing.asm', 'main.cpp'], 'main.i')
+        self._testPreprocessingOutfile(['/c', '/P', '/EP', '/FmMapfile.map', 'main.cpp'], 'main.i')
+
+        # to stdout (/E)
+        self._testPreprocessingOutfile(['/c', '/E', 'main.cpp'], None)
+        self._testPreprocessingOutfile(['/c', '/E', '/FoSome.obj', 'main.cpp'], None)
+        self._testPreprocessingOutfile(['/c', '/E', '/FaListing.asm', 'main.cpp'], None)
+        self._testPreprocessingOutfile(['/c', '/E', '/FmMapfile.map', 'main.cpp'], None)
+
+        # to stdout (/EP)
+        self._testPreprocessingOutfile(['/c', '/EP', 'main.cpp'], None)
+        self._testPreprocessingOutfile(['/c', '/EP', '/FoSome.obj', 'main.cpp'], None)
+        self._testPreprocessingOutfile(['/c', '/EP', '/FaListing.asm', 'main.cpp'], None)
+        self._testPreprocessingOutfile(['/c', '/EP', '/FmMapfile.map', 'main.cpp'], None)
 
     def testOutputFile(self):
         # Given object filename (default extension .obj)

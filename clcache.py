@@ -280,7 +280,7 @@ class ObjectCache(object):
 
     def setEntry(self, key, objectFileName, compilerOutput, compilerStderr):
         ensureDirectoryExists(self._cacheEntryDir(key))
-        if objectFileName != '':
+        if objectFileName is not None:
             copyOrLink(objectFileName, self.cachedObjectName(key))
         with open(self._cachedCompilerOutputName(key), 'wb') as f:
             f.write(compilerOutput.encode(CACHE_COMPILER_OUTPUT_STORAGE_CODEC))
@@ -737,6 +737,16 @@ def expandCommandLine(cmdline):
 class CommandLineAnalyzer(object):
 
     @staticmethod
+    def _preprocessToStdout(options):
+        # Note: For MSVS 2013 and 2015 there is a documentation bug in
+        # https://msdn.microsoft.com/en-us/library/becb7sys.aspx stating that
+        # "To send the preprocessed output to stdout, with #line directives,
+        # use /P and /EP together."
+        # The actual compiler behavior is that both /P and /P /EP go to file.
+        # /P is with #line annotations and /P /EP is without.
+        return ('E' in options or 'EP' in options) and 'P' not in options
+
+    @staticmethod
     def _parseOptionsAndFiles(cmdline):
         optionsWithParameter = ['Ob', 'Gs', 'Fa', 'Fd', 'Fm',
                                 'Fp', 'FR', 'doc', 'FA', 'Fe',
@@ -817,29 +827,26 @@ class CommandLineAnalyzer(object):
                 return AnalysisResult.MultipleSourceFilesComplex, None, None
             return AnalysisResult.MultipleSourceFilesSimple, sourceFiles, None
 
-        outputFile = None
-        if 'Fo' in options:
-            outputFile = options['Fo'][0]
-            outputFile = os.path.normpath(outputFile)
-
-            if os.path.isdir(outputFile):
-                outputFile = os.path.join(outputFile, basenameWithoutExtension(sourceFiles[0]) + ".obj")
-
-        elif preprocessing:
-            if 'P' in options:
-                # Preprocess to file.
+        if preprocessing:
+            if CommandLineAnalyzer._preprocessToStdout(options):
+                outputFile = None
+            else:
+                # Preprocess to file
                 if 'Fi' in options:
                     outputFile = options['Fi'][0]
                 else:
                     outputFile = basenameWithoutExtension(sourceFiles[0]) + ".i"
-            else:
-                # Preprocess to stdout. Use empty string rather then None to ease
-                # output to log.
-                outputFile = ''
         else:
-            outputFile = basenameWithoutExtension(sourceFiles[0]) + ".obj"
+            if 'Fo' in options:
+                outputFile = options['Fo'][0]
+                outputFile = os.path.normpath(outputFile)
 
-        printTraceStatement("Compiler output file: '%s'" % outputFile)
+                if os.path.isdir(outputFile):
+                    outputFile = os.path.join(outputFile, basenameWithoutExtension(sourceFiles[0]) + ".obj")
+            else:
+                outputFile = basenameWithoutExtension(sourceFiles[0]) + ".obj"
+
+        printTraceStatement("Compiler output file: {}".format(outputFile))
         return AnalysisResult.Ok, sourceFiles[0], outputFile
 
 
@@ -1064,10 +1071,9 @@ def parseIncludesList(compilerOutput, sourceFile, baseDir, strip):
 
 
 def addObjectToCache(stats, cache, outputFile, compilerStdout, compilerStderr, cachekey):
-    printTraceStatement("Adding file " + outputFile + " to cache using " +
-                        "key " + cachekey)
+    printTraceStatement("Adding file {} to cache using key {}".format(outputFile, cachekey))
     cache.setEntry(cachekey, outputFile, compilerStdout, compilerStderr)
-    if outputFile != '':
+    if outputFile is not None:
         stats.registerCacheEntry(os.path.getsize(outputFile))
         cfg = Configuration(cache)
         cache.clean(stats, cfg.maximumCacheSize())
@@ -1077,9 +1083,8 @@ def processCacheHit(cache, outputFile, cachekey):
     stats = CacheStatistics(cache)
     stats.registerCacheHit()
     stats.save()
-    printTraceStatement("Reusing cached object for key " + cachekey + " for " +
-                        "output file " + outputFile)
-    if outputFile != '':
+    printTraceStatement("Reusing cached object for key {} for output file {}".format(cachekey, outputFile))
+    if outputFile is not None:
         if os.path.exists(outputFile):
             os.remove(outputFile)
         copyOrLink(cache.cachedObjectName(cachekey), outputFile)
@@ -1090,14 +1095,13 @@ def processCacheHit(cache, outputFile, cachekey):
 
 
 def postprocessObjectEvicted(cache, outputFile, cachekey, compilerResult):
-    printTraceStatement("Cached object already evicted for key " + cachekey + " for " +
-                        "output file " + outputFile)
+    printTraceStatement("Cached object already evicted for key {} for output file {}".format(cachekey, outputFile))
     returnCode, compilerOutput, compilerStderr = compilerResult
 
     with cache.lock:
         stats = CacheStatistics(cache)
         stats.registerEvictedMiss()
-        if returnCode == 0 and (outputFile == '' or os.path.exists(outputFile)):
+        if returnCode == 0 and (outputFile is None or os.path.exists(outputFile)):
             addObjectToCache(stats, cache, outputFile, compilerOutput, compilerStderr, cachekey)
         stats.save()
 
@@ -1109,7 +1113,7 @@ def postprocessHeaderChangedMiss(cache, outputFile, manifest, manifestHash, keyI
     returnCode, compilerOutput, compilerStderr = compilerResult
 
     removedItems = []
-    if returnCode == 0 and (outputFile == '' or os.path.exists(outputFile)):
+    if returnCode == 0 and (outputFile is None or os.path.exists(outputFile)):
         while len(manifest.hashes) >= MAX_MANIFEST_HASHES:
             _, objectHash = manifest.hashes.popitem()
             removedItems.append(objectHash)
@@ -1118,7 +1122,7 @@ def postprocessHeaderChangedMiss(cache, outputFile, manifest, manifestHash, keyI
     with cache.lock:
         stats = CacheStatistics(cache)
         stats.registerHeaderChangedMiss()
-        if returnCode == 0 and (outputFile == '' or os.path.exists(outputFile)):
+        if returnCode == 0 and (outputFile is None or os.path.exists(outputFile)):
             addObjectToCache(stats, cache, outputFile, compilerOutput, compilerStderr, cachekey)
             cache.removeObjects(stats, removedItems)
             cache.setManifest(manifestHash, manifest)
@@ -1144,7 +1148,7 @@ def postprocessNoManifestMiss(
     manifest = None
     cachekey = None
 
-    if returnCode == 0 and (outputFile == '' or os.path.exists(outputFile)):
+    if returnCode == 0 and (outputFile is None or os.path.exists(outputFile)):
         # Store compile output and manifest
         manifest = Manifest(listOfIncludes, {})
         listOfHeaderHashes = [getRelFileHash(fileName, baseDir) for fileName in listOfIncludes]
@@ -1155,7 +1159,7 @@ def postprocessNoManifestMiss(
     with cache.lock:
         stats = CacheStatistics(cache)
         stats.registerSourceChangedMiss()
-        if returnCode == 0 and (outputFile == '' or os.path.exists(outputFile)):
+        if returnCode == 0 and (outputFile is None or os.path.exists(outputFile)):
             # Store compile output and manifest
             addObjectToCache(stats, cache, outputFile, compilerOutput, compilerStderr, cachekey)
             cache.setManifest(manifestHash, manifest)
@@ -1323,9 +1327,8 @@ def processNoDirect(cache, outputFile, compiler, cmdLine):
             stats = CacheStatistics(cache)
             stats.registerCacheHit()
             stats.save()
-            printTraceStatement("Reusing cached object for key " + cachekey + " for " +
-                                "output file " + outputFile)
-            if os.path.exists(outputFile):
+            printTraceStatement("Reusing cached object for key {} for output file {}".format(cachekey, outputFile))
+            if outputFile is not None and os.path.exists(outputFile):
                 os.remove(outputFile)
             copyOrLink(cache.cachedObjectName(cachekey), outputFile)
             compilerStdout = cache.cachedCompilerOutput(cachekey)
@@ -1337,7 +1340,7 @@ def processNoDirect(cache, outputFile, compiler, cmdLine):
     with cache.lock:
         stats = CacheStatistics(cache)
         stats.registerCacheMiss()
-        if returnCode == 0 and os.path.exists(outputFile):
+        if returnCode == 0 and outputFile is not None and os.path.exists(outputFile):
             addObjectToCache(stats, cache, outputFile, compilerStdout, compilerStderr, cachekey)
         stats.save()
 
