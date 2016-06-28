@@ -164,6 +164,12 @@ class TestAnalyzeCommandLine(BaseTest):
         self._testFull(['/c', foArgument, 'main.cpp'],
                        AnalysisResult.Ok, "main.cpp", expectedObjectFilepath)
 
+    def _testFi(self, fiArgument, expectedOutputFile):
+        self._testFull(['/c', '/P', fiArgument, 'main.cpp'],
+                       AnalysisResult.Ok, "main.cpp", expectedOutputFile)
+        self._testFull(['/c', '/P', '/EP', fiArgument, 'main.cpp'],
+                       AnalysisResult.Ok, "main.cpp", expectedOutputFile)
+
     def _testPreprocessingOutfile(self, cmdLine, expectedOutputFile):
         self._testFull(cmdLine, AnalysisResult.Ok, 'main.cpp', expectedOutputFile)
 
@@ -244,6 +250,27 @@ class TestAnalyzeCommandLine(BaseTest):
         # Double slash
         self._testFo(r'/FoDebug//TheOutFile.obj', r'Debug\TheOutFile.obj')
         self._testFo(r'/FoDebug\\TheOutFile.obj', r'Debug\TheOutFile.obj')
+
+    def testPreprocessingFi(self):
+        # Given output filename
+        self._testFi('/FiTheOutFile.i', 'TheOutFile.i')
+        self._testFi('/FiTheOutFile.dat', 'TheOutFile.dat')
+        self._testFi('/FiThe Out File.i', 'The Out File.i')
+
+        # Existing directory
+        with cd(ASSETS_DIR):
+            self._testFi(r'/Fi.', r'.\main.i')
+            self._testFi(r'/Fifi-build-debug', r'fi-build-debug\main.i')
+            self._testFi(r'/Fifi-build-debug\\', r'fi-build-debug\main.i')
+
+        # Non-existing directory: preserve path, compiler will complain
+        self._testFi(r'/FiDebug\TheOutFile.i', r'Debug\TheOutFile.i')
+
+        # Convert to single Windows path separatores (like cl does too)
+        self._testFi(r'/FiDebug/TheOutFile.i', r'Debug\TheOutFile.i')
+        self._testFi(r'/FiDe\bug/TheOutFile.i', r'De\bug\TheOutFile.i')
+        self._testFi(r'/FiDebug//TheOutFile.i', r'Debug\TheOutFile.i')
+        self._testFi(r'/FiDebug\\TheOutFile.i', r'Debug\TheOutFile.i')
 
     def testLink(self):
         self._testShort(["main.cpp"], AnalysisResult.CalledForLink)
