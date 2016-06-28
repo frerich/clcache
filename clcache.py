@@ -852,7 +852,7 @@ class CommandLineAnalyzer(object):
             outputFile = CommandLineAnalyzer._outputFileFromArgument(options, 'Fo', sourceFiles[0], '.obj')
 
         printTraceStatement("Compiler output file: {}".format(outputFile))
-        return AnalysisResult.Ok, sourceFiles[0], outputFile
+        return AnalysisResult.Ok, sourceFiles, outputFile
 
 
 def invokeRealCompiler(compilerBinary, cmdLine, captureOutput=False):
@@ -1249,10 +1249,10 @@ def processCompileRequest(cache, compiler, args):
 
     cmdLine = expandCommandLine(sys.argv[1:])
     printTraceStatement("Expanded commandline '%s'" % cmdLine)
-    analysisResult, sourceFile, outputFile = CommandLineAnalyzer.analyze(cmdLine)
+    analysisResult, sourceFiles, outputFile = CommandLineAnalyzer.analyze(cmdLine)
 
     if analysisResult == AnalysisResult.MultipleSourceFilesSimple:
-        return reinvokePerSourceFile(cmdLine, sourceFile), '', ''
+        return reinvokePerSourceFile(cmdLine, sourceFiles), '', ''
 
     if analysisResult != AnalysisResult.Ok:
         with cache.lock:
@@ -1280,7 +1280,7 @@ def processCompileRequest(cache, compiler, args):
     if 'CLCACHE_NODIRECT' in os.environ:
         return processNoDirect(cache, outputFile, compiler, cmdLine)
     else:
-        return processDirect(cache, outputFile, compiler, cmdLine, sourceFile)
+        return processDirect(cache, outputFile, compiler, cmdLine, sourceFiles[0])
 
 
 def processDirect(cache, outputFile, compiler, cmdLine, sourceFile):

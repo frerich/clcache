@@ -160,24 +160,24 @@ class TestAnalyzeCommandLine(BaseTest):
         result, _, _ = CommandLineAnalyzer.analyze(cmdLine)
         self.assertEqual(result, expectedResult)
 
-    def _testFull(self, cmdLine, expectedResult, expectedSourceFile, expectedOutputFile):
-        result, sourceFile, outputFile = CommandLineAnalyzer.analyze(cmdLine)
+    def _testFull(self, cmdLine, expectedResult, expectedSourceFiles, expectedOutputFile):
+        result, sourceFiles, outputFile = CommandLineAnalyzer.analyze(cmdLine)
         self.assertEqual(result, expectedResult)
-        self.assertEqual(sourceFile, expectedSourceFile)
+        self.assertEqual(sourceFiles, expectedSourceFiles)
         self.assertEqual(outputFile, expectedOutputFile)
 
     def _testFo(self, foArgument, expectedObjectFilepath):
         self._testFull(['/c', foArgument, 'main.cpp'],
-                       AnalysisResult.Ok, "main.cpp", expectedObjectFilepath)
+                       AnalysisResult.Ok, ["main.cpp"], expectedObjectFilepath)
 
     def _testFi(self, fiArgument, expectedOutputFile):
         self._testFull(['/c', '/P', fiArgument, 'main.cpp'],
-                       AnalysisResult.Ok, "main.cpp", expectedOutputFile)
+                       AnalysisResult.Ok, ["main.cpp"], expectedOutputFile)
         self._testFull(['/c', '/P', '/EP', fiArgument, 'main.cpp'],
-                       AnalysisResult.Ok, "main.cpp", expectedOutputFile)
+                       AnalysisResult.Ok, ["main.cpp"], expectedOutputFile)
 
     def _testPreprocessingOutfile(self, cmdLine, expectedOutputFile):
-        self._testFull(cmdLine, AnalysisResult.Ok, 'main.cpp', expectedOutputFile)
+        self._testFull(cmdLine, AnalysisResult.Ok, ['main.cpp'], expectedOutputFile)
 
     def testEmpty(self):
         self._testShort([], AnalysisResult.NoSourceFile)
@@ -193,10 +193,10 @@ class TestAnalyzeCommandLine(BaseTest):
     def testOutputFileFromSourcefile(self):
         # For object file
         self._testFull(['/c', 'main.cpp'],
-                       AnalysisResult.Ok, 'main.cpp', 'main.obj')
+                       AnalysisResult.Ok, ['main.cpp'], 'main.obj')
         # For preprocessor file
         self._testFull(['/c', '/P', 'main.cpp'],
-                       AnalysisResult.Ok, 'main.cpp', 'main.i')
+                       AnalysisResult.Ok, ['main.cpp'], 'main.i')
 
     def testPreprocessIgnoresOtherArguments(self):
         # All those inputs must ignore the /Fo, /Fa and /Fm argument according
@@ -281,9 +281,9 @@ class TestAnalyzeCommandLine(BaseTest):
     def testTpTcSimple(self):
         # clcache can handle /Tc or /Tp as long as there is only one of them
         self._testFull(['/c', '/TcMyCcProgram.c'],
-                       AnalysisResult.Ok, 'MyCcProgram.c', 'MyCcProgram.obj')
+                       AnalysisResult.Ok, ['MyCcProgram.c'], 'MyCcProgram.obj')
         self._testFull(['/c', '/TpMyCxxProgram.cpp'],
-                       AnalysisResult.Ok, 'MyCxxProgram.cpp', 'MyCxxProgram.obj')
+                       AnalysisResult.Ok, ['MyCxxProgram.cpp'], 'MyCxxProgram.obj')
 
     def testLink(self):
         self._testShort(["main.cpp"], AnalysisResult.CalledForLink)
