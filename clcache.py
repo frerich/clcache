@@ -819,7 +819,7 @@ class CommandLineAnalyzer(object):
 
         if preprocessing:
             if 'P' in options:
-                # Preprocess to file.
+                # Preprocess to file
                 if 'Fi' in options:
                     outputFile = options['Fi'][0]
                 else:
