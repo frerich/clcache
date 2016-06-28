@@ -836,6 +836,7 @@ class CommandLineAnalyzer(object):
                 # Preprocess to file
                 if 'Fi' in options:
                     outputFile = options['Fi'][0]
+                    outputFile = os.path.normpath(outputFile)
 
                     if os.path.isdir(outputFile):
                         outputFile = os.path.join(outputFile, basenameWithoutExtension(sourceFiles[0]) + ".i")
