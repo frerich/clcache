@@ -737,6 +737,16 @@ def expandCommandLine(cmdline):
 class CommandLineAnalyzer(object):
 
     @staticmethod
+    def _preprocessToStdout(options):
+        # Note: For MSVS 2013 and 2015 there is a documentation bug in
+        # https://msdn.microsoft.com/en-us/library/becb7sys.aspx stating that
+        # "To send the preprocessed output to stdout, with #line directives,
+        # use /P and /EP together."
+        # The actual compiler behavior is that both /P and /P /EP go to file.
+        # /P is with #line annotations and /P /EP is without.
+        return ('E' in options or 'EP' in options) and 'P' not in options
+
+    @staticmethod
     def _parseOptionsAndFiles(cmdline):
         optionsWithParameter = ['Ob', 'Gs', 'Fa', 'Fd', 'Fm',
                                 'Fp', 'FR', 'doc', 'FA', 'Fe',
@@ -818,15 +828,14 @@ class CommandLineAnalyzer(object):
             return AnalysisResult.MultipleSourceFilesSimple, sourceFiles, None
 
         if preprocessing:
-            if 'P' in options:
+            if CommandLineAnalyzer._preprocessToStdout(options):
+                outputFile = None
+            else:
                 # Preprocess to file
                 if 'Fi' in options:
                     outputFile = options['Fi'][0]
                 else:
                     outputFile = basenameWithoutExtension(sourceFiles[0]) + ".i"
-            else:
-                # Preprocess to stdout
-                outputFile = None
         else:
             if 'Fo' in options:
                 outputFile = options['Fo'][0]
