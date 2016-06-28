@@ -747,6 +747,20 @@ class CommandLineAnalyzer(object):
         return ('E' in options or 'EP' in options) and 'P' not in options
 
     @staticmethod
+    def _outputFileFromArgument(options, argumentName, sourceFile, extension):
+        if argumentName in options:
+            # Handle user input
+            outputFile = options[argumentName][0]
+            outputFile = os.path.normpath(outputFile)
+
+            if os.path.isdir(outputFile):
+                outputFile = os.path.join(outputFile, basenameWithoutExtension(sourceFile) + extension)
+        else:
+            # Generate from .c/.cpp filename
+            outputFile = basenameWithoutExtension(sourceFile) + extension
+        return outputFile
+
+    @staticmethod
     def _parseOptionsAndFiles(cmdline):
         optionsWithParameter = {'Ob', 'Gs', 'Fa', 'Fd', 'Fm',
                                 'Fp', 'FR', 'doc', 'FA', 'Fe',
@@ -833,24 +847,9 @@ class CommandLineAnalyzer(object):
             if CommandLineAnalyzer._preprocessToStdout(options):
                 outputFile = None
             else:
-                # Preprocess to file
-                if 'Fi' in options:
-                    outputFile = options['Fi'][0]
-                    outputFile = os.path.normpath(outputFile)
-
-                    if os.path.isdir(outputFile):
-                        outputFile = os.path.join(outputFile, basenameWithoutExtension(sourceFiles[0]) + ".i")
-                else:
-                    outputFile = basenameWithoutExtension(sourceFiles[0]) + ".i"
+                outputFile = CommandLineAnalyzer._outputFileFromArgument(options, 'Fi', sourceFiles[0], '.i')
         else:
-            if 'Fo' in options:
-                outputFile = options['Fo'][0]
-                outputFile = os.path.normpath(outputFile)
-
-                if os.path.isdir(outputFile):
-                    outputFile = os.path.join(outputFile, basenameWithoutExtension(sourceFiles[0]) + ".obj")
-            else:
-                outputFile = basenameWithoutExtension(sourceFiles[0]) + ".obj"
+            outputFile = CommandLineAnalyzer._outputFileFromArgument(options, 'Fo', sourceFiles[0], '.obj')
 
         printTraceStatement("Compiler output file: {}".format(outputFile))
         return AnalysisResult.Ok, sourceFiles[0], outputFile
