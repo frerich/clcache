@@ -192,7 +192,7 @@ class ObjectCache(object):
         for o in objects:
             try:
                 objectInfos.append((os.stat(o), o))
-            except WindowsError:
+            except OSError:
                 pass
 
         objectInfos.sort(key=lambda t: t[0].st_atime)
