@@ -148,6 +148,12 @@ class TestSplitCommandsFile(BaseTest):
         self._genericTest('-A\r\n-B', ['-A', '-B'])
         self._genericTest('-A -B\r\n-C -D -E', ['-A', '-B', '-C', '-D', '-E'])
 
+    def testInitialBackslash(self):
+        self._genericTest(r'/Fo"C:\out dir\"', [r'/FoC:\out dir"'])
+        self._genericTest(r'\foo.cpp', [r'\foo.cpp'])
+        self._genericTest(r'/nologo \foo.cpp', [r'/nologo', r'\foo.cpp'])
+        self._genericTest(r'\foo.cpp /c', [r'\foo.cpp', r'/c'])
+
 
 class TestAnalyzeCommandLine(BaseTest):
     def _testShort(self, cmdLine, expectedResult):
