@@ -747,14 +747,30 @@ class CommandLineAnalyzer(object):
         return ('E' in options or 'EP' in options) and 'P' not in options
 
     @staticmethod
+    def _outputFileFromArgument(options, argumentName, sourceFile, extension):
+        if argumentName in options:
+            # Handle user input
+            outputFile = options[argumentName][0]
+            outputFile = os.path.normpath(outputFile)
+
+            if os.path.isdir(outputFile):
+                outputFile = os.path.join(outputFile, basenameWithoutExtension(sourceFile) + extension)
+        else:
+            # Generate from .c/.cpp filename
+            outputFile = basenameWithoutExtension(sourceFile) + extension
+        return outputFile
+
+    @staticmethod
     def _parseOptionsAndFiles(cmdline):
-        optionsWithParameter = ['Ob', 'Gs', 'Fa', 'Fd', 'Fm',
+        optionsWithParameter = {'Ob', 'Gs', 'Fa', 'Fd', 'Fm',
                                 'Fp', 'FR', 'doc', 'FA', 'Fe',
                                 'Fo', 'Fr', 'AI', 'FI', 'FU',
                                 'D', 'U', 'I', 'Zp', 'vm',
                                 'MP', 'Tc', 'V', 'wd', 'wo',
                                 'W', 'Yc', 'Yl', 'Tp', 'we',
-                                'Yu', 'Zm', 'F', 'Fi']
+                                'Yu', 'Zm', 'F', 'Fi'}
+        # Sort by length to handle prefixes
+        optionsWithParameterSorted = sorted(optionsWithParameter, key=len, reverse=True)
         options = defaultdict(list)
         sourceFiles = []
         i = 0
@@ -764,7 +780,7 @@ class CommandLineAnalyzer(object):
             # Plain arguments starting with / or -
             if arg[0] == '/' or arg[0] == '-':
                 isParametrized = False
-                for opt in optionsWithParameter:
+                for opt in optionsWithParameterSorted:
                     if arg[1:len(opt) + 1] == opt:
                         isParametrized = True
                         key = opt
@@ -831,20 +847,9 @@ class CommandLineAnalyzer(object):
             if CommandLineAnalyzer._preprocessToStdout(options):
                 outputFile = None
             else:
-                # Preprocess to file
-                if 'Fi' in options:
-                    outputFile = options['Fi'][0]
-                else:
-                    outputFile = basenameWithoutExtension(sourceFiles[0]) + ".i"
+                outputFile = CommandLineAnalyzer._outputFileFromArgument(options, 'Fi', sourceFiles[0], '.i')
         else:
-            if 'Fo' in options:
-                outputFile = options['Fo'][0]
-                outputFile = os.path.normpath(outputFile)
-
-                if os.path.isdir(outputFile):
-                    outputFile = os.path.join(outputFile, basenameWithoutExtension(sourceFiles[0]) + ".obj")
-            else:
-                outputFile = basenameWithoutExtension(sourceFiles[0]) + ".obj"
+            outputFile = CommandLineAnalyzer._outputFileFromArgument(options, 'Fo', sourceFiles[0], '.obj')
 
         printTraceStatement("Compiler output file: {}".format(outputFile))
         return AnalysisResult.Ok, sourceFiles[0], outputFile
