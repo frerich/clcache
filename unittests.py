@@ -272,6 +272,13 @@ class TestAnalyzeCommandLine(BaseTest):
         self._testFi(r'/FiDebug//TheOutFile.i', r'Debug\TheOutFile.i')
         self._testFi(r'/FiDebug\\TheOutFile.i', r'Debug\TheOutFile.i')
 
+    def testTpTcSimple(self):
+        # clcache can handle /Tc or /Tp as long as there is only one of them
+        self._testFull(['/c', '/TcMyCcProgram.c'],
+                       AnalysisResult.Ok, 'MyCcProgram.c', 'MyCcProgram.obj')
+        self._testFull(['/c', '/TpMyCxxProgram.cpp'],
+                       AnalysisResult.Ok, 'MyCxxProgram.cpp', 'MyCxxProgram.obj')
+
     def testLink(self):
         self._testShort(["main.cpp"], AnalysisResult.CalledForLink)
         self._testShort(["/nologo", "main.cpp"], AnalysisResult.CalledForLink)
