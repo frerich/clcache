@@ -516,9 +516,9 @@ class CacheStatistics(object):
 
 
 class AnalysisResult(object):
-    Ok, NoSourceFile, MultipleSourceFilesSimple, \
+    Ok, NoSourceFile, \
         MultipleSourceFilesComplex, CalledForLink, \
-        CalledWithPch, ExternalDebugInfo = list(range(7))
+        CalledWithPch, ExternalDebugInfo = list(range(6))
 
 
 def getCompilerHash(compilerBinary):
@@ -841,7 +841,7 @@ class CommandLineAnalyzer(object):
         if len(sourceFiles) > 1:
             if compl:
                 return AnalysisResult.MultipleSourceFilesComplex, None, None
-            return AnalysisResult.MultipleSourceFilesSimple, sourceFiles, None
+            return AnalysisResult.Ok, sourceFiles, None
 
         if preprocessing:
             if CommandLineAnalyzer._preprocessToStdout(options):
@@ -1251,10 +1251,15 @@ def processCompileRequest(cache, compiler, args):
     printTraceStatement("Expanded commandline '%s'" % cmdLine)
     analysisResult, sourceFiles, outputFile = CommandLineAnalyzer.analyze(cmdLine)
 
-    if analysisResult == AnalysisResult.MultipleSourceFilesSimple:
-        return reinvokePerSourceFile(cmdLine, sourceFiles), '', ''
-
-    if analysisResult != AnalysisResult.Ok:
+    if analysisResult == AnalysisResult.Ok:
+        if len(sourceFiles) > 1:
+            return reinvokePerSourceFile(cmdLine, sourceFiles), '', ''
+        else:
+            if 'CLCACHE_NODIRECT' in os.environ:
+                return processNoDirect(cache, outputFile, compiler, cmdLine)
+            else:
+                return processDirect(cache, outputFile, compiler, cmdLine, sourceFiles[0])
+    else:
         with cache.lock:
             stats = CacheStatistics(cache)
             if analysisResult == AnalysisResult.NoSourceFile:
@@ -1276,11 +1281,6 @@ def processCompileRequest(cache, compiler, args):
                 stats.registerCallForExternalDebugInfo()
             stats.save()
         return invokeRealCompiler(compiler, args[1:])
-
-    if 'CLCACHE_NODIRECT' in os.environ:
-        return processNoDirect(cache, outputFile, compiler, cmdLine)
-    else:
-        return processDirect(cache, outputFile, compiler, cmdLine, sourceFiles[0])
 
 
 def processDirect(cache, outputFile, compiler, cmdLine, sourceFile):
