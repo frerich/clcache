@@ -410,6 +410,7 @@ class CacheStatistics(object):
                   "CallsWithPch",
                   "CallsForLinking",
                   "CallsForExternalDebugInfo",
+                  "CallsForPreprocessing",
                   "CacheEntries", "CacheSize",
                   "CacheHits", "CacheMisses",
                   "EvictedMisses", "HeaderChangedMisses",
@@ -500,12 +501,19 @@ class CacheStatistics(object):
     def registerCacheMiss(self):
         self._stats["CacheMisses"] += 1
 
+    def numCallsForPreprocessing(self):
+        return self._stats["CallsForPreprocessing"]
+
+    def registerCallForPreprocessing(self):
+        self._stats["CallsForPreprocessing"] += 1
+
     def resetCounters(self):
         for k in ["CallsWithoutSourceFile",
                   "CallsWithMultipleSourceFiles",
                   "CallsWithPch",
                   "CallsForLinking",
                   "CallsForExternalDebugInfo",
+                  "CallsForPreprocessing",
                   "CacheHits", "CacheMisses",
                   "EvictedMisses", "HeaderChangedMisses",
                   "SourceChangedMisses"]:
@@ -992,6 +1000,7 @@ clcache statistics:
     header changed             : {}
     source changed             : {}
   passed to real compiler
+    called for preprocessing   : {}
     called for linking         : {}
     called for external debug  : {}
     called w/o source          : {}
@@ -1006,6 +1015,7 @@ clcache statistics:
         stats.numEvictedMisses(),
         stats.numHeaderChangedMisses(),
         stats.numSourceChangedMisses(),
+        stats.numCallsForPreprocessing(),
         stats.numCallsForLinking(),
         stats.numCallsForExternalDebugInfo(),
         stats.numCallsWithoutSourceFile(),

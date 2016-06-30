@@ -335,6 +335,7 @@ class TestClearing(BaseTest):
         self.assertEqual(stats.numCallsWithMultipleSourceFiles(), oldStats.numCallsWithMultipleSourceFiles())
         self.assertEqual(stats.numCallsWithPch(), oldStats.numCallsWithPch())
         self.assertEqual(stats.numCallsForLinking(), oldStats.numCallsForLinking())
+        self.assertEqual(stats.numCallsForPreprocessing(), oldStats.numCallsForPreprocessing())
         self.assertEqual(stats.numCallsForExternalDebugInfo(), oldStats.numCallsForExternalDebugInfo())
         self.assertEqual(stats.numEvictedMisses(), oldStats.numEvictedMisses())
         self.assertEqual(stats.numHeaderChangedMisses(), oldStats.numHeaderChangedMisses())
