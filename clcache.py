@@ -526,7 +526,8 @@ class CacheStatistics(object):
 class AnalysisResult(object):
     Ok, NoSourceFile, \
         MultipleSourceFilesComplex, CalledForLink, \
-        CalledWithPch, ExternalDebugInfo = list(range(6))
+        CalledWithPch, ExternalDebugInfo, \
+        CalledForPreprocessing = list(range(7))
 
 
 def getCompilerHash(compilerBinary):
@@ -826,11 +827,9 @@ class CommandLineAnalyzer(object):
             sourceFiles += options['Tc']
             compl = True
 
-        preprocessing = False
         for opt in ['E', 'EP', 'P']:
             if opt in options:
-                preprocessing = True
-                break
+                return AnalysisResult.CalledForPreprocessing, None, None
 
         if len(sourceFiles) == 0:
             return AnalysisResult.NoSourceFile, None, None
@@ -843,7 +842,7 @@ class CommandLineAnalyzer(object):
         if 'Yc' in options or 'Yu' in options:
             return AnalysisResult.CalledWithPch, None, None
 
-        if 'link' in options or ('c' not in options and not preprocessing):
+        if 'link' in options or 'c' not in options:
             return AnalysisResult.CalledForLink, None, None
 
         if len(sourceFiles) > 1:
@@ -851,13 +850,7 @@ class CommandLineAnalyzer(object):
                 return AnalysisResult.MultipleSourceFilesComplex, None, None
             return AnalysisResult.Ok, sourceFiles, None
 
-        if preprocessing:
-            if CommandLineAnalyzer._preprocessToStdout(options):
-                outputFile = None
-            else:
-                outputFile = CommandLineAnalyzer._outputFileFromArgument(options, 'Fi', sourceFiles[0], '.i')
-        else:
-            outputFile = CommandLineAnalyzer._outputFileFromArgument(options, 'Fo', sourceFiles[0], '.obj')
+        outputFile = CommandLineAnalyzer._outputFileFromArgument(options, 'Fo', sourceFiles[0], '.obj')
 
         printTraceStatement("Compiler output file: {}".format(outputFile))
         return AnalysisResult.Ok, sourceFiles, outputFile
@@ -1289,6 +1282,9 @@ def processCompileRequest(cache, compiler, args):
                     "Cannot cache invocation as {}: external debug information (/Zi) is not supported".format(cmdLine)
                 )
                 stats.registerCallForExternalDebugInfo()
+            elif analysisResult == AnalysisResult.CalledForPreprocessing:
+                printTraceStatement("Cannot cache invocation as {}: called for preprocessing".format(cmdLine))
+                stats.registerCallForPreprocessing()
             stats.save()
         return invokeRealCompiler(compiler, args[1:])
 
