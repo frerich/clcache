@@ -44,8 +44,8 @@ import os
 import unittest
 
 import clcache
-from clcache import AnalysisResult
 from clcache import CommandLineAnalyzer
+from clcache import CalledForPreprocessingError, NoSourceFileError, CalledForLinkError
 
 
 ASSETS_DIR = os.path.join("tests", "unittests")
@@ -156,76 +156,71 @@ class TestSplitCommandsFile(BaseTest):
 
 
 class TestAnalyzeCommandLine(BaseTest):
-    def _testShort(self, cmdLine, expectedResult):
-        result, _, _ = CommandLineAnalyzer.analyze(cmdLine)
-        self.assertEqual(result, expectedResult)
+    def _testFailure(self, cmdLine, expectedExceptionClass):
+        self.assertRaises(expectedExceptionClass, lambda: CommandLineAnalyzer.analyze(cmdLine))
 
-    def _testFull(self, cmdLine, expectedResult, expectedSourceFiles, expectedOutputFile):
-        result, sourceFiles, outputFile = CommandLineAnalyzer.analyze(cmdLine)
-        self.assertEqual(result, expectedResult)
+    def _testFull(self, cmdLine, expectedSourceFiles, expectedOutputFile):
+        sourceFiles, outputFile = CommandLineAnalyzer.analyze(cmdLine)
         self.assertEqual(sourceFiles, expectedSourceFiles)
         self.assertEqual(outputFile, expectedOutputFile)
 
     def _testFo(self, foArgument, expectedObjectFilepath):
         self._testFull(['/c', foArgument, 'main.cpp'],
-                       AnalysisResult.Ok, ["main.cpp"], expectedObjectFilepath)
+                       ["main.cpp"], expectedObjectFilepath)
 
-    def _testFi(self, fiArgument, expectedOutputFile):
-        self._testFull(['/c', '/P', fiArgument, 'main.cpp'],
-                       AnalysisResult.CalledForPreprocessing, None, expectedOutputFile)
-        self._testFull(['/c', '/P', '/EP', fiArgument, 'main.cpp'],
-                       AnalysisResult.CalledForPreprocessing, None, expectedOutputFile)
+    def _testFi(self, fiArgument):
+        self._testPreprocessingOutfile(['/c', '/P', fiArgument, 'main.cpp'])
+        self._testPreprocessingOutfile(['/c', '/P', '/EP', fiArgument, 'main.cpp'])
 
-    def _testPreprocessingOutfile(self, cmdLine, expectedOutputFile):
-        self._testFull(cmdLine, AnalysisResult.CalledForPreprocessing, None, expectedOutputFile)
+    def _testPreprocessingOutfile(self, cmdLine):
+        self._testFailure(cmdLine, CalledForPreprocessingError)
 
     def testEmpty(self):
-        self._testShort([], AnalysisResult.NoSourceFile)
+        self._testFailure([], NoSourceFileError)
 
     def testSimple(self):
-        self._testShort(["/c", "main.cpp"], AnalysisResult.Ok)
+        self._testFull(["/c", "main.cpp"], ["main.cpp"], "main.obj")
 
     def testNoSource(self):
-        self._testShort(['/c'], AnalysisResult.NoSourceFile)
-        self._testShort(['/c', '/nologo'], AnalysisResult.NoSourceFile)
-        self._testShort(['/c', '/nologo', '/Zi'], AnalysisResult.NoSourceFile)
+        self._testFailure(['/c'], NoSourceFileError)
+        self._testFailure(['/c', '/nologo'], NoSourceFileError)
+        self._testFailure(['/c', '/nologo', '/Zi'], NoSourceFileError)
 
     def testOutputFileFromSourcefile(self):
         # For object file
         self._testFull(['/c', 'main.cpp'],
-                       AnalysisResult.Ok, ['main.cpp'], 'main.obj')
+                       ['main.cpp'], 'main.obj')
         # For preprocessor file
-        self._testFull(['/c', '/P', 'main.cpp'],
-                       AnalysisResult.CalledForPreprocessing, None, None)
+        self._testFailure(['/c', '/P', 'main.cpp'], CalledForPreprocessingError)
 
     def testPreprocessIgnoresOtherArguments(self):
         # All those inputs must ignore the /Fo, /Fa and /Fm argument according
         # to the documentation of /E, /P and /EP
 
         # to file (/P)
-        self._testPreprocessingOutfile(['/c', '/P', 'main.cpp'], None)
-        self._testPreprocessingOutfile(['/c', '/P', '/FoSome.obj', 'main.cpp'], None)
-        self._testPreprocessingOutfile(['/c', '/P', '/FaListing.asm', 'main.cpp'], None)
-        self._testPreprocessingOutfile(['/c', '/P', '/FmMapfile.map', 'main.cpp'], None)
+        self._testPreprocessingOutfile(['/c', '/P', 'main.cpp'])
+        self._testPreprocessingOutfile(['/c', '/P', '/FoSome.obj', 'main.cpp'])
+        self._testPreprocessingOutfile(['/c', '/P', '/FaListing.asm', 'main.cpp'])
+        self._testPreprocessingOutfile(['/c', '/P', '/FmMapfile.map', 'main.cpp'])
 
         # to file (/P /EP)
         # Note: documentation bug in https://msdn.microsoft.com/en-us/library/becb7sys.aspx
-        self._testPreprocessingOutfile(['/c', '/P', '/EP', 'main.cpp'], None)
-        self._testPreprocessingOutfile(['/c', '/P', '/EP', '/FoSome.obj', 'main.cpp'], None)
-        self._testPreprocessingOutfile(['/c', '/P', '/EP', '/FaListing.asm', 'main.cpp'], None)
-        self._testPreprocessingOutfile(['/c', '/P', '/EP', '/FmMapfile.map', 'main.cpp'], None)
+        self._testPreprocessingOutfile(['/c', '/P', '/EP', 'main.cpp'])
+        self._testPreprocessingOutfile(['/c', '/P', '/EP', '/FoSome.obj', 'main.cpp'])
+        self._testPreprocessingOutfile(['/c', '/P', '/EP', '/FaListing.asm', 'main.cpp'])
+        self._testPreprocessingOutfile(['/c', '/P', '/EP', '/FmMapfile.map', 'main.cpp'])
 
         # to stdout (/E)
-        self._testPreprocessingOutfile(['/c', '/E', 'main.cpp'], None)
-        self._testPreprocessingOutfile(['/c', '/E', '/FoSome.obj', 'main.cpp'], None)
-        self._testPreprocessingOutfile(['/c', '/E', '/FaListing.asm', 'main.cpp'], None)
-        self._testPreprocessingOutfile(['/c', '/E', '/FmMapfile.map', 'main.cpp'], None)
+        self._testPreprocessingOutfile(['/c', '/E', 'main.cpp'])
+        self._testPreprocessingOutfile(['/c', '/E', '/FoSome.obj', 'main.cpp'])
+        self._testPreprocessingOutfile(['/c', '/E', '/FaListing.asm', 'main.cpp'])
+        self._testPreprocessingOutfile(['/c', '/E', '/FmMapfile.map', 'main.cpp'])
 
         # to stdout (/EP)
-        self._testPreprocessingOutfile(['/c', '/EP', 'main.cpp'], None)
-        self._testPreprocessingOutfile(['/c', '/EP', '/FoSome.obj', 'main.cpp'], None)
-        self._testPreprocessingOutfile(['/c', '/EP', '/FaListing.asm', 'main.cpp'], None)
-        self._testPreprocessingOutfile(['/c', '/EP', '/FmMapfile.map', 'main.cpp'], None)
+        self._testPreprocessingOutfile(['/c', '/EP', 'main.cpp'])
+        self._testPreprocessingOutfile(['/c', '/EP', '/FoSome.obj', 'main.cpp'])
+        self._testPreprocessingOutfile(['/c', '/EP', '/FaListing.asm', 'main.cpp'])
+        self._testPreprocessingOutfile(['/c', '/EP', '/FmMapfile.map', 'main.cpp'])
 
     def testOutputFile(self):
         # Given object filename (default extension .obj)
@@ -259,35 +254,35 @@ class TestAnalyzeCommandLine(BaseTest):
 
     def testPreprocessingFi(self):
         # Given output filename
-        self._testFi('/FiTheOutFile.i', None)
-        self._testFi('/FiTheOutFile.dat', None)
-        self._testFi('/FiThe Out File.i', None)
+        self._testFi('/FiTheOutFile.i')
+        self._testFi('/FiTheOutFile.dat')
+        self._testFi('/FiThe Out File.i')
 
         # Existing directory
         with cd(ASSETS_DIR):
-            self._testFi(r'/Fi.', None)
-            self._testFi(r'/Fifi-build-debug', None)
-            self._testFi(r'/Fifi-build-debug\\', None)
+            self._testFi(r'/Fi.')
+            self._testFi(r'/Fifi-build-debug')
+            self._testFi(r'/Fifi-build-debug\\')
 
         # Non-existing directory: preserve path, compiler will complain
-        self._testFi(r'/FiDebug\TheOutFile.i', None)
+        self._testFi(r'/FiDebug\TheOutFile.i')
 
         # Convert to single Windows path separatores (like cl does too)
-        self._testFi(r'/FiDebug/TheOutFile.i', None)
-        self._testFi(r'/FiDe\bug/TheOutFile.i', None)
-        self._testFi(r'/FiDebug//TheOutFile.i', None)
-        self._testFi(r'/FiDebug\\TheOutFile.i', None)
+        self._testFi(r'/FiDebug/TheOutFile.i')
+        self._testFi(r'/FiDe\bug/TheOutFile.i')
+        self._testFi(r'/FiDebug//TheOutFile.i')
+        self._testFi(r'/FiDebug\\TheOutFile.i')
 
     def testTpTcSimple(self):
         # clcache can handle /Tc or /Tp as long as there is only one of them
         self._testFull(['/c', '/TcMyCcProgram.c'],
-                       AnalysisResult.Ok, ['MyCcProgram.c'], 'MyCcProgram.obj')
+                       ['MyCcProgram.c'], 'MyCcProgram.obj')
         self._testFull(['/c', '/TpMyCxxProgram.cpp'],
-                       AnalysisResult.Ok, ['MyCxxProgram.cpp'], 'MyCxxProgram.obj')
+                       ['MyCxxProgram.cpp'], 'MyCxxProgram.obj')
 
     def testLink(self):
-        self._testShort(["main.cpp"], AnalysisResult.CalledForLink)
-        self._testShort(["/nologo", "main.cpp"], AnalysisResult.CalledForLink)
+        self._testFailure(["main.cpp"], CalledForLinkError)
+        self._testFailure(["/nologo", "main.cpp"], CalledForLinkError)
 
 
 class TestMultipleSourceFiles(BaseTest):
