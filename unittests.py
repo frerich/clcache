@@ -44,8 +44,8 @@ import os
 import unittest
 
 import clcache
-from clcache import AnalysisResult
 from clcache import CommandLineAnalyzer
+from clcache import CalledForPreprocessingError, NoSourceFileError, CalledForLinkError
 
 
 ASSETS_DIR = os.path.join("tests", "unittests")
@@ -160,43 +160,42 @@ class TestAnalyzeCommandLine(BaseTest):
         result, _, _ = CommandLineAnalyzer.analyze(cmdLine)
         self.assertEqual(result, expectedResult)
 
-    def _testFull(self, cmdLine, expectedResult, expectedSourceFiles, expectedOutputFile):
-        result, sourceFiles, outputFile = CommandLineAnalyzer.analyze(cmdLine)
-        self.assertEqual(result, expectedResult)
+    def _testFailure(self, cmdLine, expectedExceptionClass):
+        self.assertRaises(expectedExceptionClass, lambda: CommandLineAnalyzer.analyze(cmdLine))
+
+    def _testFull(self, cmdLine, expectedSourceFiles, expectedOutputFile):
+        sourceFiles, outputFile = CommandLineAnalyzer.analyze(cmdLine)
         self.assertEqual(sourceFiles, expectedSourceFiles)
         self.assertEqual(outputFile, expectedOutputFile)
 
     def _testFo(self, foArgument, expectedObjectFilepath):
         self._testFull(['/c', foArgument, 'main.cpp'],
-                       AnalysisResult.Ok, ["main.cpp"], expectedObjectFilepath)
+                       ["main.cpp"], expectedObjectFilepath)
 
     def _testFi(self, fiArgument, expectedOutputFile):
-        self._testFull(['/c', '/P', fiArgument, 'main.cpp'],
-                       AnalysisResult.CalledForPreprocessing, None, expectedOutputFile)
-        self._testFull(['/c', '/P', '/EP', fiArgument, 'main.cpp'],
-                       AnalysisResult.CalledForPreprocessing, None, expectedOutputFile)
+        self._testFailure(['/c', '/P', fiArgument, 'main.cpp'], CalledForPreprocessingError)
+        self._testFailure(['/c', '/P', '/EP', fiArgument, 'main.cpp'], CalledForPreprocessingError)
 
     def _testPreprocessingOutfile(self, cmdLine, expectedOutputFile):
-        self._testFull(cmdLine, AnalysisResult.CalledForPreprocessing, None, expectedOutputFile)
+        self._testFailure(cmdLine, CalledForPreprocessingError)
 
     def testEmpty(self):
-        self._testShort([], AnalysisResult.NoSourceFile)
+        self._testFailure([], NoSourceFileError)
 
     def testSimple(self):
-        self._testShort(["/c", "main.cpp"], AnalysisResult.Ok)
+        self._testFull(["/c", "main.cpp"], ["main.cpp"], "main.obj")
 
     def testNoSource(self):
-        self._testShort(['/c'], AnalysisResult.NoSourceFile)
-        self._testShort(['/c', '/nologo'], AnalysisResult.NoSourceFile)
-        self._testShort(['/c', '/nologo', '/Zi'], AnalysisResult.NoSourceFile)
+        self._testFailure(['/c'], NoSourceFileError)
+        self._testFailure(['/c', '/nologo'], NoSourceFileError)
+        self._testFailure(['/c', '/nologo', '/Zi'], NoSourceFileError)
 
     def testOutputFileFromSourcefile(self):
         # For object file
         self._testFull(['/c', 'main.cpp'],
-                       AnalysisResult.Ok, ['main.cpp'], 'main.obj')
+                       ['main.cpp'], 'main.obj')
         # For preprocessor file
-        self._testFull(['/c', '/P', 'main.cpp'],
-                       AnalysisResult.CalledForPreprocessing, None, None)
+        self._testFailure(['/c', '/P', 'main.cpp'], CalledForPreprocessingError)
 
     def testPreprocessIgnoresOtherArguments(self):
         # All those inputs must ignore the /Fo, /Fa and /Fm argument according
@@ -281,13 +280,13 @@ class TestAnalyzeCommandLine(BaseTest):
     def testTpTcSimple(self):
         # clcache can handle /Tc or /Tp as long as there is only one of them
         self._testFull(['/c', '/TcMyCcProgram.c'],
-                       AnalysisResult.Ok, ['MyCcProgram.c'], 'MyCcProgram.obj')
+                       ['MyCcProgram.c'], 'MyCcProgram.obj')
         self._testFull(['/c', '/TpMyCxxProgram.cpp'],
-                       AnalysisResult.Ok, ['MyCxxProgram.cpp'], 'MyCxxProgram.obj')
+                       ['MyCxxProgram.cpp'], 'MyCxxProgram.obj')
 
     def testLink(self):
-        self._testShort(["main.cpp"], AnalysisResult.CalledForLink)
-        self._testShort(["/nologo", "main.cpp"], AnalysisResult.CalledForLink)
+        self._testFailure(["main.cpp"], CalledForLinkError)
+        self._testFailure(["/nologo", "main.cpp"], CalledForLinkError)
 
 
 class TestMultipleSourceFiles(BaseTest):

@@ -523,11 +523,28 @@ class CacheStatistics(object):
         self._stats.save()
 
 
-class AnalysisResult(object):
-    Ok, NoSourceFile, \
-        MultipleSourceFilesComplex, CalledForLink, \
-        CalledWithPch, ExternalDebugInfo, \
-        CalledForPreprocessing = list(range(7))
+class NoSourceFileError(Exception):
+    pass
+
+
+class MultipleSourceFilesComplexError(Exception):
+    pass
+
+
+class CalledForLinkError(Exception):
+    pass
+
+
+class CalledWithPchError(Exception):
+    pass
+
+
+class ExternalDebugInfoError(Exception):
+    pass
+
+
+class CalledForPreprocessingError(Exception):
+    pass
 
 
 def getCompilerHash(compilerBinary):
@@ -829,31 +846,31 @@ class CommandLineAnalyzer(object):
 
         for opt in ['E', 'EP', 'P']:
             if opt in options:
-                return AnalysisResult.CalledForPreprocessing, None, None
+                raise CalledForPreprocessingError()
 
         if len(sourceFiles) == 0:
-            return AnalysisResult.NoSourceFile, None, None
+            raise NoSourceFileError()
 
         # Technically, it would be possible to support /Zi: we'd just need to
         # copy the generated .pdb files into/out of the cache.
         if 'Zi' in options:
-            return AnalysisResult.ExternalDebugInfo, None, None
+            raise ExternalDebugInfoError()
 
         if 'Yc' in options or 'Yu' in options:
-            return AnalysisResult.CalledWithPch, None, None
+            raise CalledWithPchError()
 
         if 'link' in options or 'c' not in options:
-            return AnalysisResult.CalledForLink, None, None
+            raise CalledForLinkError()
 
         if len(sourceFiles) > 1:
             if compl:
-                return AnalysisResult.MultipleSourceFilesComplex, None, None
-            return AnalysisResult.Ok, sourceFiles, None
+                raise MultipleSourceFilesComplexError()
+            return sourceFiles, None
 
         outputFile = CommandLineAnalyzer._outputFileFromArgument(options, 'Fo', sourceFiles[0], '.obj')
 
         printTraceStatement("Compiler output file: {}".format(outputFile))
-        return AnalysisResult.Ok, sourceFiles, outputFile
+        return sourceFiles, outputFile
 
 
 def invokeRealCompiler(compilerBinary, cmdLine, captureOutput=False):
@@ -1247,14 +1264,22 @@ clcache.py v{}
         return 1
 
 
+def updateCacheStatistics(cache, method):
+    with cache.lock:
+        stats = CacheStatistics(cache)
+        method(stats)
+        stats.save()
+
+
 def processCompileRequest(cache, compiler, args):
     printTraceStatement("Parsing given commandline '%s'" % args[1:])
 
     cmdLine = expandCommandLine(sys.argv[1:])
     printTraceStatement("Expanded commandline '%s'" % cmdLine)
-    analysisResult, sourceFiles, outputFile = CommandLineAnalyzer.analyze(cmdLine)
 
-    if analysisResult == AnalysisResult.Ok:
+    try:
+        sourceFiles, outputFile = CommandLineAnalyzer.analyze(cmdLine)
+
         if len(sourceFiles) > 1:
             return reinvokePerSourceFile(cmdLine, sourceFiles), '', ''
         else:
@@ -1262,31 +1287,28 @@ def processCompileRequest(cache, compiler, args):
                 return processNoDirect(cache, outputFile, compiler, cmdLine)
             else:
                 return processDirect(cache, outputFile, compiler, cmdLine, sourceFiles[0])
-    else:
-        with cache.lock:
-            stats = CacheStatistics(cache)
-            if analysisResult == AnalysisResult.NoSourceFile:
-                printTraceStatement("Cannot cache invocation as {}: no source file found".format(cmdLine))
-                stats.registerCallWithoutSourceFile()
-            elif analysisResult == AnalysisResult.MultipleSourceFilesComplex:
-                printTraceStatement("Cannot cache invocation as {}: multiple source files found".format(cmdLine))
-                stats.registerCallWithMultipleSourceFiles()
-            elif analysisResult == AnalysisResult.CalledWithPch:
-                printTraceStatement("Cannot cache invocation as {}: precompiled headers in use".format(cmdLine))
-                stats.registerCallWithPch()
-            elif analysisResult == AnalysisResult.CalledForLink:
-                printTraceStatement("Cannot cache invocation as {}: called for linking".format(cmdLine))
-                stats.registerCallForLinking()
-            elif analysisResult == AnalysisResult.ExternalDebugInfo:
-                printTraceStatement(
-                    "Cannot cache invocation as {}: external debug information (/Zi) is not supported".format(cmdLine)
-                )
-                stats.registerCallForExternalDebugInfo()
-            elif analysisResult == AnalysisResult.CalledForPreprocessing:
-                printTraceStatement("Cannot cache invocation as {}: called for preprocessing".format(cmdLine))
-                stats.registerCallForPreprocessing()
-            stats.save()
-        return invokeRealCompiler(compiler, args[1:])
+    except NoSourceFileError:
+        printTraceStatement("Cannot cache invocation as {}: no source file found".format(cmdLine))
+        updateCacheStatistics(cache, CacheStatistics.registerCallWithoutSourceFile)
+    except MultipleSourceFilesComplexError:
+        printTraceStatement("Cannot cache invocation as {}: multiple source files found".format(cmdLine))
+        updateCacheStatistics(cache, CacheStatistics.registerCallWithMultipleSourceFiles)
+    except CalledWithPchError:
+        printTraceStatement("Cannot cache invocation as {}: precompiled headers in use".format(cmdLine))
+        updateCacheStatistics(cache, CacheStatistics.registerCallWithPch)
+    except CalledForLinkError:
+        printTraceStatement("Cannot cache invocation as {}: called for linking".format(cmdLine))
+        updateCacheStatistics(cache, CacheStatistics.registerCallForLinking)
+    except ExternalDebugInfoError:
+        printTraceStatement(
+            "Cannot cache invocation as {}: external debug information (/Zi) is not supported".format(cmdLine)
+        )
+        updateCacheStatistics(cache, CacheStatistics.registerCallForExternalDebugInfo)
+    except CalledForPreprocessingError:
+        printTraceStatement("Cannot cache invocation as {}: called for preprocessing".format(cmdLine))
+        updateCacheStatistics(cache, CacheStatistics.registerCallForPreprocessing)
+
+    return invokeRealCompiler(compiler, args[1:])
 
 
 def processDirect(cache, outputFile, compiler, cmdLine, sourceFile):
