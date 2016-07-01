@@ -792,7 +792,7 @@ class CommandLineAnalyzer(object):
             'Ob', 'Gs', 'Fa', 'Fd', 'Fm',
             'Fp', 'FR', 'doc', 'FA', 'Fe',
             'Fo', 'Fr', 'AI', 'FI', 'FU',
-            'D', 'U', 'I', 'Zp', 'vm',
+            'D', 'U', 'I', 'Zp',
             'MP', 'Tc', 'V', 'wd', 'wo',
             'W', 'Yc', 'Yl', 'Tp', 'we',
             'Yu', 'Zm', 'F', 'Fi',
