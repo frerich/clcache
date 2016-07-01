@@ -156,10 +156,6 @@ class TestSplitCommandsFile(BaseTest):
 
 
 class TestAnalyzeCommandLine(BaseTest):
-    def _testShort(self, cmdLine, expectedResult):
-        result, _, _ = CommandLineAnalyzer.analyze(cmdLine)
-        self.assertEqual(result, expectedResult)
-
     def _testFailure(self, cmdLine, expectedExceptionClass):
         self.assertRaises(expectedExceptionClass, lambda: CommandLineAnalyzer.analyze(cmdLine))
 
