@@ -788,13 +788,15 @@ class CommandLineAnalyzer(object):
 
     @staticmethod
     def _parseOptionsAndFiles(cmdline):
-        optionsWithParameter = {'Ob', 'Gs', 'Fa', 'Fd', 'Fm',
-                                'Fp', 'FR', 'doc', 'FA', 'Fe',
-                                'Fo', 'Fr', 'AI', 'FI', 'FU',
-                                'D', 'U', 'I', 'Zp', 'vm',
-                                'MP', 'Tc', 'V', 'wd', 'wo',
-                                'W', 'Yc', 'Yl', 'Tp', 'we',
-                                'Yu', 'Zm', 'F', 'Fi'}
+        optionsWithParameter = {
+            'Ob', 'Gs', 'Fa', 'Fd', 'Fm',
+            'Fp', 'FR', 'doc', 'FA', 'Fe',
+            'Fo', 'Fr', 'AI', 'FI', 'FU',
+            'D', 'U', 'I', 'Zp', 'vm',
+            'MP', 'Tc', 'V', 'wd', 'wo',
+            'W', 'Yc', 'Yl', 'Tp', 'we',
+            'Yu', 'Zm', 'F', 'Fi',
+        }
         # Sort by length to handle prefixes
         optionsWithParameterSorted = sorted(optionsWithParameter, key=len, reverse=True)
         options = defaultdict(list)
