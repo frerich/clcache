@@ -172,12 +172,12 @@ class TestAnalyzeCommandLine(BaseTest):
 
     def _testFi(self, fiArgument, expectedOutputFile):
         self._testFull(['/c', '/P', fiArgument, 'main.cpp'],
-                       AnalysisResult.Ok, ["main.cpp"], expectedOutputFile)
+                       AnalysisResult.CalledForPreprocessing, None, expectedOutputFile)
         self._testFull(['/c', '/P', '/EP', fiArgument, 'main.cpp'],
-                       AnalysisResult.Ok, ["main.cpp"], expectedOutputFile)
+                       AnalysisResult.CalledForPreprocessing, None, expectedOutputFile)
 
     def _testPreprocessingOutfile(self, cmdLine, expectedOutputFile):
-        self._testFull(cmdLine, AnalysisResult.Ok, ['main.cpp'], expectedOutputFile)
+        self._testFull(cmdLine, AnalysisResult.CalledForPreprocessing, None, expectedOutputFile)
 
     def testEmpty(self):
         self._testShort([], AnalysisResult.NoSourceFile)
@@ -196,24 +196,24 @@ class TestAnalyzeCommandLine(BaseTest):
                        AnalysisResult.Ok, ['main.cpp'], 'main.obj')
         # For preprocessor file
         self._testFull(['/c', '/P', 'main.cpp'],
-                       AnalysisResult.Ok, ['main.cpp'], 'main.i')
+                       AnalysisResult.CalledForPreprocessing, None, None)
 
     def testPreprocessIgnoresOtherArguments(self):
         # All those inputs must ignore the /Fo, /Fa and /Fm argument according
         # to the documentation of /E, /P and /EP
 
         # to file (/P)
-        self._testPreprocessingOutfile(['/c', '/P', 'main.cpp'], 'main.i')
-        self._testPreprocessingOutfile(['/c', '/P', '/FoSome.obj', 'main.cpp'], 'main.i')
-        self._testPreprocessingOutfile(['/c', '/P', '/FaListing.asm', 'main.cpp'], 'main.i')
-        self._testPreprocessingOutfile(['/c', '/P', '/FmMapfile.map', 'main.cpp'], 'main.i')
+        self._testPreprocessingOutfile(['/c', '/P', 'main.cpp'], None)
+        self._testPreprocessingOutfile(['/c', '/P', '/FoSome.obj', 'main.cpp'], None)
+        self._testPreprocessingOutfile(['/c', '/P', '/FaListing.asm', 'main.cpp'], None)
+        self._testPreprocessingOutfile(['/c', '/P', '/FmMapfile.map', 'main.cpp'], None)
 
         # to file (/P /EP)
         # Note: documentation bug in https://msdn.microsoft.com/en-us/library/becb7sys.aspx
-        self._testPreprocessingOutfile(['/c', '/P', '/EP', 'main.cpp'], 'main.i')
-        self._testPreprocessingOutfile(['/c', '/P', '/EP', '/FoSome.obj', 'main.cpp'], 'main.i')
-        self._testPreprocessingOutfile(['/c', '/P', '/EP', '/FaListing.asm', 'main.cpp'], 'main.i')
-        self._testPreprocessingOutfile(['/c', '/P', '/EP', '/FmMapfile.map', 'main.cpp'], 'main.i')
+        self._testPreprocessingOutfile(['/c', '/P', '/EP', 'main.cpp'], None)
+        self._testPreprocessingOutfile(['/c', '/P', '/EP', '/FoSome.obj', 'main.cpp'], None)
+        self._testPreprocessingOutfile(['/c', '/P', '/EP', '/FaListing.asm', 'main.cpp'], None)
+        self._testPreprocessingOutfile(['/c', '/P', '/EP', '/FmMapfile.map', 'main.cpp'], None)
 
         # to stdout (/E)
         self._testPreprocessingOutfile(['/c', '/E', 'main.cpp'], None)
@@ -259,24 +259,24 @@ class TestAnalyzeCommandLine(BaseTest):
 
     def testPreprocessingFi(self):
         # Given output filename
-        self._testFi('/FiTheOutFile.i', 'TheOutFile.i')
-        self._testFi('/FiTheOutFile.dat', 'TheOutFile.dat')
-        self._testFi('/FiThe Out File.i', 'The Out File.i')
+        self._testFi('/FiTheOutFile.i', None)
+        self._testFi('/FiTheOutFile.dat', None)
+        self._testFi('/FiThe Out File.i', None)
 
         # Existing directory
         with cd(ASSETS_DIR):
-            self._testFi(r'/Fi.', r'.\main.i')
-            self._testFi(r'/Fifi-build-debug', r'fi-build-debug\main.i')
-            self._testFi(r'/Fifi-build-debug\\', r'fi-build-debug\main.i')
+            self._testFi(r'/Fi.', None)
+            self._testFi(r'/Fifi-build-debug', None)
+            self._testFi(r'/Fifi-build-debug\\', None)
 
         # Non-existing directory: preserve path, compiler will complain
-        self._testFi(r'/FiDebug\TheOutFile.i', r'Debug\TheOutFile.i')
+        self._testFi(r'/FiDebug\TheOutFile.i', None)
 
         # Convert to single Windows path separatores (like cl does too)
-        self._testFi(r'/FiDebug/TheOutFile.i', r'Debug\TheOutFile.i')
-        self._testFi(r'/FiDe\bug/TheOutFile.i', r'De\bug\TheOutFile.i')
-        self._testFi(r'/FiDebug//TheOutFile.i', r'Debug\TheOutFile.i')
-        self._testFi(r'/FiDebug\\TheOutFile.i', r'Debug\TheOutFile.i')
+        self._testFi(r'/FiDebug/TheOutFile.i', None)
+        self._testFi(r'/FiDe\bug/TheOutFile.i', None)
+        self._testFi(r'/FiDebug//TheOutFile.i', None)
+        self._testFi(r'/FiDebug\\TheOutFile.i', None)
 
     def testTpTcSimple(self):
         # clcache can handle /Tc or /Tp as long as there is only one of them

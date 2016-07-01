@@ -335,12 +335,32 @@ class TestClearing(BaseTest):
         self.assertEqual(stats.numCallsWithMultipleSourceFiles(), oldStats.numCallsWithMultipleSourceFiles())
         self.assertEqual(stats.numCallsWithPch(), oldStats.numCallsWithPch())
         self.assertEqual(stats.numCallsForLinking(), oldStats.numCallsForLinking())
+        self.assertEqual(stats.numCallsForPreprocessing(), oldStats.numCallsForPreprocessing())
         self.assertEqual(stats.numCallsForExternalDebugInfo(), oldStats.numCallsForExternalDebugInfo())
         self.assertEqual(stats.numEvictedMisses(), oldStats.numEvictedMisses())
         self.assertEqual(stats.numHeaderChangedMisses(), oldStats.numHeaderChangedMisses())
         self.assertEqual(stats.numSourceChangedMisses(), oldStats.numSourceChangedMisses())
         self.assertEqual(stats.numCacheHits(), oldStats.numCacheHits())
         self.assertEqual(stats.numCacheMisses(), oldStats.numCacheMisses())
+
+
+class TestPreprocessorCalls(BaseTest):
+    def testHitsSimple(self):
+        invocations = [
+            ["/nologo", "/E"],
+            ["/nologo", "/EP", "/c"],
+            ["/nologo", "/P", "/c"],
+            ["/nologo", "/E", "/EP"],
+        ]
+
+        cache = clcache.ObjectCache()
+        oldPreprocessorCalls = clcache.CacheStatistics(cache).numCallsForPreprocessing()
+
+        for i, invocation in enumerate(invocations, 1):
+            cmd = [PYTHON_BINARY, CLCACHE_SCRIPT] + invocation + [os.path.join(ASSETS_DIR, "minimal.cpp")]
+            subprocess.check_call(cmd)
+            newPreprocessorCalls = clcache.CacheStatistics(cache).numCallsForPreprocessing()
+            self.assertEqual(newPreprocessorCalls, oldPreprocessorCalls + i, str(cmd))
 
 
 if __name__ == '__main__':
