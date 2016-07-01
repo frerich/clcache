@@ -804,10 +804,10 @@ class CommandLineAnalyzer(object):
             arg = cmdline[i]
 
             # Plain arguments starting with / or -
-            if arg[0] == '/' or arg[0] == '-':
+            if arg.startswith('/') or arg.startswith('-'):
                 isParametrized = False
                 for opt in optionsWithParameterSorted:
-                    if arg[1:len(opt) + 1] == opt:
+                    if arg.startswith(opt, 1):
                         isParametrized = True
                         key = opt
                         if len(arg) > len(opt) + 1:
