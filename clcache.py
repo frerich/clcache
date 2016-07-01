@@ -844,12 +844,12 @@ class CommandLineAnalyzer(object):
             sourceFiles += options['Tc']
             compl = True
 
+        if len(sourceFiles) == 0:
+            raise NoSourceFileError()
+
         for opt in ['E', 'EP', 'P']:
             if opt in options:
                 raise CalledForPreprocessingError()
-
-        if len(sourceFiles) == 0:
-            raise NoSourceFileError()
 
         # Technically, it would be possible to support /Zi: we'd just need to
         # copy the generated .pdb files into/out of the cache.
