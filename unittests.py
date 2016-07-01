@@ -169,8 +169,8 @@ class TestAnalyzeCommandLine(BaseTest):
                        ["main.cpp"], expectedObjectFilepath)
 
     def _testFi(self, fiArgument):
-        self._testFailure(['/c', '/P', fiArgument, 'main.cpp'], CalledForPreprocessingError)
-        self._testFailure(['/c', '/P', '/EP', fiArgument, 'main.cpp'], CalledForPreprocessingError)
+        self._testPreprocessingOutfile(['/c', '/P', fiArgument, 'main.cpp'])
+        self._testPreprocessingOutfile(['/c', '/P', '/EP', fiArgument, 'main.cpp'])
 
     def _testPreprocessingOutfile(self, cmdLine):
         self._testFailure(cmdLine, CalledForPreprocessingError)
