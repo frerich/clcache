@@ -231,8 +231,8 @@ class TestAnalyzeCommandLine(unittest.TestCase):
         self._testFull(["/c", "main.cpp"], ["main.cpp"], "main.obj")
 
     def testNoSource(self):
-        # No source file is the worst thing that can happen. In this case there
-        # is no chance we can help, so it has priority over other errors.
+        # No source file has priority over other errors, for consistency
+        # and because it's likely to be a misconfigured command line.
         self._testFailure(['/c', '/nologo'], NoSourceFileError)
         self._testFailure(['/c'], NoSourceFileError)
         self._testFailure([], NoSourceFileError)
@@ -240,6 +240,9 @@ class TestAnalyzeCommandLine(unittest.TestCase):
         self._testFailure(['/E'], NoSourceFileError)
         self._testFailure(['/P'], NoSourceFileError)
         self._testFailure(['/EP'], NoSourceFileError)
+        self._testFailure(['/Yc'], NoSourceFileError)
+        self._testFailure(['/Yu'], NoSourceFileError)
+        self._testFailure(['/link'], NoSourceFileError)
 
     def testOutputFileFromSourcefile(self):
         # For object file
