@@ -523,27 +523,31 @@ class CacheStatistics(object):
         self._stats.save()
 
 
-class NoSourceFileError(Exception):
+class AnalysisError(Exception):
     pass
 
 
-class MultipleSourceFilesComplexError(Exception):
+class NoSourceFileError(AnalysisError):
     pass
 
 
-class CalledForLinkError(Exception):
+class MultipleSourceFilesComplexError(AnalysisError):
     pass
 
 
-class CalledWithPchError(Exception):
+class CalledForLinkError(AnalysisError):
     pass
 
 
-class ExternalDebugInfoError(Exception):
+class CalledWithPchError(AnalysisError):
     pass
 
 
-class CalledForPreprocessingError(Exception):
+class ExternalDebugInfoError(AnalysisError):
+    pass
+
+
+class CalledForPreprocessingError(AnalysisError):
     pass
 
 
