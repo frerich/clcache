@@ -778,7 +778,7 @@ class CommandLineAnalyzer(object):
 
     @staticmethod
     def _parseOptionsAndFiles(cmdline):
-        optionsWithParameter = {
+        argumentsWithParameter = {
             'Ob', 'Gs', 'Fa', 'Fd', 'Fm',
             'Fp', 'FR', 'doc', 'FA', 'Fe',
             'Fo', 'Fr', 'AI', 'FI', 'FU',
@@ -789,7 +789,7 @@ class CommandLineAnalyzer(object):
             'Yu', 'Zm', 'F', 'Fi',
         }
         # Sort by length to handle prefixes
-        optionsWithParameterSorted = sorted(optionsWithParameter, key=len, reverse=True)
+        argumentsWithParameterSorted = sorted(argumentsWithParameter, key=len, reverse=True)
         options = defaultdict(list)
         sourceFiles = []
         i = 0
@@ -799,7 +799,7 @@ class CommandLineAnalyzer(object):
             # Plain arguments starting with / or -
             if arg.startswith('/') or arg.startswith('-'):
                 isParametrized = False
-                for opt in optionsWithParameterSorted:
+                for opt in argumentsWithParameterSorted:
                     if arg.startswith(opt, 1):
                         isParametrized = True
                         key = opt
