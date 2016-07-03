@@ -179,6 +179,11 @@ class TestAnalyzeCommandLine(BaseTest):
     def _testPreprocessingOutfile(self, cmdLine):
         self._testFailure(cmdLine, CalledForPreprocessingError)
 
+    def _testArgInfiles(self, cmdLine, expectedArguments, expectedInputFiles):
+        arguments, inputFiles = CommandLineAnalyzer.parseArgumentsAndInputFiles(cmdLine)
+        self.assertEqual(arguments, expectedArguments)
+        self.assertEqual(inputFiles, expectedInputFiles)
+
     def testEmpty(self):
         self._testFailure([], NoSourceFileError)
 
@@ -293,6 +298,23 @@ class TestAnalyzeCommandLine(BaseTest):
     def testLink(self):
         self._testFailure(["main.cpp"], CalledForLinkError)
         self._testFailure(["/nologo", "main.cpp"], CalledForLinkError)
+
+    def testParseArgumentsAndInputFiles(self):
+        self._testArgInfiles(['/c', 'main.cpp'],
+                             {'c': []},
+                             ['main.cpp'])
+        self._testArgInfiles(['/link', 'unit1.obj', 'unit2.obj'],
+                             {'link': []},
+                             ['unit1.obj', 'unit2.obj'])
+        self._testArgInfiles(['/Fooutfile.obj', 'main.cpp'],
+                             {'Fo': ['outfile.obj']},
+                             ['main.cpp'])
+        self._testArgInfiles(['/c', '/I', 'somedir', 'main.cpp'],
+                             {'c': [], 'I': ['somedir']},
+                             ['main.cpp'])
+        self._testArgInfiles(['/c', '/I.', '/I', 'somedir', 'main.cpp'],
+                             {'c': [], 'I': ['.', 'somedir']},
+                             ['main.cpp'])
 
 
 class TestMultipleSourceFiles(BaseTest):
