@@ -763,7 +763,7 @@ def expandCommandLine(cmdline):
 class CommandLineAnalyzer(object):
 
     @staticmethod
-    def _parseOptionsAndFiles(cmdline):
+    def parseArgumentsAndInputFiles(cmdline):
         argumentsWithParameter = {
             'Ob', 'Gs', 'Fa', 'Fd', 'Fm',
             'Fp', 'FR', 'doc', 'FA', 'Fe',
@@ -814,7 +814,7 @@ class CommandLineAnalyzer(object):
 
     @staticmethod
     def analyze(cmdline):
-        options, sourceFiles = CommandLineAnalyzer._parseOptionsAndFiles(cmdline)
+        options, sourceFiles = CommandLineAnalyzer.parseArgumentsAndInputFiles(cmdline)
         compl = False
         if 'Tp' in options:
             sourceFiles += options['Tp']
