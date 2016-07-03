@@ -810,7 +810,7 @@ class CommandLineAnalyzer(object):
 
             i += 1
 
-        return arguments, inputFiles
+        return dict(arguments), inputFiles
 
     @staticmethod
     def analyze(cmdline):
