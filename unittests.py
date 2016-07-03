@@ -45,7 +45,11 @@ import unittest
 
 import clcache
 from clcache import CommandLineAnalyzer
-from clcache import CalledForPreprocessingError, NoSourceFileError, CalledForLinkError
+from clcache import (
+    CalledForLinkError,
+    CalledForPreprocessingError,
+    NoSourceFileError,
+)
 
 
 ASSETS_DIR = os.path.join("tests", "unittests")
