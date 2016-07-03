@@ -46,8 +46,11 @@ import unittest
 import clcache
 from clcache import CommandLineAnalyzer
 from clcache import (
+    AnalysisError,
     CalledForLinkError,
     CalledForPreprocessingError,
+    InvalidArgumentError,
+    MultipleSourceFilesComplexError,
     NoSourceFileError,
 )
 
@@ -186,6 +189,17 @@ class TestSplitCommandsFile(unittest.TestCase):
 
 
 class TestAnalyzeCommandLine(unittest.TestCase):
+    def _testSourceFilesOk(self, cmdLine):
+        try:
+            CommandLineAnalyzer.analyze(cmdLine)
+        except AnalysisError as err:
+            if isinstance(err, NoSourceFileError):
+                self.fail("analyze() unexpectedly raised an NoSourceFileError")
+            else:
+                # We just want to know if we got a proper source file.
+                # Other AnalysisErrors are ignored.
+                pass
+
     def _testFailure(self, cmdLine, expectedExceptionClass):
         self.assertRaises(expectedExceptionClass, lambda: CommandLineAnalyzer.analyze(cmdLine))
 
@@ -324,6 +338,82 @@ class TestAnalyzeCommandLine(unittest.TestCase):
     def testLink(self):
         self._testFailure(["main.cpp"], CalledForLinkError)
         self._testFailure(["/nologo", "main.cpp"], CalledForLinkError)
+
+    def testArgumentParameters(self):
+        # Type 1 (/NAMEparameter) - Arguments with required parameter
+        self._testFailure(["/c", "/Ob", "main.cpp"], InvalidArgumentError)
+        self._testFailure(["/c", "/Yl", "main.cpp"], InvalidArgumentError)
+        self._testFailure(["/c", "/Zm", "main.cpp"], InvalidArgumentError)
+        self._testSourceFilesOk(["/c", "/Ob999", "main.cpp"])
+        self._testSourceFilesOk(["/c", "/Yl999", "main.cpp"])
+        self._testSourceFilesOk(["/c", "/Zm999", "main.cpp"])
+
+        # Type 2 (/NAME[parameter]) - Optional argument parameters must not eat up source file
+        self._testSourceFilesOk(["/c", "/doc", "main.cpp"])
+        self._testSourceFilesOk(["/c", "/FA", "main.cpp"])
+        self._testSourceFilesOk(["/c", "/Fr", "main.cpp"])
+        self._testSourceFilesOk(["/c", "/FR", "main.cpp"])
+        self._testSourceFilesOk(["/c", "/Gs", "main.cpp"])
+        self._testSourceFilesOk(["/c", "/MP", "main.cpp"])
+        self._testSourceFilesOk(["/c", "/Wv", "main.cpp"])
+        self._testSourceFilesOk(["/c", "/Yc", "main.cpp"])
+        self._testSourceFilesOk(["/c", "/Yu", "main.cpp"])
+        self._testSourceFilesOk(["/c", "/Zp", "main.cpp"])
+
+        # Type 3 (/NAME[ ]parameter) - Required argument parameters with optional space eat up source file
+        self._testFailure(["/c", "/FI", "main.cpp"], NoSourceFileError)
+        self._testFailure(["/c", "/U", "main.cpp"], NoSourceFileError)
+        self._testFailure(["/c", "/I", "main.cpp"], NoSourceFileError)
+        self._testSourceFilesOk(["/c", "/FI9999", "main.cpp"])
+        self._testSourceFilesOk(["/c", "/U9999", "main.cpp"])
+        self._testSourceFilesOk(["/c", "/I9999", "main.cpp"])
+
+        # Type 4 (/NAME parameter) - Forced space
+        # Some documented, but non implemented
+
+        # Documented as type 1 (/NAMEparmeter) but work as type 2 (/NAME[parameter])
+        self._testSourceFilesOk(["/c", "/Fa", "main.cpp"])
+        self._testSourceFilesOk(["/c", "/Fi", "main.cpp"])
+        self._testSourceFilesOk(["/c", "/Fd", "main.cpp"])
+        self._testSourceFilesOk(["/c", "/Fe", "main.cpp"])
+        self._testSourceFilesOk(["/c", "/Fm", "main.cpp"])
+        self._testSourceFilesOk(["/c", "/Fo", "main.cpp"])
+        self._testSourceFilesOk(["/c", "/Fp", "main.cpp"])
+
+        # Documented as type 1 (/NAMEparmeter) but work as type 3 (/NAME[ ]parameter)
+        self._testFailure(["/c", "/AI", "main.cpp"], NoSourceFileError)
+        self._testFailure(["/c", "/D", "main.cpp"], NoSourceFileError)
+        self._testFailure(["/c", "/V", "main.cpp"], NoSourceFileError)
+        self._testFailure(["/c", "/w1", "main.cpp"], NoSourceFileError)
+        self._testFailure(["/c", "/w2", "main.cpp"], NoSourceFileError)
+        self._testFailure(["/c", "/w3", "main.cpp"], NoSourceFileError)
+        self._testFailure(["/c", "/w4", "main.cpp"], NoSourceFileError)
+        self._testFailure(["/c", "/wd", "main.cpp"], NoSourceFileError)
+        self._testFailure(["/c", "/we", "main.cpp"], NoSourceFileError)
+        self._testFailure(["/c", "/wo", "main.cpp"], NoSourceFileError)
+        self._testSourceFilesOk(["/c", "/AI999", "main.cpp"])
+        self._testSourceFilesOk(["/c", "/D999", "main.cpp"])
+        self._testSourceFilesOk(["/c", "/V999", "main.cpp"])
+        self._testSourceFilesOk(["/c", "/w1999", "main.cpp"])
+        self._testSourceFilesOk(["/c", "/w2999", "main.cpp"])
+        self._testSourceFilesOk(["/c", "/w3999", "main.cpp"])
+        self._testSourceFilesOk(["/c", "/w4999", "main.cpp"])
+        self._testSourceFilesOk(["/c", "/wd999", "main.cpp"])
+        self._testSourceFilesOk(["/c", "/we999", "main.cpp"])
+        self._testSourceFilesOk(["/c", "/wo999", "main.cpp"])
+        # Those work a bit differently
+        self._testSourceFilesOk(["/c", "/Tc", "main.cpp"])
+        self._testSourceFilesOk(["/c", "/Tp", "main.cpp"])
+        self._testFailure(["/c", "/Tc", "999", "main.cpp"], MultipleSourceFilesComplexError)
+        self._testFailure(["/c", "/Tp", "999", "main.cpp"], MultipleSourceFilesComplexError)
+        self._testFailure(["/c", "/Tc999", "main.cpp"], MultipleSourceFilesComplexError)
+        self._testFailure(["/c", "/Tp999", "main.cpp"], MultipleSourceFilesComplexError)
+
+        # Documented as type 4 (/NAME parameter) but work as type 3 (/NAME[ ]parameter)
+        self._testFailure(["/c", "/F", "main.cpp"], NoSourceFileError)
+        self._testFailure(["/c", "/FU", "main.cpp"], NoSourceFileError)
+        self._testSourceFilesOk(["/c", "/F999", "main.cpp"])
+        self._testSourceFilesOk(["/c", "/FU999", "main.cpp"])
 
     def testParseArgumentsAndInputFiles(self):
         self._testArgInfiles(['/c', 'main.cpp'],
