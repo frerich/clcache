@@ -763,16 +763,6 @@ def expandCommandLine(cmdline):
 class CommandLineAnalyzer(object):
 
     @staticmethod
-    def _preprocessToStdout(options):
-        # Note: For MSVS 2013 and 2015 there is a documentation bug in
-        # https://msdn.microsoft.com/en-us/library/becb7sys.aspx stating that
-        # "To send the preprocessed output to stdout, with #line directives,
-        # use /P and /EP together."
-        # The actual compiler behavior is that both /P and /P /EP go to file.
-        # /P is with #line annotations and /P /EP is without.
-        return ('E' in options or 'EP' in options) and 'P' not in options
-
-    @staticmethod
     def _outputFileFromArgument(options, argumentName, sourceFile, extension):
         if argumentName in options:
             # Handle user input
