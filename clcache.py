@@ -776,8 +776,8 @@ class CommandLineAnalyzer(object):
         }
         # Sort by length to handle prefixes
         argumentsWithParameterSorted = sorted(argumentsWithParameter, key=len, reverse=True)
-        options = defaultdict(list)
-        sourceFiles = []
+        arguments = defaultdict(list)
+        inputFiles = []
         i = 0
         while i < len(cmdline):
             arg = cmdline[i]
@@ -794,11 +794,11 @@ class CommandLineAnalyzer(object):
                         else:
                             value = cmdline[i + 1]
                             i += 1
-                        options[key].append(value)
+                        arguments[key].append(value)
                         break
 
                 if not isParametrized:
-                    options[arg[1:]] = []
+                    arguments[arg[1:]] = []
 
             # Response file
             elif arg[0] == '@':
@@ -806,11 +806,11 @@ class CommandLineAnalyzer(object):
 
             # Source file arguments
             else:
-                sourceFiles.append(arg)
+                inputFiles.append(arg)
 
             i += 1
 
-        return options, sourceFiles
+        return arguments, inputFiles
 
     @staticmethod
     def analyze(cmdline):
