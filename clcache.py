@@ -795,6 +795,7 @@ class CommandLineAnalyzer(object):
             'D', 'U', 'I', 'Zp',
             'MP', 'Tc', 'V', 'wd', 'wo',
             'W', 'Yc', 'Yl', 'Tp', 'we',
+            'w1', 'w2', 'w3', 'w4', 'Wv',
             'Yu', 'Zm', 'F', 'Fi',
         }
         # Sort by length to handle prefixes
