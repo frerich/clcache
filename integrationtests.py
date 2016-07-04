@@ -338,6 +338,41 @@ class TestClearing(unittest.TestCase):
         self.assertEqual(stats.numCacheMisses(), oldStats.numCacheMisses())
 
 
+class TestAnalysisErrorsCalls(unittest.TestCase):
+    def testAllKnownAnalysisErrors(self):
+        # This ensures all AnalysisError cases are run once without crashes
+
+        with cd(os.path.join(ASSETS_DIR)):
+            baseCmd = [PYTHON_BINARY, CLCACHE_SCRIPT, '/nologo']
+
+            # NoSourceFileError
+            # This must fail because cl.exe: "cl : Command line error D8003 : missing source filename"
+            # Make sure it was cl.exe that failed and not clcache
+            process = subprocess.Popen(baseCmd + [], stderr=subprocess.PIPE)
+            _, stderr = process.communicate()
+            self.assertEqual(process.returncode, 2)
+            self.assertTrue("D8003" in stderr.decode(clcache.CL_DEFAULT_CODEC))
+
+            # InvalidArgumentError
+            # This must fail because cl.exe: "cl : Command line error D8004 : '/Zm' requires an argument"
+            # Make sure it was cl.exe that failed and not clcache
+            process = subprocess.Popen(baseCmd + ['/c', '/Zm', 'bar', "minimal.cpp"], stderr=subprocess.PIPE)
+            _, stderr = process.communicate()
+            self.assertEqual(process.returncode, 2)
+            self.assertTrue("D8004" in stderr.decode(clcache.CL_DEFAULT_CODEC))
+
+            # MultipleSourceFilesComplexError
+            subprocess.check_call(baseCmd + ['/c', '/Tcfibonacci.c', "minimal.cpp"])
+            # CalledForLinkError
+            subprocess.check_call(baseCmd + ["fibonacci.cpp"])
+            # CalledWithPchError
+            subprocess.check_call(baseCmd + ['/c', '/Yc', "minimal.cpp"])
+            # ExternalDebugInfoError
+            subprocess.check_call(baseCmd + ['/c', '/Zi', "minimal.cpp"])
+            # CalledForPreprocessingError
+            subprocess.check_call(baseCmd + ['/E', "minimal.cpp"])
+
+
 class TestPreprocessorCalls(unittest.TestCase):
     def testHitsSimple(self):
         invocations = [
