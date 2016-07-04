@@ -401,20 +401,29 @@ class Configuration(object):
 
 
 class CacheStatistics(object):
+    RESETTABLE_KEYS = {
+        "CallsWithoutSourceFile",
+        "CallsWithMultipleSourceFiles",
+        "CallsWithPch",
+        "CallsForLinking",
+        "CallsForExternalDebugInfo",
+        "CallsForPreprocessing",
+        "CacheHits",
+        "CacheMisses",
+        "EvictedMisses",
+        "HeaderChangedMisses",
+        "SourceChangedMisses",
+    }
+    NON_RESETTABLE_KEYS = {
+        "CacheEntries",
+        "CacheSize",
+    }
+
     def __init__(self, objectCache):
         self.objectCache = objectCache
         self._stats = PersistentJSONDict(os.path.join(objectCache.cacheDirectory(),
                                                       "stats.txt"))
-        for k in ["CallsWithoutSourceFile",
-                  "CallsWithMultipleSourceFiles",
-                  "CallsWithPch",
-                  "CallsForLinking",
-                  "CallsForExternalDebugInfo",
-                  "CallsForPreprocessing",
-                  "CacheEntries", "CacheSize",
-                  "CacheHits", "CacheMisses",
-                  "EvictedMisses", "HeaderChangedMisses",
-                  "SourceChangedMisses"]:
+        for k in CacheStatistics.RESETTABLE_KEYS | CacheStatistics.NON_RESETTABLE_KEYS:
             if k not in self._stats:
                 self._stats[k] = 0
 
@@ -508,15 +517,7 @@ class CacheStatistics(object):
         self._stats["CallsForPreprocessing"] += 1
 
     def resetCounters(self):
-        for k in ["CallsWithoutSourceFile",
-                  "CallsWithMultipleSourceFiles",
-                  "CallsWithPch",
-                  "CallsForLinking",
-                  "CallsForExternalDebugInfo",
-                  "CallsForPreprocessing",
-                  "CacheHits", "CacheMisses",
-                  "EvictedMisses", "HeaderChangedMisses",
-                  "SourceChangedMisses"]:
+        for k in CacheStatistics.RESETTABLE_KEYS:
             self._stats[k] = 0
 
     def save(self):
