@@ -523,27 +523,31 @@ class CacheStatistics(object):
         self._stats.save()
 
 
-class NoSourceFileError(Exception):
+class AnalysisError(Exception):
     pass
 
 
-class MultipleSourceFilesComplexError(Exception):
+class NoSourceFileError(AnalysisError):
     pass
 
 
-class CalledForLinkError(Exception):
+class MultipleSourceFilesComplexError(AnalysisError):
     pass
 
 
-class CalledWithPchError(Exception):
+class CalledForLinkError(AnalysisError):
     pass
 
 
-class ExternalDebugInfoError(Exception):
+class CalledWithPchError(AnalysisError):
     pass
 
 
-class CalledForPreprocessingError(Exception):
+class ExternalDebugInfoError(AnalysisError):
+    pass
+
+
+class CalledForPreprocessingError(AnalysisError):
     pass
 
 
@@ -763,22 +767,8 @@ def expandCommandLine(cmdline):
 class CommandLineAnalyzer(object):
 
     @staticmethod
-    def _outputFileFromArgument(options, argumentName, sourceFile, extension):
-        if argumentName in options:
-            # Handle user input
-            outputFile = options[argumentName][0]
-            outputFile = os.path.normpath(outputFile)
-
-            if os.path.isdir(outputFile):
-                outputFile = os.path.join(outputFile, basenameWithoutExtension(sourceFile) + extension)
-        else:
-            # Generate from .c/.cpp filename
-            outputFile = basenameWithoutExtension(sourceFile) + extension
-        return outputFile
-
-    @staticmethod
-    def _parseOptionsAndFiles(cmdline):
-        optionsWithParameter = {
+    def parseArgumentsAndInputFiles(cmdline):
+        argumentsWithParameter = {
             'Ob', 'Gs', 'Fa', 'Fd', 'Fm',
             'Fp', 'FR', 'doc', 'FA', 'Fe',
             'Fo', 'Fr', 'AI', 'FI', 'FU',
@@ -789,9 +779,9 @@ class CommandLineAnalyzer(object):
             'Yu', 'Zm', 'F', 'Fi',
         }
         # Sort by length to handle prefixes
-        optionsWithParameterSorted = sorted(optionsWithParameter, key=len, reverse=True)
-        options = defaultdict(list)
-        sourceFiles = []
+        argumentsWithParameterSorted = sorted(argumentsWithParameter, key=len, reverse=True)
+        arguments = defaultdict(list)
+        inputFiles = []
         i = 0
         while i < len(cmdline):
             arg = cmdline[i]
@@ -799,7 +789,7 @@ class CommandLineAnalyzer(object):
             # Plain arguments starting with / or -
             if arg.startswith('/') or arg.startswith('-'):
                 isParametrized = False
-                for opt in optionsWithParameterSorted:
+                for opt in argumentsWithParameterSorted:
                     if arg.startswith(opt, 1):
                         isParametrized = True
                         key = opt
@@ -808,11 +798,11 @@ class CommandLineAnalyzer(object):
                         else:
                             value = cmdline[i + 1]
                             i += 1
-                        options[key].append(value)
+                        arguments[key].append(value)
                         break
 
                 if not isParametrized:
-                    options[arg[1:]] = []
+                    arguments[arg[1:]] = []
 
             # Response file
             elif arg[0] == '@':
@@ -820,15 +810,15 @@ class CommandLineAnalyzer(object):
 
             # Source file arguments
             else:
-                sourceFiles.append(arg)
+                inputFiles.append(arg)
 
             i += 1
 
-        return options, sourceFiles
+        return dict(arguments), inputFiles
 
     @staticmethod
     def analyze(cmdline):
-        options, sourceFiles = CommandLineAnalyzer._parseOptionsAndFiles(cmdline)
+        options, sourceFiles = CommandLineAnalyzer.parseArgumentsAndInputFiles(cmdline)
         compl = False
         if 'Tp' in options:
             sourceFiles += options['Tp']
@@ -855,15 +845,24 @@ class CommandLineAnalyzer(object):
         if 'link' in options or 'c' not in options:
             raise CalledForLinkError()
 
-        if len(sourceFiles) > 1:
-            if compl:
-                raise MultipleSourceFilesComplexError()
-            return sourceFiles, None
+        if len(sourceFiles) > 1 and compl:
+            raise MultipleSourceFilesComplexError()
 
-        outputFile = CommandLineAnalyzer._outputFileFromArgument(options, 'Fo', sourceFiles[0], '.obj')
+        if len(sourceFiles) == 1:
+            if 'Fo' in options:
+                # Handle user input
+                objectFile = os.path.normpath(options['Fo'][0])
+                if os.path.isdir(objectFile):
+                    objectFile = os.path.join(objectFile, basenameWithoutExtension(sourceFiles[0]) + '.obj')
+            else:
+                # Generate from .c/.cpp filename
+                objectFile = basenameWithoutExtension(sourceFiles[0]) + '.obj'
+        else:
+            objectFile = None
 
-        printTraceStatement("Compiler output file: {}".format(outputFile))
-        return sourceFiles, outputFile
+        printTraceStatement("Compiler source files: {}".format(sourceFiles))
+        printTraceStatement("Compiler object file: {}".format(objectFile))
+        return sourceFiles, objectFile
 
 
 def invokeRealCompiler(compilerBinary, cmdLine, captureOutput=False):
