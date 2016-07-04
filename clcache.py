@@ -785,17 +785,17 @@ class CommandLineAnalyzer(object):
         inputFiles = []
         i = 0
         while i < len(cmdline):
-            arg = cmdline[i]
+            cmdLineArgument = cmdline[i]
 
             # Plain arguments starting with / or -
-            if arg.startswith('/') or arg.startswith('-'):
+            if cmdLineArgument.startswith('/') or cmdLineArgument.startswith('-'):
                 isParametrized = False
-                for opt in argumentsWithParameterSorted:
-                    if arg.startswith(opt, 1):
+                for arg in argumentsWithParameterSorted:
+                    if cmdLineArgument.startswith(arg, 1):
                         isParametrized = True
-                        key = opt
-                        if len(arg) > len(opt) + 1:
-                            value = arg[len(opt) + 1:]
+                        key = arg
+                        if len(cmdLineArgument) > len(arg) + 1:
+                            value = cmdLineArgument[len(arg) + 1:]
                         else:
                             value = cmdline[i + 1]
                             i += 1
@@ -803,15 +803,15 @@ class CommandLineAnalyzer(object):
                         break
 
                 if not isParametrized:
-                    arguments[arg[1:]] = []
+                    arguments[cmdLineArgument[1:]] = []
 
             # Response file
-            elif arg[0] == '@':
+            elif cmdLineArgument[0] == '@':
                 raise AssertionError("No response file arguments (starting with @) must be left here.")
 
             # Source file arguments
             else:
-                inputFiles.append(arg)
+                inputFiles.append(cmdLineArgument)
 
             i += 1
 
