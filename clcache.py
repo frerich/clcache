@@ -881,7 +881,7 @@ def invokeRealCompiler(compilerBinary, cmdLine, captureOutput=False):
     else:
         returnCode = subprocess.call(realCmdline)
 
-    printTraceStatement("Real compiler returned code %d" % returnCode)
+    printTraceStatement("Real compiler returned code {0:d}".format(returnCode))
     return returnCode, stdout, stderr
 
 
@@ -1242,7 +1242,7 @@ clcache.py v{}
         print("Failed to locate cl.exe on PATH (and CLCACHE_CL is not set), aborting.")
         return 1
 
-    printTraceStatement("Found real compiler binary at '%s'" % compiler)
+    printTraceStatement("Found real compiler binary at '{0!s}'".format(compiler))
 
     if "CLCACHE_DISABLE" in os.environ:
         return invokeRealCompiler(compiler, sys.argv[1:])[0]
@@ -1264,10 +1264,10 @@ def updateCacheStatistics(cache, method):
 
 
 def processCompileRequest(cache, compiler, args):
-    printTraceStatement("Parsing given commandline '%s'" % args[1:])
+    printTraceStatement("Parsing given commandline '{0!s}'".format(args[1:]))
 
     cmdLine = expandCommandLine(sys.argv[1:])
-    printTraceStatement("Expanded commandline '%s'" % cmdLine)
+    printTraceStatement("Expanded commandline '{0!s}'".format(cmdLine))
 
     try:
         sourceFiles, outputFile = CommandLineAnalyzer.analyze(cmdLine)
@@ -1341,7 +1341,7 @@ def processDirect(cache, outputFile, compiler, cmdLine, sourceFile):
 
     compilerResult = invokeRealCompiler(compiler, cmdLine, captureOutput=True)
     compilerResult = postProcessing(compilerResult)
-    printTraceStatement("Finished. Exit code %d" % compilerResult[0])
+    printTraceStatement("Finished. Exit code {0:d}".format(compilerResult[0]))
     return compilerResult
 
 
@@ -1369,7 +1369,7 @@ def processNoDirect(cache, outputFile, compiler, cmdLine):
             addObjectToCache(stats, cache, outputFile, compilerStdout, compilerStderr, cachekey)
         stats.save()
 
-    printTraceStatement("Finished. Exit code %d" % returnCode)
+    printTraceStatement("Finished. Exit code {0:d}".format(returnCode))
     return returnCode, compilerStdout, compilerStderr
 
 if __name__ == '__main__':
