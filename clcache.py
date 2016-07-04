@@ -402,6 +402,7 @@ class Configuration(object):
 
 class CacheStatistics(object):
     RESETTABLE_KEYS = {
+        "CallsWithInvalidArgument",
         "CallsWithoutSourceFile",
         "CallsWithMultipleSourceFiles",
         "CallsWithPch",
@@ -426,6 +427,12 @@ class CacheStatistics(object):
         for k in CacheStatistics.RESETTABLE_KEYS | CacheStatistics.NON_RESETTABLE_KEYS:
             if k not in self._stats:
                 self._stats[k] = 0
+
+    def numCallsWithInvalidArgument(self):
+        return self._stats["CallsWithInvalidArgument"]
+
+    def registerCallWithInvalidArgument(self):
+        self._stats["CallsWithInvalidArgument"] += 1
 
     def numCallsWithoutSourceFile(self):
         return self._stats["CallsWithoutSourceFile"]
@@ -1067,6 +1074,7 @@ clcache statistics:
     header changed             : {}
     source changed             : {}
   passed to real compiler
+    called w/ invalid argument : {}
     called for preprocessing   : {}
     called for linking         : {}
     called for external debug  : {}
@@ -1082,6 +1090,7 @@ clcache statistics:
         stats.numEvictedMisses(),
         stats.numHeaderChangedMisses(),
         stats.numSourceChangedMisses(),
+        stats.numCallsWithInvalidArgument(),
         stats.numCallsForPreprocessing(),
         stats.numCallsForLinking(),
         stats.numCallsForExternalDebugInfo(),
@@ -1344,6 +1353,9 @@ def processCompileRequest(cache, compiler, args):
                 return processNoDirect(cache, outputFile, compiler, cmdLine)
             else:
                 return processDirect(cache, outputFile, compiler, cmdLine, sourceFiles[0])
+    except InvalidArgumentError:
+        printTraceStatement("Cannot cache invocation as {}: invalid argument".format(cmdLine))
+        updateCacheStatistics(cache, CacheStatistics.registerCallWithInvalidArgument)
     except NoSourceFileError:
         printTraceStatement("Cannot cache invocation as {}: no source file found".format(cmdLine))
         updateCacheStatistics(cache, CacheStatistics.registerCallWithoutSourceFile)
