@@ -80,6 +80,38 @@ class TestHelperFunctions(unittest.TestCase):
         self.assertEqual(clcache.basenameWithoutExtension(r"C:\Project\README.asciidoc.tmp"), "README.asciidoc")
 
 
+class TestArgumentClasses(unittest.TestCase):
+    def testEquality(self):
+        self.assertEqual(clcache.ArgumentT1('Fo'), clcache.ArgumentT1('Fo'))
+        self.assertEqual(clcache.ArgumentT1('W'), clcache.ArgumentT1('W'))
+        self.assertEqual(clcache.ArgumentT2('W'), clcache.ArgumentT2('W'))
+        self.assertEqual(clcache.ArgumentT3('W'), clcache.ArgumentT3('W'))
+        self.assertEqual(clcache.ArgumentT4('W'), clcache.ArgumentT4('W'))
+
+        self.assertNotEqual(clcache.ArgumentT1('Fo'), clcache.ArgumentT1('W'))
+        self.assertNotEqual(clcache.ArgumentT1('Fo'), clcache.ArgumentT1('FO'))
+
+        self.assertNotEqual(clcache.ArgumentT1('W'), clcache.ArgumentT2('W'))
+        self.assertNotEqual(clcache.ArgumentT2('W'), clcache.ArgumentT3('W'))
+        self.assertNotEqual(clcache.ArgumentT3('W'), clcache.ArgumentT4('W'))
+        self.assertNotEqual(clcache.ArgumentT4('W'), clcache.ArgumentT1('W'))
+
+    def testHash(self):
+        self.assertEqual(hash(clcache.ArgumentT1('Fo')), hash(clcache.ArgumentT1('Fo')))
+        self.assertEqual(hash(clcache.ArgumentT1('W')), hash(clcache.ArgumentT1('W')))
+        self.assertEqual(hash(clcache.ArgumentT2('W')), hash(clcache.ArgumentT2('W')))
+        self.assertEqual(hash(clcache.ArgumentT3('W')), hash(clcache.ArgumentT3('W')))
+        self.assertEqual(hash(clcache.ArgumentT4('W')), hash(clcache.ArgumentT4('W')))
+
+        self.assertNotEqual(hash(clcache.ArgumentT1('Fo')), hash(clcache.ArgumentT1('W')))
+        self.assertNotEqual(hash(clcache.ArgumentT1('Fo')), hash(clcache.ArgumentT1('FO')))
+
+        self.assertNotEqual(hash(clcache.ArgumentT1('W')), hash(clcache.ArgumentT2('W')))
+        self.assertNotEqual(hash(clcache.ArgumentT2('W')), hash(clcache.ArgumentT3('W')))
+        self.assertNotEqual(hash(clcache.ArgumentT3('W')), hash(clcache.ArgumentT4('W')))
+        self.assertNotEqual(hash(clcache.ArgumentT4('W')), hash(clcache.ArgumentT1('W')))
+
+
 class TestSplitCommandsFile(unittest.TestCase):
     def _genericTest(self, commandLine, expected):
         self.assertEqual(clcache.splitCommandsFile(commandLine), expected)
