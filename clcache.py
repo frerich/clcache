@@ -552,6 +552,10 @@ class CalledForPreprocessingError(AnalysisError):
     pass
 
 
+class InvalidArgumentError(AnalysisError):
+    pass
+
+
 def getCompilerHash(compilerBinary):
     stat = os.stat(compilerBinary)
     data = '|'.join([
@@ -772,6 +776,9 @@ class Argument(object):
     def __len__(self):
         return len(self.name)
 
+    def __str__(self):
+        return "/" + self.name
+
     def __eq__(self, other):
         return type(self) == type(other) and self.name == other.name
 
@@ -835,11 +842,23 @@ class CommandLineAnalyzer(object):
                 for arg in argumentsWithParameterSorted:
                     if cmdLineArgument.startswith(arg.name, 1):
                         isParametrized = True
-                        if len(cmdLineArgument) > len(arg) + 1:
+                        if isinstance(arg, ArgumentT1):
                             value = cmdLineArgument[len(arg) + 1:]
-                        else:
+                            if not value:
+                                raise InvalidArgumentError("Parameter for {} must not be empty".format(arg))
+                        elif isinstance(arg, ArgumentT2):
+                            value = cmdLineArgument[len(arg) + 1:]
+                        elif isinstance(arg, ArgumentT3):
+                            value = cmdLineArgument[len(arg) + 1:]
+                            if not value:
+                                value = cmdline[i + 1]
+                                i += 1
+                        elif isinstance(arg, ArgumentT4):
                             value = cmdline[i + 1]
                             i += 1
+                        else:
+                            raise AssertionError("Unsupported argument type.")
+
                         arguments[arg.name].append(value)
                         break
 
