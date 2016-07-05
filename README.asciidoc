@@ -12,9 +12,9 @@ If the script is called in an unsupported way (multiple source files in
 one invocation, compiler called for linking), the script will simply
 relay the invocation to the real 'cl.exe' program.
 
-image::https://ci.appveyor.com/api/projects/status/sf98y2686r00q6ga/branch/master?svg=true[Build status, link="https://ci.appveyor.com/project/frerich/clcache"]
+image:https://ci.appveyor.com/api/projects/status/sf98y2686r00q6ga/branch/master?svg=true[Build status, link="https://ci.appveyor.com/project/frerich/clcache"]
+image:https://codecov.io/gh/frerich/clcache/branch/master/graph/badge.svg[Code coverage, link="https://codecov.io/gh/frerich/clcache"]
 image:https://www.quantifiedcode.com/api/v1/project/652606d7e4a94db0bf2da6f0e5778c94/badge.svg[Code issues, link="https://www.quantifiedcode.com/app/project/652606d7e4a94db0bf2da6f0e5778c94"]
-image:https://codecov.io/gh/frerich/clcache/branch/master/graph/badge.svg[]
 
 Installation
 ~~~~~~~~~~~~
