@@ -138,7 +138,7 @@ class ObjectCacheLock(object):
     def acquire(self):
         result = windll.kernel32.WaitForSingleObject(
             self._mutex, wintypes.INT(self._timeoutMs))
-        if result != 0 and result != self.WAIT_ABANDONED_CODE:
+        if result not in [0, self.WAIT_ABANDONED_CODE]:
             errorString = 'Error! WaitForSingleObject returns {result}, last error {error}'.format(
                 result=result,
                 error=windll.kernel32.GetLastError())
