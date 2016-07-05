@@ -793,17 +793,17 @@ class CommandLineAnalyzer(object):
                 for arg in argumentsWithParameterSorted:
                     if cmdLineArgument.startswith(arg, 1):
                         isParametrized = True
-                        key = arg
                         if len(cmdLineArgument) > len(arg) + 1:
                             value = cmdLineArgument[len(arg) + 1:]
                         else:
                             value = cmdline[i + 1]
                             i += 1
-                        arguments[key].append(value)
+                        arguments[arg].append(value)
                         break
 
                 if not isParametrized:
-                    arguments[cmdLineArgument[1:]] = []
+                    argumentName = cmdLineArgument[1:] # name not followed by parameter in this case
+                    arguments[argumentName] = []
 
             # Response file
             elif cmdLineArgument[0] == '@':
