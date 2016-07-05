@@ -36,6 +36,12 @@ install:
   - pip install pylint
   - pylint --version
 
+  # Install coverage plugin for pytest
+  - pip install pytest-cov
+
+  # Install tool for uploading coverage data to codecov.io
+  - pip install codecov
+
 build_script:
   - python clcache.py --help
   - python clcache.py -s
@@ -45,22 +51,26 @@ build_script:
 
 test_script:
   # Run test files via py.test and generate JUnit XML. Then push test results
-  # to appveyor.
+  # to appveyor. Coverage information is stored in a .coverage file.
   - ps: |
-      & py.test --junitxml .\unittests.xml unittests.py
+      & py.test --junitxml .\unittests.xml unittests.py --cov=clcache
       $testsExitCode = $lastexitcode
 
       $wc = New-Object 'System.Net.WebClient'
       $wc.UploadFile("https://ci.appveyor.com/api/testresults/junit/$($env:APPVEYOR_JOB_ID)", (Resolve-Path .\unittests.xml))
 
+      & codecov --no-color -X gcov -F unittests -e PYTHON_INSTALL
+
       if ($testsExitCode -ne 0) {exit $testsExitCode}
 
   - ps: |
-      & py.test --junitxml .\integrationtests.xml integrationtests.py
+      & py.test --junitxml .\integrationtests.xml integrationtests.py --cov=clcache
       $testsExitCode = $lastexitcode
 
       $wc = New-Object 'System.Net.WebClient'
       $wc.UploadFile("https://ci.appveyor.com/api/testresults/junit/$($env:APPVEYOR_JOB_ID)", (Resolve-Path .\integrationtests.xml))
+
+      & codecov --no-color -X gcov -F integration -e PYTHON_INSTALL
 
       if ($testsExitCode -ne 0) {exit $testsExitCode}
 
