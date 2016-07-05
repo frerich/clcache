@@ -65,13 +65,7 @@ def cd(targetDirectory):
         os.chdir(oldDirectory)
 
 
-class BaseTest(unittest.TestCase):
-    def __init__(self, *args, **kwargs):
-        self.longMessage = True
-        super(BaseTest, self).__init__(*args, **kwargs)
-
-
-class TestHelperFunctions(BaseTest):
+class TestHelperFunctions(unittest.TestCase):
     def testBasenameWithoutExtension(self):
         self.assertEqual(clcache.basenameWithoutExtension(r"README.asciidoc"), "README")
         self.assertEqual(clcache.basenameWithoutExtension(r"/home/user/README.asciidoc"), "README")
@@ -86,7 +80,7 @@ class TestHelperFunctions(BaseTest):
         self.assertEqual(clcache.basenameWithoutExtension(r"C:\Project\README.asciidoc.tmp"), "README.asciidoc")
 
 
-class TestSplitCommandsFile(BaseTest):
+class TestSplitCommandsFile(unittest.TestCase):
     def _genericTest(self, commandLine, expected):
         self.assertEqual(clcache.splitCommandsFile(commandLine), expected)
 
@@ -159,7 +153,7 @@ class TestSplitCommandsFile(BaseTest):
         self._genericTest(r'\foo.cpp /c', [r'\foo.cpp', r'/c'])
 
 
-class TestAnalyzeCommandLine(BaseTest):
+class TestAnalyzeCommandLine(unittest.TestCase):
     def _testFailure(self, cmdLine, expectedExceptionClass):
         self.assertRaises(expectedExceptionClass, lambda: CommandLineAnalyzer.analyze(cmdLine))
 
@@ -317,7 +311,7 @@ class TestAnalyzeCommandLine(BaseTest):
                              ['main.cpp'])
 
 
-class TestMultipleSourceFiles(BaseTest):
+class TestMultipleSourceFiles(unittest.TestCase):
     CPU_CORES = multiprocessing.cpu_count()
 
     def testCpuCuresPlausibility(self):
@@ -361,7 +355,7 @@ class TestMultipleSourceFiles(BaseTest):
         self.assertEqual(actual, self.CPU_CORES)
 
 
-class TestParseIncludes(BaseTest):
+class TestParseIncludes(unittest.TestCase):
     def _readSampleFileDefault(self, lang=None):
         if lang == "de":
             filePath = os.path.join(ASSETS_DIR, 'parse-includes', 'compiler_output_lang_de.txt')
@@ -441,4 +435,5 @@ class TestParseIncludes(BaseTest):
 
 
 if __name__ == '__main__':
+    unittest.TestCase.longMessage = True
     unittest.main()
