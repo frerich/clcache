@@ -1334,7 +1334,8 @@ def processDirect(cache, outputFile, compiler, cmdLine, sourceFile):
             origCmdLine = cmdLine
             stripIncludes = False
             if '/showIncludes' not in cmdLine:
-                cmdLine = ['/showIncludes'] + cmdLine
+                cmdLine = ['/showIncludes']
+                cmdLine.extend(origCmdLine)
                 stripIncludes = True
             postProcessing = lambda compilerResult: postprocessNoManifestMiss(
                 cache, outputFile, manifestHash, baseDir, origCmdLine, sourceFile, compilerResult, stripIncludes)
