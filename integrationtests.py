@@ -63,13 +63,7 @@ def cd(targetDirectory):
         os.chdir(oldDirectory)
 
 
-class BaseTest(unittest.TestCase):
-    def __init__(self, *args, **kwargs):
-        self.longMessage = True
-        super(BaseTest, self).__init__(*args, **kwargs)
-
-
-class TestCommandLineArguments(BaseTest):
+class TestCommandLineArguments(unittest.TestCase):
     @unittest.skip("Do not run this test by default because it change user's cache settings")
     def testValidMaxSize(self):
         validValues = ["1", "  10", "42  ", "22222222"]
@@ -84,7 +78,7 @@ class TestCommandLineArguments(BaseTest):
             self.assertNotEqual(subprocess.call(cmd), 0, "Command must fail for max size: '" + value + "'")
 
 
-class TestCompileRuns(BaseTest):
+class TestCompileRuns(unittest.TestCase):
     def testBasicCompileCc(self):
         cmd = [PYTHON_BINARY, CLCACHE_SCRIPT, "/nologo", "/c", os.path.join(ASSETS_DIR, "fibonacci.c")]
         subprocess.check_call(cmd)
@@ -152,7 +146,7 @@ class TestCompileRuns(BaseTest):
         subprocess.check_call(cmd) # Compile again
 
 
-class TestCompilerEncoding(BaseTest):
+class TestCompilerEncoding(unittest.TestCase):
     def testNonAsciiMessage(self):
         with cd(os.path.join(ASSETS_DIR, "compiler-encoding")):
             for filename in ['non-ascii-message-ansi.c', 'non-ascii-message-utf16.c']:
@@ -160,7 +154,7 @@ class TestCompilerEncoding(BaseTest):
                 subprocess.check_call(cmd)
 
 
-class TestHits(BaseTest):
+class TestHits(unittest.TestCase):
     def testHitsSimple(self):
         with cd(os.path.join(ASSETS_DIR, "hits-and-misses")):
             cmd = [PYTHON_BINARY, CLCACHE_SCRIPT, "/nologo", "/EHsc", "/c", 'hit.cpp']
@@ -173,7 +167,7 @@ class TestHits(BaseTest):
             self.assertEqual(newHits, oldHits + 1)
 
 
-class TestPrecompiledHeaders(BaseTest):
+class TestPrecompiledHeaders(unittest.TestCase):
     def testSampleproject(self):
         with cd(os.path.join(ASSETS_DIR, "precompiled-headers")):
             cpp = PYTHON_BINARY + " " + CLCACHE_SCRIPT
@@ -194,7 +188,7 @@ class TestPrecompiledHeaders(BaseTest):
             subprocess.check_call(cmd, env=testEnvironment)
 
 
-class TestHeaderChange(BaseTest):
+class TestHeaderChange(unittest.TestCase):
     def _clean(self):
         if os.path.isfile("main.obj"):
             os.remove("main.obj")
@@ -255,7 +249,7 @@ class TestHeaderChange(BaseTest):
             self.assertEqual(output, "2")
 
 
-class TestRunParallel(BaseTest):
+class TestRunParallel(unittest.TestCase):
     def _zeroStats(self):
         subprocess.check_call([PYTHON_BINARY, CLCACHE_SCRIPT, "-z"])
 
@@ -294,7 +288,7 @@ class TestRunParallel(BaseTest):
             self.assertEqual(hits + misses, 20)
 
 
-class TestClearing(BaseTest):
+class TestClearing(unittest.TestCase):
     def _clearCache(self):
         subprocess.check_call([PYTHON_BINARY, CLCACHE_SCRIPT, "-C"])
 
@@ -344,7 +338,7 @@ class TestClearing(BaseTest):
         self.assertEqual(stats.numCacheMisses(), oldStats.numCacheMisses())
 
 
-class TestPreprocessorCalls(BaseTest):
+class TestPreprocessorCalls(unittest.TestCase):
     def testHitsSimple(self):
         invocations = [
             ["/nologo", "/E"],
@@ -364,4 +358,5 @@ class TestPreprocessorCalls(BaseTest):
 
 
 if __name__ == '__main__':
+    unittest.TestCase.longMessage = True
     unittest.main()

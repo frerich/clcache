@@ -138,7 +138,7 @@ class ObjectCacheLock(object):
     def acquire(self):
         result = windll.kernel32.WaitForSingleObject(
             self._mutex, wintypes.INT(self._timeoutMs))
-        if result != 0 and result != self.WAIT_ABANDONED_CODE:
+        if result not in [0, self.WAIT_ABANDONED_CODE]:
             errorString = 'Error! WaitForSingleObject returns {result}, last error {error}'.format(
                 result=result,
                 error=windll.kernel32.GetLastError())
@@ -1334,7 +1334,7 @@ def processDirect(cache, outputFile, compiler, cmdLine, sourceFile):
             origCmdLine = cmdLine
             stripIncludes = False
             if '/showIncludes' not in cmdLine:
-                cmdLine = ['/showIncludes'] + cmdLine
+                cmdLine = ['/showIncludes'] + origCmdLine
                 stripIncludes = True
             postProcessing = lambda compilerResult: postprocessNoManifestMiss(
                 cache, outputFile, manifestHash, baseDir, origCmdLine, sourceFile, compilerResult, stripIncludes)
