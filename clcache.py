@@ -810,7 +810,7 @@ class ArgumentT4(Argument):
 class CommandLineAnalyzer(object):
 
     @staticmethod
-    def parseArgumentsAndInputFiles(cmdline):
+    def _getParameterizedArgumentType(cmdLineArgument):
         argumentsWithParameter = {
             # /NAMEparameter
             ArgumentT1('Ob'), ArgumentT1('Yl'), ArgumentT1('Zm'),
@@ -830,6 +830,13 @@ class CommandLineAnalyzer(object):
         }
         # Sort by length to handle prefixes
         argumentsWithParameterSorted = sorted(argumentsWithParameter, key=len, reverse=True)
+        for arg in argumentsWithParameterSorted:
+            if cmdLineArgument.startswith(arg.name, 1):
+                return arg
+        return None
+
+    @staticmethod
+    def parseArgumentsAndInputFiles(cmdline):
         arguments = defaultdict(list)
         inputFiles = []
         i = 0
@@ -838,31 +845,27 @@ class CommandLineAnalyzer(object):
 
             # Plain arguments starting with / or -
             if cmdLineArgument.startswith('/') or cmdLineArgument.startswith('-'):
-                isParametrized = False
-                for arg in argumentsWithParameterSorted:
-                    if cmdLineArgument.startswith(arg.name, 1):
-                        isParametrized = True
-                        if isinstance(arg, ArgumentT1):
-                            value = cmdLineArgument[len(arg) + 1:]
-                            if not value:
-                                raise InvalidArgumentError("Parameter for {} must not be empty".format(arg))
-                        elif isinstance(arg, ArgumentT2):
-                            value = cmdLineArgument[len(arg) + 1:]
-                        elif isinstance(arg, ArgumentT3):
-                            value = cmdLineArgument[len(arg) + 1:]
-                            if not value:
-                                value = cmdline[i + 1]
-                                i += 1
-                        elif isinstance(arg, ArgumentT4):
+                arg = CommandLineAnalyzer._getParameterizedArgumentType(cmdLineArgument)
+                if arg is not None:
+                    if isinstance(arg, ArgumentT1):
+                        value = cmdLineArgument[len(arg) + 1:]
+                        if not value:
+                            raise InvalidArgumentError("Parameter for {} must not be empty".format(arg))
+                    elif isinstance(arg, ArgumentT2):
+                        value = cmdLineArgument[len(arg) + 1:]
+                    elif isinstance(arg, ArgumentT3):
+                        value = cmdLineArgument[len(arg) + 1:]
+                        if not value:
                             value = cmdline[i + 1]
                             i += 1
-                        else:
-                            raise AssertionError("Unsupported argument type.")
+                    elif isinstance(arg, ArgumentT4):
+                        value = cmdline[i + 1]
+                        i += 1
+                    else:
+                        raise AssertionError("Unsupported argument type.")
 
-                        arguments[arg.name].append(value)
-                        break
-
-                if not isParametrized:
+                    arguments[arg.name].append(value)
+                else:
                     argumentName = cmdLineArgument[1:] # name not followed by parameter in this case
                     arguments[argumentName] = []
 
