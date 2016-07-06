@@ -867,7 +867,7 @@ class CommandLineAnalyzer(object):
                     arguments[arg.name].append(value)
                 else:
                     argumentName = cmdLineArgument[1:] # name not followed by parameter in this case
-                    arguments[argumentName] = []
+                    arguments[argumentName].append('')
 
             # Response file
             elif cmdLineArgument[0] == '@':
