@@ -921,7 +921,7 @@ class CommandLineAnalyzer(object):
             raise MultipleSourceFilesComplexError()
 
         if len(inputFiles) == 1:
-            if 'Fo' in options:
+            if 'Fo' in options and options['Fo'][0]:
                 # Handle user input
                 objectFile = os.path.normpath(options['Fo'][0])
                 if os.path.isdir(objectFile):
