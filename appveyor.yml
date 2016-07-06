@@ -64,7 +64,7 @@ test_script:
       if ($testsExitCode -ne 0) {exit $testsExitCode}
 
   - ps: |
-      & py.test --junitxml .\integrationtests.xml integrationtests.py --cov=clcache
+      & py.test --junitxml .\integrationtests.xml integrationtests.py --cov=clcache --cov-append
       $testsExitCode = $lastexitcode
 
       $wc = New-Object 'System.Net.WebClient'
