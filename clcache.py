@@ -819,16 +819,16 @@ class CommandLineAnalyzer(object):
 
     @staticmethod
     def analyze(cmdline):
-        options, sourceFiles = CommandLineAnalyzer.parseArgumentsAndInputFiles(cmdline)
+        options, inputFiles = CommandLineAnalyzer.parseArgumentsAndInputFiles(cmdline)
         compl = False
         if 'Tp' in options:
-            sourceFiles += options['Tp']
+            inputFiles += options['Tp']
             compl = True
         if 'Tc' in options:
-            sourceFiles += options['Tc']
+            inputFiles += options['Tc']
             compl = True
 
-        if len(sourceFiles) == 0:
+        if len(inputFiles) == 0:
             raise NoSourceFileError()
 
         for opt in ['E', 'EP', 'P']:
@@ -846,24 +846,24 @@ class CommandLineAnalyzer(object):
         if 'link' in options or 'c' not in options:
             raise CalledForLinkError()
 
-        if len(sourceFiles) > 1 and compl:
+        if len(inputFiles) > 1 and compl:
             raise MultipleSourceFilesComplexError()
 
-        if len(sourceFiles) == 1:
+        if len(inputFiles) == 1:
             if 'Fo' in options:
                 # Handle user input
                 objectFile = os.path.normpath(options['Fo'][0])
                 if os.path.isdir(objectFile):
-                    objectFile = os.path.join(objectFile, basenameWithoutExtension(sourceFiles[0]) + '.obj')
+                    objectFile = os.path.join(objectFile, basenameWithoutExtension(inputFiles[0]) + '.obj')
             else:
                 # Generate from .c/.cpp filename
-                objectFile = basenameWithoutExtension(sourceFiles[0]) + '.obj'
+                objectFile = basenameWithoutExtension(inputFiles[0]) + '.obj'
         else:
             objectFile = None
 
-        printTraceStatement("Compiler source files: {}".format(sourceFiles))
+        printTraceStatement("Compiler source files: {}".format(inputFiles))
         printTraceStatement("Compiler object file: {}".format(objectFile))
-        return sourceFiles, objectFile
+        return inputFiles, objectFile
 
 
 def invokeRealCompiler(compilerBinary, cmdLine, captureOutput=False):
