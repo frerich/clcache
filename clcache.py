@@ -401,20 +401,29 @@ class Configuration(object):
 
 
 class CacheStatistics(object):
+    RESETTABLE_KEYS = {
+        "CallsWithoutSourceFile",
+        "CallsWithMultipleSourceFiles",
+        "CallsWithPch",
+        "CallsForLinking",
+        "CallsForExternalDebugInfo",
+        "CallsForPreprocessing",
+        "CacheHits",
+        "CacheMisses",
+        "EvictedMisses",
+        "HeaderChangedMisses",
+        "SourceChangedMisses",
+    }
+    NON_RESETTABLE_KEYS = {
+        "CacheEntries",
+        "CacheSize",
+    }
+
     def __init__(self, objectCache):
         self.objectCache = objectCache
         self._stats = PersistentJSONDict(os.path.join(objectCache.cacheDirectory(),
                                                       "stats.txt"))
-        for k in ["CallsWithoutSourceFile",
-                  "CallsWithMultipleSourceFiles",
-                  "CallsWithPch",
-                  "CallsForLinking",
-                  "CallsForExternalDebugInfo",
-                  "CallsForPreprocessing",
-                  "CacheEntries", "CacheSize",
-                  "CacheHits", "CacheMisses",
-                  "EvictedMisses", "HeaderChangedMisses",
-                  "SourceChangedMisses"]:
+        for k in CacheStatistics.RESETTABLE_KEYS | CacheStatistics.NON_RESETTABLE_KEYS:
             if k not in self._stats:
                 self._stats[k] = 0
 
@@ -508,15 +517,7 @@ class CacheStatistics(object):
         self._stats["CallsForPreprocessing"] += 1
 
     def resetCounters(self):
-        for k in ["CallsWithoutSourceFile",
-                  "CallsWithMultipleSourceFiles",
-                  "CallsWithPch",
-                  "CallsForLinking",
-                  "CallsForExternalDebugInfo",
-                  "CallsForPreprocessing",
-                  "CacheHits", "CacheMisses",
-                  "EvictedMisses", "HeaderChangedMisses",
-                  "SourceChangedMisses"]:
+        for k in CacheStatistics.RESETTABLE_KEYS:
             self._stats[k] = 0
 
     def save(self):
@@ -784,33 +785,33 @@ class CommandLineAnalyzer(object):
         inputFiles = []
         i = 0
         while i < len(cmdline):
-            arg = cmdline[i]
+            cmdLineArgument = cmdline[i]
 
             # Plain arguments starting with / or -
-            if arg.startswith('/') or arg.startswith('-'):
+            if cmdLineArgument.startswith('/') or cmdLineArgument.startswith('-'):
                 isParametrized = False
-                for opt in argumentsWithParameterSorted:
-                    if arg.startswith(opt, 1):
+                for arg in argumentsWithParameterSorted:
+                    if cmdLineArgument.startswith(arg, 1):
                         isParametrized = True
-                        key = opt
-                        if len(arg) > len(opt) + 1:
-                            value = arg[len(opt) + 1:]
+                        if len(cmdLineArgument) > len(arg) + 1:
+                            value = cmdLineArgument[len(arg) + 1:]
                         else:
                             value = cmdline[i + 1]
                             i += 1
-                        arguments[key].append(value)
+                        arguments[arg].append(value)
                         break
 
                 if not isParametrized:
-                    arguments[arg[1:]] = []
+                    argumentName = cmdLineArgument[1:] # name not followed by parameter in this case
+                    arguments[argumentName] = []
 
             # Response file
-            elif arg[0] == '@':
+            elif cmdLineArgument[0] == '@':
                 raise AssertionError("No response file arguments (starting with @) must be left here.")
 
             # Source file arguments
             else:
-                inputFiles.append(arg)
+                inputFiles.append(cmdLineArgument)
 
             i += 1
 
@@ -818,16 +819,16 @@ class CommandLineAnalyzer(object):
 
     @staticmethod
     def analyze(cmdline):
-        options, sourceFiles = CommandLineAnalyzer.parseArgumentsAndInputFiles(cmdline)
+        options, inputFiles = CommandLineAnalyzer.parseArgumentsAndInputFiles(cmdline)
         compl = False
         if 'Tp' in options:
-            sourceFiles += options['Tp']
+            inputFiles += options['Tp']
             compl = True
         if 'Tc' in options:
-            sourceFiles += options['Tc']
+            inputFiles += options['Tc']
             compl = True
 
-        if len(sourceFiles) == 0:
+        if len(inputFiles) == 0:
             raise NoSourceFileError()
 
         for opt in ['E', 'EP', 'P']:
@@ -845,24 +846,24 @@ class CommandLineAnalyzer(object):
         if 'link' in options or 'c' not in options:
             raise CalledForLinkError()
 
-        if len(sourceFiles) > 1 and compl:
+        if len(inputFiles) > 1 and compl:
             raise MultipleSourceFilesComplexError()
 
-        if len(sourceFiles) == 1:
+        if len(inputFiles) == 1:
             if 'Fo' in options:
                 # Handle user input
                 objectFile = os.path.normpath(options['Fo'][0])
                 if os.path.isdir(objectFile):
-                    objectFile = os.path.join(objectFile, basenameWithoutExtension(sourceFiles[0]) + '.obj')
+                    objectFile = os.path.join(objectFile, basenameWithoutExtension(inputFiles[0]) + '.obj')
             else:
                 # Generate from .c/.cpp filename
-                objectFile = basenameWithoutExtension(sourceFiles[0]) + '.obj'
+                objectFile = basenameWithoutExtension(inputFiles[0]) + '.obj'
         else:
             objectFile = None
 
-        printTraceStatement("Compiler source files: {}".format(sourceFiles))
+        printTraceStatement("Compiler source files: {}".format(inputFiles))
         printTraceStatement("Compiler object file: {}".format(objectFile))
-        return sourceFiles, objectFile
+        return inputFiles, objectFile
 
 
 def invokeRealCompiler(compilerBinary, cmdLine, captureOutput=False):
