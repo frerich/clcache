@@ -6,9 +6,8 @@ void print_fib(int n)
     int b = 1;
     while (a < n)
     {
-        printf("%d ", a);
-
         int old_a = a;
+        printf("%d ", a);
         a = b;
         b = old_a + b;
     }
