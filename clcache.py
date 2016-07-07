@@ -86,6 +86,14 @@ Manifest = namedtuple('Manifest', ['includeFiles', 'hashes'])
 
 
 def printBinary(rawData, stream):
+    # See http://stackoverflow.com/questions/2374427/python-2-x-write-binary-output-to-stdout
+    if sys.version_info[0] < 3:
+        # msvcrt and O_BINARY are only available on Windows, but we like to
+        # use pylint on Unix developer machines to speed-up development, thus
+        # we disable some lint error on a per-line base here.
+        import msvcrt # pylint: disable=import-error
+        msvcrt.setmode(stream.fileno(), os.O_BINARY) # pylint: disable=no-member
+
     with os.fdopen(stream.fileno(), 'wb') as fp:
         fp.write(rawData)
 
