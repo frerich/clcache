@@ -145,6 +145,29 @@ class TestCompileRuns(unittest.TestCase):
         subprocess.check_call(cmd) # Compile once
         subprocess.check_call(cmd) # Compile again
 
+    def testPipedOutput(self):
+        commands = [
+            # passed to real compiler
+            [PYTHON_BINARY, CLCACHE_SCRIPT, '/?'],
+            [PYTHON_BINARY, CLCACHE_SCRIPT, '/E', 'fibonacci.c'],
+            # Unique parameters ensure this was not cached yet (at least in CI)
+            [PYTHON_BINARY, CLCACHE_SCRIPT, '/wd4267', '/wo4018', '/c', 'fibonacci.c'],
+            # Cache hit
+            [PYTHON_BINARY, CLCACHE_SCRIPT, '/wd4267', '/wo4018', '/c', 'fibonacci.c'],
+        ]
+
+        with cd(ASSETS_DIR):
+            for cmd in commands:
+                try:
+                    output = subprocess.check_output(cmd).decode(clcache.CL_DEFAULT_CODEC)
+                except subprocess.CalledProcessError as e:
+                    self.fail('{}\nOutput:\n{}'.format(e, e.output))
+                self.assertTrue('\r\r\n' not in output,
+                                'Command:{}\nOutput has duplicated CR: {}'.format(cmd, output))
+                # Just to be sure we have newlines
+                self.assertTrue('\r\n' in output,
+                                'Command:{}\nOutput has no CRLF: {}'.format(cmd, output))
+
 
 class TestCompilerEncoding(unittest.TestCase):
     def testNonAsciiMessage(self):
