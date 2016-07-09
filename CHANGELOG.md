@@ -9,6 +9,12 @@ clcache changelog
  * Bugfix: Fixed printing cached compiler output when using Python 2.x.
  * Dropped support for caching preprocessor invocations. The number of such
    invocations is now printed in the statistics (`ccache -s`).
+ * Bugfix: In MSVS, arguments use the formats `/NAMEparameter` (no space, required value),
+   `/NAME[parameter]` (no space, optional value), `/NAME[ ]parameter` (optional space),
+   and `/NAME parameter` (required space). Before we always tried `/NAMEparameter`
+   and if there if no parameter, tried `/NAME parameter`. This strategy was too simple
+   and failed for like e.g. `/Fo`, which must not consume the following argument when
+   no parameter is set.
 
 ## clcache 3.1.1 (2016-06-25)
 

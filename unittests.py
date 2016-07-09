@@ -46,8 +46,11 @@ import unittest
 import clcache
 from clcache import CommandLineAnalyzer
 from clcache import (
+    AnalysisError,
     CalledForLinkError,
     CalledForPreprocessingError,
+    InvalidArgumentError,
+    MultipleSourceFilesComplexError,
     NoSourceFileError,
 )
 
@@ -78,6 +81,38 @@ class TestHelperFunctions(unittest.TestCase):
         self.assertEqual(clcache.basenameWithoutExtension(r"README.asciidoc.tmp"), "README.asciidoc")
         self.assertEqual(clcache.basenameWithoutExtension(r"/home/user/README.asciidoc.tmp"), "README.asciidoc")
         self.assertEqual(clcache.basenameWithoutExtension(r"C:\Project\README.asciidoc.tmp"), "README.asciidoc")
+
+
+class TestArgumentClasses(unittest.TestCase):
+    def testEquality(self):
+        self.assertEqual(clcache.ArgumentT1('Fo'), clcache.ArgumentT1('Fo'))
+        self.assertEqual(clcache.ArgumentT1('W'), clcache.ArgumentT1('W'))
+        self.assertEqual(clcache.ArgumentT2('W'), clcache.ArgumentT2('W'))
+        self.assertEqual(clcache.ArgumentT3('W'), clcache.ArgumentT3('W'))
+        self.assertEqual(clcache.ArgumentT4('W'), clcache.ArgumentT4('W'))
+
+        self.assertNotEqual(clcache.ArgumentT1('Fo'), clcache.ArgumentT1('W'))
+        self.assertNotEqual(clcache.ArgumentT1('Fo'), clcache.ArgumentT1('FO'))
+
+        self.assertNotEqual(clcache.ArgumentT1('W'), clcache.ArgumentT2('W'))
+        self.assertNotEqual(clcache.ArgumentT2('W'), clcache.ArgumentT3('W'))
+        self.assertNotEqual(clcache.ArgumentT3('W'), clcache.ArgumentT4('W'))
+        self.assertNotEqual(clcache.ArgumentT4('W'), clcache.ArgumentT1('W'))
+
+    def testHash(self):
+        self.assertEqual(hash(clcache.ArgumentT1('Fo')), hash(clcache.ArgumentT1('Fo')))
+        self.assertEqual(hash(clcache.ArgumentT1('W')), hash(clcache.ArgumentT1('W')))
+        self.assertEqual(hash(clcache.ArgumentT2('W')), hash(clcache.ArgumentT2('W')))
+        self.assertEqual(hash(clcache.ArgumentT3('W')), hash(clcache.ArgumentT3('W')))
+        self.assertEqual(hash(clcache.ArgumentT4('W')), hash(clcache.ArgumentT4('W')))
+
+        self.assertNotEqual(hash(clcache.ArgumentT1('Fo')), hash(clcache.ArgumentT1('W')))
+        self.assertNotEqual(hash(clcache.ArgumentT1('Fo')), hash(clcache.ArgumentT1('FO')))
+
+        self.assertNotEqual(hash(clcache.ArgumentT1('W')), hash(clcache.ArgumentT2('W')))
+        self.assertNotEqual(hash(clcache.ArgumentT2('W')), hash(clcache.ArgumentT3('W')))
+        self.assertNotEqual(hash(clcache.ArgumentT3('W')), hash(clcache.ArgumentT4('W')))
+        self.assertNotEqual(hash(clcache.ArgumentT4('W')), hash(clcache.ArgumentT1('W')))
 
 
 class TestSplitCommandsFile(unittest.TestCase):
@@ -154,6 +189,17 @@ class TestSplitCommandsFile(unittest.TestCase):
 
 
 class TestAnalyzeCommandLine(unittest.TestCase):
+    def _testSourceFilesOk(self, cmdLine):
+        try:
+            CommandLineAnalyzer.analyze(cmdLine)
+        except AnalysisError as err:
+            if isinstance(err, NoSourceFileError):
+                self.fail("analyze() unexpectedly raised an NoSourceFileError")
+            else:
+                # We just want to know if we got a proper source file.
+                # Other AnalysisErrors are ignored.
+                pass
+
     def _testFailure(self, cmdLine, expectedExceptionClass):
         self.assertRaises(expectedExceptionClass, lambda: CommandLineAnalyzer.analyze(cmdLine))
 
@@ -185,8 +231,8 @@ class TestAnalyzeCommandLine(unittest.TestCase):
         self._testFull(["/c", "main.cpp"], ["main.cpp"], "main.obj")
 
     def testNoSource(self):
-        # No source file is the worst thing that can happen. In this case there
-        # is no chance we can help, so it has priority over other errors.
+        # No source file has priority over other errors, for consistency
+        # and because it's likely to be a misconfigured command line.
         self._testFailure(['/c', '/nologo'], NoSourceFileError)
         self._testFailure(['/c'], NoSourceFileError)
         self._testFailure([], NoSourceFileError)
@@ -194,6 +240,9 @@ class TestAnalyzeCommandLine(unittest.TestCase):
         self._testFailure(['/E'], NoSourceFileError)
         self._testFailure(['/P'], NoSourceFileError)
         self._testFailure(['/EP'], NoSourceFileError)
+        self._testFailure(['/Yc'], NoSourceFileError)
+        self._testFailure(['/Yu'], NoSourceFileError)
+        self._testFailure(['/link'], NoSourceFileError)
 
     def testOutputFileFromSourcefile(self):
         # For object file
@@ -293,22 +342,186 @@ class TestAnalyzeCommandLine(unittest.TestCase):
         self._testFailure(["main.cpp"], CalledForLinkError)
         self._testFailure(["/nologo", "main.cpp"], CalledForLinkError)
 
+    def testArgumentParameters(self):
+        # Type 1 (/NAMEparameter) - Arguments with required parameter
+        self._testFailure(["/c", "/Ob", "main.cpp"], InvalidArgumentError)
+        self._testFailure(["/c", "/Yl", "main.cpp"], InvalidArgumentError)
+        self._testFailure(["/c", "/Zm", "main.cpp"], InvalidArgumentError)
+        self._testSourceFilesOk(["/c", "/Ob999", "main.cpp"])
+        self._testSourceFilesOk(["/c", "/Yl999", "main.cpp"])
+        self._testSourceFilesOk(["/c", "/Zm999", "main.cpp"])
+
+        # Type 2 (/NAME[parameter]) - Optional argument parameters must not eat up source file
+        self._testSourceFilesOk(["/c", "/doc", "main.cpp"])
+        self._testSourceFilesOk(["/c", "/FA", "main.cpp"])
+        self._testSourceFilesOk(["/c", "/Fr", "main.cpp"])
+        self._testSourceFilesOk(["/c", "/FR", "main.cpp"])
+        self._testSourceFilesOk(["/c", "/Gs", "main.cpp"])
+        self._testSourceFilesOk(["/c", "/MP", "main.cpp"])
+        self._testSourceFilesOk(["/c", "/Wv", "main.cpp"])
+        self._testSourceFilesOk(["/c", "/Yc", "main.cpp"])
+        self._testSourceFilesOk(["/c", "/Yu", "main.cpp"])
+        self._testSourceFilesOk(["/c", "/Zp", "main.cpp"])
+
+        # Type 3 (/NAME[ ]parameter) - Required argument parameters with optional space eat up source file
+        self._testFailure(["/c", "/FI", "main.cpp"], NoSourceFileError)
+        self._testFailure(["/c", "/U", "main.cpp"], NoSourceFileError)
+        self._testFailure(["/c", "/I", "main.cpp"], NoSourceFileError)
+        self._testSourceFilesOk(["/c", "/FI9999", "main.cpp"])
+        self._testSourceFilesOk(["/c", "/U9999", "main.cpp"])
+        self._testSourceFilesOk(["/c", "/I9999", "main.cpp"])
+
+        # Type 4 (/NAME parameter) - Forced space
+        # Some documented, but non implemented
+
+        # Documented as type 1 (/NAMEparmeter) but work as type 2 (/NAME[parameter])
+        self._testSourceFilesOk(["/c", "/Fa", "main.cpp"])
+        self._testSourceFilesOk(["/c", "/Fi", "main.cpp"])
+        self._testSourceFilesOk(["/c", "/Fd", "main.cpp"])
+        self._testSourceFilesOk(["/c", "/Fe", "main.cpp"])
+        self._testSourceFilesOk(["/c", "/Fm", "main.cpp"])
+        self._testSourceFilesOk(["/c", "/Fo", "main.cpp"])
+        self._testSourceFilesOk(["/c", "/Fp", "main.cpp"])
+
+        # Documented as type 1 (/NAMEparmeter) but work as type 3 (/NAME[ ]parameter)
+        self._testFailure(["/c", "/AI", "main.cpp"], NoSourceFileError)
+        self._testFailure(["/c", "/D", "main.cpp"], NoSourceFileError)
+        self._testFailure(["/c", "/V", "main.cpp"], NoSourceFileError)
+        self._testFailure(["/c", "/w1", "main.cpp"], NoSourceFileError)
+        self._testFailure(["/c", "/w2", "main.cpp"], NoSourceFileError)
+        self._testFailure(["/c", "/w3", "main.cpp"], NoSourceFileError)
+        self._testFailure(["/c", "/w4", "main.cpp"], NoSourceFileError)
+        self._testFailure(["/c", "/wd", "main.cpp"], NoSourceFileError)
+        self._testFailure(["/c", "/we", "main.cpp"], NoSourceFileError)
+        self._testFailure(["/c", "/wo", "main.cpp"], NoSourceFileError)
+        self._testSourceFilesOk(["/c", "/AI999", "main.cpp"])
+        self._testSourceFilesOk(["/c", "/D999", "main.cpp"])
+        self._testSourceFilesOk(["/c", "/V999", "main.cpp"])
+        self._testSourceFilesOk(["/c", "/w1999", "main.cpp"])
+        self._testSourceFilesOk(["/c", "/w2999", "main.cpp"])
+        self._testSourceFilesOk(["/c", "/w3999", "main.cpp"])
+        self._testSourceFilesOk(["/c", "/w4999", "main.cpp"])
+        self._testSourceFilesOk(["/c", "/wd999", "main.cpp"])
+        self._testSourceFilesOk(["/c", "/we999", "main.cpp"])
+        self._testSourceFilesOk(["/c", "/wo999", "main.cpp"])
+        # Those work a bit differently
+        self._testSourceFilesOk(["/c", "/Tc", "main.cpp"])
+        self._testSourceFilesOk(["/c", "/Tp", "main.cpp"])
+        self._testFailure(["/c", "/Tc", "999", "main.cpp"], MultipleSourceFilesComplexError)
+        self._testFailure(["/c", "/Tp", "999", "main.cpp"], MultipleSourceFilesComplexError)
+        self._testFailure(["/c", "/Tc999", "main.cpp"], MultipleSourceFilesComplexError)
+        self._testFailure(["/c", "/Tp999", "main.cpp"], MultipleSourceFilesComplexError)
+
+        # Documented as type 4 (/NAME parameter) but work as type 3 (/NAME[ ]parameter)
+        self._testFailure(["/c", "/F", "main.cpp"], NoSourceFileError)
+        self._testFailure(["/c", "/FU", "main.cpp"], NoSourceFileError)
+        self._testSourceFilesOk(["/c", "/F999", "main.cpp"])
+        self._testSourceFilesOk(["/c", "/FU999", "main.cpp"])
+
     def testParseArgumentsAndInputFiles(self):
         self._testArgInfiles(['/c', 'main.cpp'],
-                             {'c': []},
+                             {'c': ['']},
                              ['main.cpp'])
         self._testArgInfiles(['/link', 'unit1.obj', 'unit2.obj'],
-                             {'link': []},
+                             {'link': ['']},
                              ['unit1.obj', 'unit2.obj'])
         self._testArgInfiles(['/Fooutfile.obj', 'main.cpp'],
                              {'Fo': ['outfile.obj']},
                              ['main.cpp'])
+        self._testArgInfiles(['/Fo', '/Fooutfile.obj', 'main.cpp'],
+                             {'Fo': ['', 'outfile.obj']},
+                             ['main.cpp'])
         self._testArgInfiles(['/c', '/I', 'somedir', 'main.cpp'],
-                             {'c': [], 'I': ['somedir']},
+                             {'c': [''], 'I': ['somedir']},
                              ['main.cpp'])
         self._testArgInfiles(['/c', '/I.', '/I', 'somedir', 'main.cpp'],
-                             {'c': [], 'I': ['.', 'somedir']},
+                             {'c': [''], 'I': ['.', 'somedir']},
                              ['main.cpp'])
+
+        # Type 1 (/NAMEparameter) - Arguments with required parameter
+        # get parameter=99
+        self._testArgInfiles(["/c", "/Ob99", "main.cpp"], {'c': [''], 'Ob': ['99']}, ['main.cpp'])
+        self._testArgInfiles(["/c", "/Yl99", "main.cpp"], {'c': [''], 'Yl': ['99']}, ['main.cpp'])
+        self._testArgInfiles(["/c", "/Zm99", "main.cpp"], {'c': [''], 'Zm': ['99']}, ['main.cpp'])
+
+        # # Type 2 (/NAME[parameter]) - Optional argument parameters
+        # get parameter=99
+        self._testArgInfiles(["/c", "/doc99", "main.cpp"], {'c': [''], 'doc': ['99']}, ['main.cpp'])
+        self._testArgInfiles(["/c", "/FA99", "main.cpp"], {'c': [''], 'FA': ['99']}, ['main.cpp'])
+        self._testArgInfiles(["/c", "/Fr99", "main.cpp"], {'c': [''], 'Fr': ['99']}, ['main.cpp'])
+        self._testArgInfiles(["/c", "/FR99", "main.cpp"], {'c': [''], 'FR': ['99']}, ['main.cpp'])
+        self._testArgInfiles(["/c", "/Gs99", "main.cpp"], {'c': [''], 'Gs': ['99']}, ['main.cpp'])
+        self._testArgInfiles(["/c", "/MP99", "main.cpp"], {'c': [''], 'MP': ['99']}, ['main.cpp'])
+        self._testArgInfiles(["/c", "/Wv99", "main.cpp"], {'c': [''], 'Wv': ['99']}, ['main.cpp'])
+        self._testArgInfiles(["/c", "/Yc99", "main.cpp"], {'c': [''], 'Yc': ['99']}, ['main.cpp'])
+        self._testArgInfiles(["/c", "/Yu99", "main.cpp"], {'c': [''], 'Yu': ['99']}, ['main.cpp'])
+        self._testArgInfiles(["/c", "/Zp99", "main.cpp"], {'c': [''], 'Zp': ['99']}, ['main.cpp'])
+        self._testArgInfiles(["/c", "/Fa99", "main.cpp"], {'c': [''], 'Fa': ['99']}, ['main.cpp'])
+        self._testArgInfiles(["/c", "/Fd99", "main.cpp"], {'c': [''], 'Fd': ['99']}, ['main.cpp'])
+        self._testArgInfiles(["/c", "/Fe99", "main.cpp"], {'c': [''], 'Fe': ['99']}, ['main.cpp'])
+        self._testArgInfiles(["/c", "/Fi99", "main.cpp"], {'c': [''], 'Fi': ['99']}, ['main.cpp'])
+        self._testArgInfiles(["/c", "/Fm99", "main.cpp"], {'c': [''], 'Fm': ['99']}, ['main.cpp'])
+        self._testArgInfiles(["/c", "/Fo99", "main.cpp"], {'c': [''], 'Fo': ['99']}, ['main.cpp'])
+        self._testArgInfiles(["/c", "/Fp99", "main.cpp"], {'c': [''], 'Fp': ['99']}, ['main.cpp'])
+        # get no parameter
+        self._testArgInfiles(["/c", "/doc", "main.cpp"], {'c': [''], 'doc': ['']}, ['main.cpp'])
+        self._testArgInfiles(["/c", "/FA", "main.cpp"], {'c': [''], 'FA': ['']}, ['main.cpp'])
+        self._testArgInfiles(["/c", "/Fr", "main.cpp"], {'c': [''], 'Fr': ['']}, ['main.cpp'])
+        self._testArgInfiles(["/c", "/FR", "main.cpp"], {'c': [''], 'FR': ['']}, ['main.cpp'])
+        self._testArgInfiles(["/c", "/Gs", "main.cpp"], {'c': [''], 'Gs': ['']}, ['main.cpp'])
+        self._testArgInfiles(["/c", "/MP", "main.cpp"], {'c': [''], 'MP': ['']}, ['main.cpp'])
+        self._testArgInfiles(["/c", "/Wv", "main.cpp"], {'c': [''], 'Wv': ['']}, ['main.cpp'])
+        self._testArgInfiles(["/c", "/Yc", "main.cpp"], {'c': [''], 'Yc': ['']}, ['main.cpp'])
+        self._testArgInfiles(["/c", "/Yu", "main.cpp"], {'c': [''], 'Yu': ['']}, ['main.cpp'])
+        self._testArgInfiles(["/c", "/Zp", "main.cpp"], {'c': [''], 'Zp': ['']}, ['main.cpp'])
+        self._testArgInfiles(["/c", "/Fa", "main.cpp"], {'c': [''], 'Fa': ['']}, ['main.cpp'])
+        self._testArgInfiles(["/c", "/Fd", "main.cpp"], {'c': [''], 'Fd': ['']}, ['main.cpp'])
+        self._testArgInfiles(["/c", "/Fe", "main.cpp"], {'c': [''], 'Fe': ['']}, ['main.cpp'])
+        self._testArgInfiles(["/c", "/Fi", "main.cpp"], {'c': [''], 'Fi': ['']}, ['main.cpp'])
+        self._testArgInfiles(["/c", "/Fm", "main.cpp"], {'c': [''], 'Fm': ['']}, ['main.cpp'])
+        self._testArgInfiles(["/c", "/Fo", "main.cpp"], {'c': [''], 'Fo': ['']}, ['main.cpp'])
+        self._testArgInfiles(["/c", "/Fp", "main.cpp"], {'c': [''], 'Fp': ['']}, ['main.cpp'])
+
+        # Type 3 (/NAME[ ]parameter) - Required argument parameters with optional space
+        # get space
+        self._testArgInfiles(["/c", "/FI", "99", "main.cpp"], {'c': [''], 'FI': ['99']}, ['main.cpp'])
+        self._testArgInfiles(["/c", "/U", "99", "main.cpp"], {'c': [''], 'U': ['99']}, ['main.cpp'])
+        self._testArgInfiles(["/c", "/I", "99", "main.cpp"], {'c': [''], 'I': ['99']}, ['main.cpp'])
+        self._testArgInfiles(["/c", "/F", "99", "main.cpp"], {'c': [''], 'F': ['99']}, ['main.cpp'])
+        self._testArgInfiles(["/c", "/FU", "99", "main.cpp"], {'c': [''], 'FU': ['99']}, ['main.cpp'])
+        self._testArgInfiles(["/c", "/w1", "99", "main.cpp"], {'c': [''], 'w1': ['99']}, ['main.cpp'])
+        self._testArgInfiles(["/c", "/w2", "99", "main.cpp"], {'c': [''], 'w2': ['99']}, ['main.cpp'])
+        self._testArgInfiles(["/c", "/w3", "99", "main.cpp"], {'c': [''], 'w3': ['99']}, ['main.cpp'])
+        self._testArgInfiles(["/c", "/w4", "99", "main.cpp"], {'c': [''], 'w4': ['99']}, ['main.cpp'])
+        self._testArgInfiles(["/c", "/wd", "99", "main.cpp"], {'c': [''], 'wd': ['99']}, ['main.cpp'])
+        self._testArgInfiles(["/c", "/we", "99", "main.cpp"], {'c': [''], 'we': ['99']}, ['main.cpp'])
+        self._testArgInfiles(["/c", "/wo", "99", "main.cpp"], {'c': [''], 'wo': ['99']}, ['main.cpp'])
+        self._testArgInfiles(["/c", "/AI", "99", "main.cpp"], {'c': [''], 'AI': ['99']}, ['main.cpp'])
+        self._testArgInfiles(["/c", "/D", "99", "main.cpp"], {'c': [''], 'D': ['99']}, ['main.cpp'])
+        self._testArgInfiles(["/c", "/V", "99", "main.cpp"], {'c': [''], 'V': ['99']}, ['main.cpp'])
+        self._testArgInfiles(["/c", "/Tc", "99", "main.cpp"], {'c': [''], 'Tc': ['99']}, ['main.cpp'])
+        self._testArgInfiles(["/c", "/Tp", "99", "main.cpp"], {'c': [''], 'Tp': ['99']}, ['main.cpp'])
+        # don't get space
+        self._testArgInfiles(["/c", "/FI99", "main.cpp"], {'c': [''], 'FI': ['99']}, ['main.cpp'])
+        self._testArgInfiles(["/c", "/U99", "main.cpp"], {'c': [''], 'U': ['99']}, ['main.cpp'])
+        self._testArgInfiles(["/c", "/I99", "main.cpp"], {'c': [''], 'I': ['99']}, ['main.cpp'])
+        self._testArgInfiles(["/c", "/F99", "main.cpp"], {'c': [''], 'F': ['99']}, ['main.cpp'])
+        self._testArgInfiles(["/c", "/FU99", "main.cpp"], {'c': [''], 'FU': ['99']}, ['main.cpp'])
+        self._testArgInfiles(["/c", "/w199", "main.cpp"], {'c': [''], 'w1': ['99']}, ['main.cpp'])
+        self._testArgInfiles(["/c", "/w299", "main.cpp"], {'c': [''], 'w2': ['99']}, ['main.cpp'])
+        self._testArgInfiles(["/c", "/w399", "main.cpp"], {'c': [''], 'w3': ['99']}, ['main.cpp'])
+        self._testArgInfiles(["/c", "/w499", "main.cpp"], {'c': [''], 'w4': ['99']}, ['main.cpp'])
+        self._testArgInfiles(["/c", "/wd99", "main.cpp"], {'c': [''], 'wd': ['99']}, ['main.cpp'])
+        self._testArgInfiles(["/c", "/we99", "main.cpp"], {'c': [''], 'we': ['99']}, ['main.cpp'])
+        self._testArgInfiles(["/c", "/wo99", "main.cpp"], {'c': [''], 'wo': ['99']}, ['main.cpp'])
+        self._testArgInfiles(["/c", "/AI99", "main.cpp"], {'c': [''], 'AI': ['99']}, ['main.cpp'])
+        self._testArgInfiles(["/c", "/D99", "main.cpp"], {'c': [''], 'D': ['99']}, ['main.cpp'])
+        self._testArgInfiles(["/c", "/V99", "main.cpp"], {'c': [''], 'V': ['99']}, ['main.cpp'])
+        self._testArgInfiles(["/c", "/Tc99", "main.cpp"], {'c': [''], 'Tc': ['99']}, ['main.cpp'])
+        self._testArgInfiles(["/c", "/Tp99", "main.cpp"], {'c': [''], 'Tp': ['99']}, ['main.cpp'])
+
+        # Type 4 (/NAME parameter) - Forced space
+        # Some documented, but non implemented
 
 
 class TestMultipleSourceFiles(unittest.TestCase):

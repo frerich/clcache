@@ -410,6 +410,7 @@ class Configuration(object):
 
 class CacheStatistics(object):
     RESETTABLE_KEYS = {
+        "CallsWithInvalidArgument",
         "CallsWithoutSourceFile",
         "CallsWithMultipleSourceFiles",
         "CallsWithPch",
@@ -434,6 +435,12 @@ class CacheStatistics(object):
         for k in CacheStatistics.RESETTABLE_KEYS | CacheStatistics.NON_RESETTABLE_KEYS:
             if k not in self._stats:
                 self._stats[k] = 0
+
+    def numCallsWithInvalidArgument(self):
+        return self._stats["CallsWithInvalidArgument"]
+
+    def registerCallWithInvalidArgument(self):
+        self._stats["CallsWithInvalidArgument"] += 1
 
     def numCallsWithoutSourceFile(self):
         return self._stats["CallsWithoutSourceFile"]
@@ -557,6 +564,10 @@ class ExternalDebugInfoError(AnalysisError):
 
 
 class CalledForPreprocessingError(AnalysisError):
+    pass
+
+
+class InvalidArgumentError(AnalysisError):
     pass
 
 
@@ -773,22 +784,74 @@ def expandCommandLine(cmdline):
     return ret
 
 
+class Argument(object):
+    def __init__(self, name):
+        self.name = name
+
+    def __len__(self):
+        return len(self.name)
+
+    def __str__(self):
+        return "/" + self.name
+
+    def __eq__(self, other):
+        return type(self) == type(other) and self.name == other.name
+
+    def __hash__(self):
+        key = (type(self), self.name)
+        return hash(key)
+
+
+# /NAMEparameter (no space, required parameter).
+class ArgumentT1(Argument):
+    pass
+
+
+# /NAME[parameter] (no space, optional parameter)
+class ArgumentT2(Argument):
+    pass
+
+
+# /NAME[ ]parameter (optional space)
+class ArgumentT3(Argument):
+    pass
+
+
+# /NAME parameter (required space)
+class ArgumentT4(Argument):
+    pass
+
+
 class CommandLineAnalyzer(object):
 
     @staticmethod
-    def parseArgumentsAndInputFiles(cmdline):
+    def _getParameterizedArgumentType(cmdLineArgument):
         argumentsWithParameter = {
-            'Ob', 'Gs', 'Fa', 'Fd', 'Fm',
-            'Fp', 'FR', 'doc', 'FA', 'Fe',
-            'Fo', 'Fr', 'AI', 'FI', 'FU',
-            'D', 'U', 'I', 'Zp',
-            'MP', 'Tc', 'V', 'wd', 'wo',
-            'W', 'Yc', 'Yl', 'Tp', 'we',
-            'w1', 'w2', 'w3', 'w4', 'Wv',
-            'Yu', 'Zm', 'F', 'Fi',
+            # /NAMEparameter
+            ArgumentT1('Ob'), ArgumentT1('Yl'), ArgumentT1('Zm'),
+            # /NAME[parameter]
+            ArgumentT2('doc'), ArgumentT2('FA'), ArgumentT2('FR'), ArgumentT2('Fr'),
+            ArgumentT2('Gs'), ArgumentT2('MP'), ArgumentT2('Yc'), ArgumentT2('Yu'),
+            ArgumentT2('Zp'), ArgumentT2('Fa'), ArgumentT2('Fd'), ArgumentT2('Fe'),
+            ArgumentT2('Fi'), ArgumentT2('Fm'), ArgumentT2('Fo'), ArgumentT2('Fp'),
+            ArgumentT2('Wv'),
+            # /NAME[ ]parameter
+            ArgumentT3('AI'), ArgumentT3('D'), ArgumentT3('Tc'), ArgumentT3('Tp'),
+            ArgumentT3('FI'), ArgumentT3('U'), ArgumentT3('I'), ArgumentT3('F'),
+            ArgumentT3('FU'), ArgumentT3('w1'), ArgumentT3('w2'), ArgumentT3('w3'),
+            ArgumentT3('w4'), ArgumentT3('wd'), ArgumentT3('we'), ArgumentT3('wo'),
+            ArgumentT3('V'),
+            # /NAME parameter
         }
         # Sort by length to handle prefixes
         argumentsWithParameterSorted = sorted(argumentsWithParameter, key=len, reverse=True)
+        for arg in argumentsWithParameterSorted:
+            if cmdLineArgument.startswith(arg.name, 1):
+                return arg
+        return None
+
+    @staticmethod
+    def parseArgumentsAndInputFiles(cmdline):
         arguments = defaultdict(list)
         inputFiles = []
         i = 0
@@ -797,21 +860,29 @@ class CommandLineAnalyzer(object):
 
             # Plain arguments starting with / or -
             if cmdLineArgument.startswith('/') or cmdLineArgument.startswith('-'):
-                isParametrized = False
-                for arg in argumentsWithParameterSorted:
-                    if cmdLineArgument.startswith(arg, 1):
-                        isParametrized = True
-                        if len(cmdLineArgument) > len(arg) + 1:
-                            value = cmdLineArgument[len(arg) + 1:]
-                        else:
+                arg = CommandLineAnalyzer._getParameterizedArgumentType(cmdLineArgument)
+                if arg is not None:
+                    if isinstance(arg, ArgumentT1):
+                        value = cmdLineArgument[len(arg) + 1:]
+                        if not value:
+                            raise InvalidArgumentError("Parameter for {} must not be empty".format(arg))
+                    elif isinstance(arg, ArgumentT2):
+                        value = cmdLineArgument[len(arg) + 1:]
+                    elif isinstance(arg, ArgumentT3):
+                        value = cmdLineArgument[len(arg) + 1:]
+                        if not value:
                             value = cmdline[i + 1]
                             i += 1
-                        arguments[arg].append(value)
-                        break
+                    elif isinstance(arg, ArgumentT4):
+                        value = cmdline[i + 1]
+                        i += 1
+                    else:
+                        raise AssertionError("Unsupported argument type.")
 
-                if not isParametrized:
+                    arguments[arg.name].append(value)
+                else:
                     argumentName = cmdLineArgument[1:] # name not followed by parameter in this case
-                    arguments[argumentName] = []
+                    arguments[argumentName].append('')
 
             # Response file
             elif cmdLineArgument[0] == '@':
@@ -858,7 +929,7 @@ class CommandLineAnalyzer(object):
             raise MultipleSourceFilesComplexError()
 
         if len(inputFiles) == 1:
-            if 'Fo' in options:
+            if 'Fo' in options and options['Fo'][0]:
                 # Handle user input
                 objectFile = os.path.normpath(options['Fo'][0])
                 if os.path.isdir(objectFile):
@@ -1011,6 +1082,7 @@ clcache statistics:
     header changed             : {}
     source changed             : {}
   passed to real compiler
+    called w/ invalid argument : {}
     called for preprocessing   : {}
     called for linking         : {}
     called for external debug  : {}
@@ -1026,6 +1098,7 @@ clcache statistics:
         stats.numEvictedMisses(),
         stats.numHeaderChangedMisses(),
         stats.numSourceChangedMisses(),
+        stats.numCallsWithInvalidArgument(),
         stats.numCallsForPreprocessing(),
         stats.numCallsForLinking(),
         stats.numCallsForExternalDebugInfo(),
@@ -1288,6 +1361,9 @@ def processCompileRequest(cache, compiler, args):
                 return processNoDirect(cache, outputFile, compiler, cmdLine)
             else:
                 return processDirect(cache, outputFile, compiler, cmdLine, sourceFiles[0])
+    except InvalidArgumentError:
+        printTraceStatement("Cannot cache invocation as {}: invalid argument".format(cmdLine))
+        updateCacheStatistics(cache, CacheStatistics.registerCallWithInvalidArgument)
     except NoSourceFileError:
         printTraceStatement("Cannot cache invocation as {}: no source file found".format(cmdLine))
         updateCacheStatistics(cache, CacheStatistics.registerCallWithoutSourceFile)
