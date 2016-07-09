@@ -250,11 +250,11 @@ class ObjectCache(object):
         ppcmd = [compilerBinary, "/EP"]
         ppcmd += [arg for arg in commandLine if arg not in ("-c", "/c")]
         preprocessor = Popen(ppcmd, stdout=PIPE, stderr=PIPE)
-        (preprocessedSourceCode, pperr) = preprocessor.communicate()
+        (preprocessedSourceCode, ppStderrBinary) = preprocessor.communicate()
 
         if preprocessor.returncode != 0:
-            sys.stderr.write(pperr)
-            sys.stderr.write("clcache: preprocessor failed\n")
+            printBinary(ppStderrBinary, stream=sys.stderr)
+            print("clcache: preprocessor failed", file=sys.stderr)
             sys.exit(preprocessor.returncode)
 
         compilerHash = getCompilerHash(compilerBinary)
