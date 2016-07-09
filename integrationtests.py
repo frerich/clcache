@@ -145,27 +145,87 @@ class TestCompileRuns(unittest.TestCase):
         subprocess.check_call(cmd) # Compile again
 
     def testPipedOutput(self):
+        def debugLinebreaks(text):
+            out = []
+            lines = text.splitlines(True)
+            for line in lines:
+                out.append(line.replace("\r", "<CR>").replace("\n", "<LN>"))
+            return "\n".join(out)
+
         commands = [
             # passed to real compiler
-            CLCACHE_CMD + ['/?'],
-            CLCACHE_CMD + ['/E', 'fibonacci.c'],
+            {
+                'directMode': True,
+                'compileFails': False,
+                'cmd': CLCACHE_CMD + ['/?']
+            },
+            {
+                'directMode': True,
+                'compileFails': False,
+                'cmd': CLCACHE_CMD + ['/E', 'fibonacci.c']
+            },
             # Unique parameters ensure this was not cached yet (at least in CI)
-            CLCACHE_CMD + ['/wd4267', '/wo4018', '/c', 'fibonacci.c'],
+            {
+                'directMode': True,
+                'compileFails': False,
+                'cmd': CLCACHE_CMD + ['/wd4267', '/wo4018', '/c', 'fibonacci.c']
+            },
             # Cache hit
-            CLCACHE_CMD + ['/wd4267', '/wo4018', '/c', 'fibonacci.c'],
+            {
+                'directMode': True,
+                'compileFails': False,
+                'cmd': CLCACHE_CMD + ['/wd4267', '/wo4018', '/c', 'fibonacci.c']
+            },
+            # Unique parameters ensure this was not cached yet (at least in CI)
+            {
+                'directMode': False,
+                'compileFails': False,
+                'cmd': CLCACHE_CMD + ['/wd4269', '/wo4019', '/c', 'fibonacci.c']
+            },
+            # Cache hit
+            {
+                'directMode': False,
+                'compileFails': False,
+                'cmd': CLCACHE_CMD + ['/wd4269', '/wo4019', '/c', 'fibonacci.c']
+            },
+            # Compile fails in NODIRECT mode. This will trigger a preprocessor fail via
+            # cl.exe /EP /w1NONNUMERIC fibonacci.c
+            {
+                'directMode': False,
+                'compileFails': True,
+                'cmd': CLCACHE_CMD + ['/w1NONNUMERIC', '/c', 'fibonacci.c']
+            },
         ]
 
-        with cd(ASSETS_DIR):
-            for cmd in commands:
-                try:
-                    output = subprocess.check_output(cmd).decode(clcache.CL_DEFAULT_CODEC)
-                except subprocess.CalledProcessError as e:
-                    self.fail('{}\nOutput:\n{}'.format(e, e.output))
-                self.assertTrue('\r\r\n' not in output,
-                                'Command:{}\nOutput has duplicated CR: {}'.format(cmd, output))
-                # Just to be sure we have newlines
-                self.assertTrue('\r\n' in output,
-                                'Command:{}\nOutput has no CRLF: {}'.format(cmd, output))
+        for command in commands:
+            with cd(ASSETS_DIR):
+                if command['directMode']:
+                    testEnvironment = dict(os.environ)
+                else:
+                    # Note: explicit str() because environment needs native str type in Python 2 and Python 3
+                    testEnvironment = dict(os.environ, CLCACHE_NODIRECT=str("1"))
+
+                proc = subprocess.Popen(command['cmd'], env=testEnvironment,
+                                        stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                stdoutBinary, stderrBinary = proc.communicate()
+                stdout = stdoutBinary.decode(clcache.CL_DEFAULT_CODEC)
+                stderr = stderrBinary.decode(clcache.CL_DEFAULT_CODEC)
+
+                if not command['compileFails'] and proc.returncode != 0:
+                    self.fail('Compile failed. {}'.format(command['cmd']))
+
+                if command['compileFails'] and proc.returncode == 0:
+                    self.fail('Compile was expected to fail but did not. {}'.format(command['cmd']))
+
+                for output in [stdout, stderr]:
+                    if output:
+                        self.assertTrue('\r\r\n' not in output,
+                                        'Output has duplicated CR.\nCommand: {}\nOutput: {}'.format(
+                                            command['cmd'], debugLinebreaks(output)))
+                        # Just to be sure we have newlines
+                        self.assertTrue('\r\n' in output,
+                                        'Output has no CRLF.\nCommand: {}\nOutput: {}'.format(
+                                            command['cmd'], debugLinebreaks(output)))
 
 
 class TestCompilerEncoding(unittest.TestCase):
