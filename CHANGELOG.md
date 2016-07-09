@@ -6,6 +6,7 @@ clcache changelog
  * Bugfix: When preprocessing was used together with an /Fo argument (which makes
    no sense), the handling was wrong.
  * Bugfix: Properly handle /Fi arguments
+ * Bugfix: Fixed printing cached compiler output when using Python 2.x.
  * Dropped support for caching preprocessor invocations. The number of such
    invocations is now printed in the statistics (`ccache -s`).
 
