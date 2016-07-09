@@ -153,12 +153,13 @@ class TestCompileRuns(unittest.TestCase):
             return "\n".join(out)
 
         commands = [
-            # passed to real compiler
+            # just show cl.exe version
             {
                 'directMode': True,
                 'compileFails': False,
-                'cmd': CLCACHE_CMD + ['/?']
+                'cmd': CLCACHE_CMD
             },
+            # passed to real compiler
             {
                 'directMode': True,
                 'compileFails': False,
