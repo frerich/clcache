@@ -178,7 +178,6 @@ class ObjectCache(object):
 
         stats.setNumCacheEntries(len(objectInfos) - removedItems)
 
-
     def removeObjects(self, stats, removedObjects):
         for o in removedObjects:
             dirPath = self._cacheEntryDir(o)
