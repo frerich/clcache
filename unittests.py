@@ -75,7 +75,7 @@ class TestManifestManager(unittest.TestCase):
 
         self.assertEqual(mm.manifestDir("fdde59862785f9f0ad6e661b9b5746b7"), os.path.join(manifestsRootDir, "fd"))
         self.assertEqual(mm.manifestPath("fdde59862785f9f0ad6e661b9b5746b7"),
-                         os.path.join(manifestsRootDir, "fd", "fdde59862785f9f0ad6e661b9b5746b7.dat"))
+                         os.path.join(manifestsRootDir, "fd", "fdde59862785f9f0ad6e661b9b5746b7.json"))
 
     def testStoreAndGetManifest(self):
         manifestsRootDir = os.path.join(ASSETS_DIR, "manifests")
@@ -103,25 +103,25 @@ class TestManifestManager(unittest.TestCase):
         manifestsRootDir = os.path.join(ASSETS_DIR, "manifests")
         mm = ManifestsManager(manifestsRootDir)
 
-        # 100-200 bytes
+        # Size in (120, 240] bytes
         manifest1 = Manifest([r'somepath\myinclude.h'], {
             "fdde59862785f9f0ad6e661b9b5746b7": "a649723940dc975ebd17167d29a532f8"
         })
-        # 100-200 bytes
+        # Size in (120, 240] bytes
         manifest2 = Manifest([r'somepath\myinclude.h', 'moreincludes.h'], {
             "474e7fc26a592d84dfa7416c10f036c6": "8771d7ebcf6c8bd57a3d6485f63e3a89"
         })
         mm.setManifest("8a33738d88be7edbacef48e262bbb5bc", manifest1)
         mm.setManifest("0623305942d216c165970948424ae7d1", manifest2)
 
-        mm.clean(200)
+        mm.clean(240)
         # Only one of those manifests can be left
-        self.assertLessEqual(self._getDirectorySize(manifestsRootDir), 200)
+        self.assertLessEqual(self._getDirectorySize(manifestsRootDir), 240)
 
-        mm.clean(200)
+        mm.clean(240)
         # The one remaining is remains alive
-        self.assertLessEqual(self._getDirectorySize(manifestsRootDir), 200)
-        self.assertGreaterEqual(self._getDirectorySize(manifestsRootDir), 100)
+        self.assertLessEqual(self._getDirectorySize(manifestsRootDir), 240)
+        self.assertGreaterEqual(self._getDirectorySize(manifestsRootDir), 120)
 
         mm.clean(0)
         # All manifest are gone

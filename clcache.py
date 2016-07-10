@@ -14,7 +14,6 @@ import errno
 import hashlib
 import json
 import os
-import pickle
 from shutil import copyfile, rmtree
 import subprocess
 from subprocess import Popen, PIPE
@@ -82,6 +81,8 @@ class LogicException(Exception):
 
 
 class ManifestsManager(object):
+    HASH_INVALIDATION_COUNTER = 2
+
     def __init__(self, manifestsRootDir):
         self._manifestsRootDir = manifestsRootDir
 
@@ -89,23 +90,24 @@ class ManifestsManager(object):
         return os.path.join(self._manifestsRootDir, manifestHash[:2])
 
     def manifestPath(self, manifestHash):
-        return os.path.join(self.manifestDir(manifestHash), manifestHash + ".dat")
+        return os.path.join(self.manifestDir(manifestHash), manifestHash + ".json")
 
     def setManifest(self, manifestHash, manifest):
         ensureDirectoryExists(self.manifestDir(manifestHash))
-        with open(self.manifestPath(manifestHash), 'wb') as outFile:
-            pickle.dump(manifest, outFile)
+        with open(self.manifestPath(manifestHash), 'w') as outFile:
+            # Convert namedtupel to dict to get key names
+            doc = {'includeFiles': manifest.includeFiles, 'hashes': manifest.hashes}
+            json.dump(doc, outFile, sort_keys=True, indent=2)
 
     def getManifest(self, manifestHash):
         fileName = self.manifestPath(manifestHash)
         if not os.path.exists(fileName):
             return None
         try:
-            with open(fileName, 'rb') as inFile:
-                return pickle.load(inFile)
-        except (IOError, pickle.UnpicklingError):
-            # - file does not exist or cannot be opened (IOError)?
-            # - file is corrupted (pickle.UnpicklingError)
+            with open(fileName, 'r') as inFile:
+                doc = json.load(inFile)
+                return Manifest(doc['includeFiles'], doc['hashes'])
+        except IOError:
             return None
 
     def clean(self, maxManifestsSize):
@@ -138,7 +140,8 @@ class ManifestsManager(object):
         # NOTE: We intentionally do not normalize command line to include
         # preprocessor options. In direct mode we do not perform
         # preprocessing before cache lookup, so all parameters are important
-        additionalData = compilerHash + ' '.join(commandLine)
+        additionalData = "{}|{}|{}".format(
+            compilerHash, commandLine, ManifestsManager.HASH_INVALIDATION_COUNTER)
         return getFileHash(sourceFile, additionalData)
 
     @staticmethod
