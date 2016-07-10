@@ -59,6 +59,16 @@ class TestHelperFunctions(unittest.TestCase):
 
 
 class TestManifestManager(unittest.TestCase):
+    def _getDirectorySize(self, dirPath):
+        def filesize(path, filename):
+            return os.stat(os.path.join(path, filename)).st_size
+
+        size = 0
+        for path, _, filenames in clcache.WALK(dirPath):
+            size += sum(filesize(path, f) for f in filenames)
+
+        return size
+
     def testPaths(self):
         manifestsRootDir = os.path.join(ASSETS_DIR, "manifests")
         mm = ManifestsManager(manifestsRootDir)
@@ -88,6 +98,34 @@ class TestManifestManager(unittest.TestCase):
         retrieved2 = mm.getManifest("0623305942d216c165970948424ae7d1")
         self.assertIsNotNone(retrieved2)
         self.assertEqual(retrieved2.hashes["474e7fc26a592d84dfa7416c10f036c6"], "8771d7ebcf6c8bd57a3d6485f63e3a89")
+
+    def testClean(self):
+        manifestsRootDir = os.path.join(ASSETS_DIR, "manifests")
+        mm = ManifestsManager(manifestsRootDir)
+
+        # 100-200 bytes
+        manifest1 = Manifest([r'somepath\myinclude.h'], {
+            "fdde59862785f9f0ad6e661b9b5746b7": "a649723940dc975ebd17167d29a532f8"
+        })
+        # 100-200 bytes
+        manifest2 = Manifest([r'somepath\myinclude.h', 'moreincludes.h'], {
+            "474e7fc26a592d84dfa7416c10f036c6": "8771d7ebcf6c8bd57a3d6485f63e3a89"
+        })
+        mm.setManifest("8a33738d88be7edbacef48e262bbb5bc", manifest1)
+        mm.setManifest("0623305942d216c165970948424ae7d1", manifest2)
+
+        mm.clean(200)
+        # Only one of those manifests can be left
+        self.assertLessEqual(self._getDirectorySize(manifestsRootDir), 200)
+
+        mm.clean(200)
+        # The one remaining is remains alive
+        self.assertLessEqual(self._getDirectorySize(manifestsRootDir), 200)
+        self.assertGreaterEqual(self._getDirectorySize(manifestsRootDir), 100)
+
+        mm.clean(0)
+        # All manifest are gone
+        self.assertEqual(self._getDirectorySize(manifestsRootDir), 0)
 
 
 class TestArgumentClasses(unittest.TestCase):

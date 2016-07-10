@@ -26,6 +26,13 @@ VERSION = "3.1.2-dev"
 
 HashAlgorithm = hashlib.md5
 
+# try to use os.scandir or scandir.scandir
+# fall back to os.walk if not found
+try:
+    import scandir # pylint: disable=wrong-import-position
+    WALK = scandir.walk
+except ImportError:
+    WALK = os.walk
 
 # The codec that is used by clcache to store compiler STDOUR and STDERR in
 # output.txt and stderr.txt.
@@ -100,6 +107,29 @@ class ManifestsManager(object):
             # - file does not exist or cannot be opened (IOError)?
             # - file is corrupted (pickle.UnpicklingError)
             return None
+
+    def clean(self, maxManifestsSize):
+        manifestFiles = []
+        for path, _, filenames in WALK(self._manifestsRootDir):
+            for filename in filenames:
+                manifestFiles.append(os.path.join(path, filename))
+
+        manifestFileInfos = []
+        for filepath in manifestFiles:
+            try:
+                manifestFileInfos.append((os.stat(filepath), filepath))
+            except OSError:
+                pass
+
+        manifestFileInfos.sort(key=lambda t: t[0].st_atime, reverse=True)
+
+        currentSize = 0
+        for stat, filepath in manifestFileInfos:
+            currentSize += stat.st_size
+            if currentSize < maxManifestsSize:
+                # skip as long as maximal size not reached
+                continue
+            os.remove(filepath)
 
     @staticmethod
     def getManifestHash(compilerBinary, commandLine, sourceFile):
@@ -187,16 +217,8 @@ class ObjectCache(object):
         # is a big performance hit with large caches.
         effectiveMaximumSize = maximumSize * 0.9
 
-        # try to use os.scandir or scandir.scandir
-        # fall back to os.walk if not found
-        try:
-            import scandir
-            walker = scandir.walk
-        except ImportError:
-            walker = os.walk
-
         objects = [os.path.join(root, "object")
-                   for root, _, files in walker(self.objectsDir)
+                   for root, _, files in WALK(self.objectsDir)
                    if "object" in files]
 
         objectInfos = []
