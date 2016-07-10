@@ -78,19 +78,19 @@ class ManifestsManager(object):
     def __init__(self, manifestsRootDir):
         self._manifestsRootDir = manifestsRootDir
 
-    def _manifestDir(self, manifestHash):
+    def manifestDir(self, manifestHash):
         return os.path.join(self._manifestsRootDir, manifestHash[:2])
 
-    def _manifestName(self, manifestHash):
-        return os.path.join(self._manifestDir(manifestHash), manifestHash + ".dat")
+    def manifestPath(self, manifestHash):
+        return os.path.join(self.manifestDir(manifestHash), manifestHash + ".dat")
 
     def setManifest(self, manifestHash, manifest):
-        ensureDirectoryExists(self._manifestDir(manifestHash))
-        with open(self._manifestName(manifestHash), 'wb') as outFile:
+        ensureDirectoryExists(self.manifestDir(manifestHash))
+        with open(self.manifestPath(manifestHash), 'wb') as outFile:
             pickle.dump(manifest, outFile)
 
     def getManifest(self, manifestHash):
-        fileName = self._manifestName(manifestHash)
+        fileName = self.manifestPath(manifestHash)
         if not os.path.exists(fileName):
             return None
         try:

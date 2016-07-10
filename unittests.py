@@ -15,7 +15,10 @@ import os
 import unittest
 
 import clcache
-from clcache import CommandLineAnalyzer
+from clcache import (
+    CommandLineAnalyzer,
+    ManifestsManager,
+)
 from clcache import (
     AnalysisError,
     CalledForLinkError,
@@ -52,6 +55,16 @@ class TestHelperFunctions(unittest.TestCase):
         self.assertEqual(clcache.basenameWithoutExtension(r"README.asciidoc.tmp"), "README.asciidoc")
         self.assertEqual(clcache.basenameWithoutExtension(r"/home/user/README.asciidoc.tmp"), "README.asciidoc")
         self.assertEqual(clcache.basenameWithoutExtension(r"C:\Project\README.asciidoc.tmp"), "README.asciidoc")
+
+
+class TestManifestManager(unittest.TestCase):
+    def testPaths(self):
+        manifestsRootDir = os.path.join(ASSETS_DIR, "manifests")
+        mm = ManifestsManager(manifestsRootDir)
+
+        self.assertEqual(mm.manifestDir("fdde59862785f9f0ad6e661b9b5746b7"), os.path.join(manifestsRootDir, "fd"))
+        self.assertEqual(mm.manifestPath("fdde59862785f9f0ad6e661b9b5746b7"),
+                         os.path.join(manifestsRootDir, "fd", "fdde59862785f9f0ad6e661b9b5746b7.dat"))
 
 
 class TestArgumentClasses(unittest.TestCase):
