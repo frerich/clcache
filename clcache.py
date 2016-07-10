@@ -45,10 +45,10 @@ MAX_MANIFEST_HASHES = 100
 # to use it as mark for relative path.
 BASEDIR_REPLACEMENT = '?'
 
-# includeFiles - list of paths toi include files, which this source file use.
-# hashes - dictionary.
-# Key - cumulative hash of all include files in includeFiles;
-# Value - key in the cache, under which output file is stored.
+# `includeFiles`: list of paths to include files, which this source file uses
+# `hashes`: dictionary
+#   key: cumulative hash of all include files' content in includeFiles
+#   value: key in the cache, under which the object file is stored
 Manifest = namedtuple('Manifest', ['includeFiles', 'hashes'])
 
 
