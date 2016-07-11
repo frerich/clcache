@@ -213,7 +213,10 @@ class TestCompileRuns(unittest.TestCase):
                 stderr = stderrBinary.decode(clcache.CL_DEFAULT_CODEC)
 
                 if not command['compileFails'] and proc.returncode != 0:
-                    self.fail('Compile failed. {}'.format(command['cmd']))
+                    self.fail(
+                        'Compile failed with return code {}.\n'.format(proc.returncode) +
+                        'Command: {}\nEnvironment: {}\nStdout: {}\nStderr: {}'.format(
+                            command['cmd'], testEnvironment, stdout, stderr))
 
                 if command['compileFails'] and proc.returncode == 0:
                     self.fail('Compile was expected to fail but did not. {}'.format(command['cmd']))
