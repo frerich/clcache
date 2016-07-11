@@ -51,7 +51,11 @@ import clcache
 PYTHON_BINARY = sys.executable
 CLCACHE_SCRIPT = os.path.join(os.path.dirname(os.path.realpath(__file__)), "clcache.py")
 ASSETS_DIR = os.path.join("tests", "integrationtests")
-CLCACHE_CMD = [PYTHON_BINARY, CLCACHE_SCRIPT]
+
+if "CLCACHE_CMD" in os.environ:
+    CLCACHE_CMD = os.environ['CLCACHE_CMD'].split()
+else:
+    CLCACHE_CMD = [PYTHON_BINARY, CLCACHE_SCRIPT]
 
 
 @contextmanager
