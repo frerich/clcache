@@ -41,6 +41,7 @@ install:
 
   # Install tool for uploading coverage data to codecov.io
   - pip install codecov
+  - coverage --version
 
 build_script:
   - python clcache.py --help
@@ -55,6 +56,8 @@ test_script:
   - ps: |
       & py.test --junitxml .\unittests.xml unittests.py --cov=clcache
       $testsExitCode = $lastexitcode
+      & coverage report
+      & coverage xml
 
       $wc = New-Object 'System.Net.WebClient'
       $wc.UploadFile("https://ci.appveyor.com/api/testresults/junit/$($env:APPVEYOR_JOB_ID)", (Resolve-Path .\unittests.xml))
@@ -64,8 +67,14 @@ test_script:
       if ($testsExitCode -ne 0) {exit $testsExitCode}
 
   - ps: |
-      & py.test --junitxml .\integrationtests.xml integrationtests.py --cov=clcache --cov-append
+      & coverage erase
+
+      $clcachePy = "$((Get-Location).Path)\clcache.py"
+      $env:CLCACHE_CMD = "coverage run -a --branch --include=$clcachePy $clcachePy";
+      & py.test --junitxml .\integrationtests.xml integrationtests.py --cov=clcache
       $testsExitCode = $lastexitcode
+      & coverage report
+      & coverage xml
 
       $wc = New-Object 'System.Net.WebClient'
       $wc.UploadFile("https://ci.appveyor.com/api/testresults/junit/$($env:APPVEYOR_JOB_ID)", (Resolve-Path .\integrationtests.xml))

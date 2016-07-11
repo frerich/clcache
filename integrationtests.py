@@ -52,6 +52,11 @@ PYTHON_BINARY = sys.executable
 CLCACHE_SCRIPT = os.path.join(os.path.dirname(os.path.realpath(__file__)), "clcache.py")
 ASSETS_DIR = os.path.join("tests", "integrationtests")
 
+if "CLCACHE_CMD" in os.environ:
+    CLCACHE_CMD = os.environ['CLCACHE_CMD'].split()
+else:
+    CLCACHE_CMD = [PYTHON_BINARY, CLCACHE_SCRIPT]
+
 
 @contextmanager
 def cd(targetDirectory):
@@ -68,28 +73,28 @@ class TestCommandLineArguments(unittest.TestCase):
     def testValidMaxSize(self):
         validValues = ["1", "  10", "42  ", "22222222"]
         for value in validValues:
-            cmd = [PYTHON_BINARY, CLCACHE_SCRIPT, "-M", value]
+            cmd = CLCACHE_CMD + ["-M", value]
             self.assertEqual(subprocess.call(cmd), 0, "Command must not fail for max size: '" + value + "'")
 
     def testInvalidMaxSize(self):
         invalidValues = ["ababa", "-1", "0", "1000.0"]
         for value in invalidValues:
-            cmd = [PYTHON_BINARY, CLCACHE_SCRIPT, "-M", value]
+            cmd = CLCACHE_CMD + ["-M", value]
             self.assertNotEqual(subprocess.call(cmd), 0, "Command must fail for max size: '" + value + "'")
 
 
 class TestCompileRuns(unittest.TestCase):
     def testBasicCompileCc(self):
-        cmd = [PYTHON_BINARY, CLCACHE_SCRIPT, "/nologo", "/c", os.path.join(ASSETS_DIR, "fibonacci.c")]
+        cmd = CLCACHE_CMD + ["/nologo", "/c", os.path.join(ASSETS_DIR, "fibonacci.c")]
         subprocess.check_call(cmd)
 
     def testBasicCompileCpp(self):
-        cmd = [PYTHON_BINARY, CLCACHE_SCRIPT, "/nologo", "/EHsc", "/c", os.path.join(ASSETS_DIR, "fibonacci.cpp")]
+        cmd = CLCACHE_CMD + ["/nologo", "/EHsc", "/c", os.path.join(ASSETS_DIR, "fibonacci.cpp")]
         subprocess.check_call(cmd)
 
     def testCompileLinkRunCc(self):
         with cd(ASSETS_DIR):
-            cmd = [PYTHON_BINARY, CLCACHE_SCRIPT, "/nologo", "/c", "fibonacci.c", "/Fofibonacci_c.obj"]
+            cmd = CLCACHE_CMD + ["/nologo", "/c", "fibonacci.c", "/Fofibonacci_c.obj"]
             subprocess.check_call(cmd)
             cmd = ["link", "/nologo", "/OUT:fibonacci_c.exe", "fibonacci_c.obj"]
             subprocess.check_call(cmd)
@@ -99,7 +104,7 @@ class TestCompileRuns(unittest.TestCase):
 
     def testCompileLinkRunCpp(self):
         with cd(ASSETS_DIR):
-            cmd = [PYTHON_BINARY, CLCACHE_SCRIPT, "/nologo", "/EHsc", "/c", "fibonacci.cpp", "/Fofibonacci_cpp.obj"]
+            cmd = CLCACHE_CMD + ["/nologo", "/EHsc", "/c", "fibonacci.cpp", "/Fofibonacci_cpp.obj"]
             subprocess.check_call(cmd)
             cmd = ["link", "/nologo", "/OUT:fibonacci_cpp.exe", "fibonacci_cpp.obj"]
             subprocess.check_call(cmd)
@@ -108,9 +113,7 @@ class TestCompileRuns(unittest.TestCase):
             self.assertEqual(output, "0 1 1 2 3 5 8 13 21 34 55 89 144 233 377")
 
     def testRecompile(self):
-        cmd = [
-            PYTHON_BINARY,
-            CLCACHE_SCRIPT,
+        cmd = CLCACHE_CMD + [
             "/nologo",
             "/EHsc",
             "/c",
@@ -120,9 +123,7 @@ class TestCompileRuns(unittest.TestCase):
         subprocess.check_call(cmd) # Compile again
 
     def testRecompileObjectSetSameDir(self):
-        cmd = [
-            PYTHON_BINARY,
-            CLCACHE_SCRIPT,
+        cmd = CLCACHE_CMD + [
             "/nologo",
             "/EHsc",
             "/c",
@@ -133,9 +134,7 @@ class TestCompileRuns(unittest.TestCase):
         subprocess.check_call(cmd) # Compile again
 
     def testRecompileObjectSetOtherDir(self):
-        cmd = [
-            PYTHON_BINARY,
-            CLCACHE_SCRIPT,
+        cmd = CLCACHE_CMD + [
             "/nologo",
             "/EHsc",
             "/c",
@@ -148,12 +147,12 @@ class TestCompileRuns(unittest.TestCase):
     def testPipedOutput(self):
         commands = [
             # passed to real compiler
-            [PYTHON_BINARY, CLCACHE_SCRIPT, '/?'],
-            [PYTHON_BINARY, CLCACHE_SCRIPT, '/E', 'fibonacci.c'],
+            CLCACHE_CMD + ['/?'],
+            CLCACHE_CMD + ['/E', 'fibonacci.c'],
             # Unique parameters ensure this was not cached yet (at least in CI)
-            [PYTHON_BINARY, CLCACHE_SCRIPT, '/wd4267', '/wo4018', '/c', 'fibonacci.c'],
+            CLCACHE_CMD + ['/wd4267', '/wo4018', '/c', 'fibonacci.c'],
             # Cache hit
-            [PYTHON_BINARY, CLCACHE_SCRIPT, '/wd4267', '/wo4018', '/c', 'fibonacci.c'],
+            CLCACHE_CMD + ['/wd4267', '/wo4018', '/c', 'fibonacci.c'],
         ]
 
         with cd(ASSETS_DIR):
@@ -173,14 +172,14 @@ class TestCompilerEncoding(unittest.TestCase):
     def testNonAsciiMessage(self):
         with cd(os.path.join(ASSETS_DIR, "compiler-encoding")):
             for filename in ['non-ascii-message-ansi.c', 'non-ascii-message-utf16.c']:
-                cmd = [PYTHON_BINARY, CLCACHE_SCRIPT, "/nologo", "/c", filename]
+                cmd = CLCACHE_CMD + ["/nologo", "/c", filename]
                 subprocess.check_call(cmd)
 
 
 class TestHits(unittest.TestCase):
     def testHitsSimple(self):
         with cd(os.path.join(ASSETS_DIR, "hits-and-misses")):
-            cmd = [PYTHON_BINARY, CLCACHE_SCRIPT, "/nologo", "/EHsc", "/c", 'hit.cpp']
+            cmd = CLCACHE_CMD + ["/nologo", "/EHsc", "/c", 'hit.cpp']
             subprocess.check_call(cmd) # Ensure it has been compiled before
 
             cache = clcache.ObjectCache()
@@ -193,7 +192,7 @@ class TestHits(unittest.TestCase):
 class TestPrecompiledHeaders(unittest.TestCase):
     def testSampleproject(self):
         with cd(os.path.join(ASSETS_DIR, "precompiled-headers")):
-            cpp = PYTHON_BINARY + " " + CLCACHE_SCRIPT
+            cpp = ' '.join(CLCACHE_CMD)
 
             # Note: explicit str() because environment needs native str type in Python 2 and Python 3
             testEnvironment = dict(os.environ, CPP=str(cpp))
@@ -219,7 +218,7 @@ class TestHeaderChange(unittest.TestCase):
             os.remove("main.exe")
 
     def _compileAndLink(self, environment=None):
-        cmdCompile = [PYTHON_BINARY, CLCACHE_SCRIPT, "/nologo", "/EHsc", "/c", "main.cpp"]
+        cmdCompile = CLCACHE_CMD + ["/nologo", "/EHsc", "/c", "main.cpp"]
         cmdLink = ["link", "/nologo", "/OUT:main.exe", "main.obj"]
         subprocess.check_call(cmdCompile, env=environment or os.environ)
         subprocess.check_call(cmdLink, env=environment or os.environ)
@@ -274,16 +273,15 @@ class TestHeaderChange(unittest.TestCase):
 
 class TestRunParallel(unittest.TestCase):
     def _zeroStats(self):
-        subprocess.check_call([PYTHON_BINARY, CLCACHE_SCRIPT, "-z"])
+        subprocess.check_call(CLCACHE_CMD + ["-z"])
 
     def _buildAll(self):
         processes = []
 
         for sourceFile in glob.glob('*.cpp'):
             print("Starting compilation of {}".format(sourceFile))
-            cxx = [PYTHON_BINARY, CLCACHE_SCRIPT]
             cxxflags = ["/c", "/nologo", "/EHsc"]
-            cmd = cxx + cxxflags + [sourceFile]
+            cmd = CLCACHE_CMD + cxxflags + [sourceFile]
             processes.append(subprocess.Popen(cmd))
 
         for p in processes:
@@ -313,7 +311,7 @@ class TestRunParallel(unittest.TestCase):
 
 class TestClearing(unittest.TestCase):
     def _clearCache(self):
-        subprocess.check_call([PYTHON_BINARY, CLCACHE_SCRIPT, "-C"])
+        subprocess.check_call(CLCACHE_CMD + ["-C"])
 
     def testClearIdempotency(self):
         cache = clcache.ObjectCache()
@@ -333,7 +331,7 @@ class TestClearing(unittest.TestCase):
         cache = clcache.ObjectCache()
 
         # Compile a random file to populate cache
-        cmd = [PYTHON_BINARY, CLCACHE_SCRIPT, "/nologo", "/EHsc", "/c", os.path.join(ASSETS_DIR, "fibonacci.cpp")]
+        cmd = CLCACHE_CMD + ["/nologo", "/EHsc", "/c", os.path.join(ASSETS_DIR, "fibonacci.cpp")]
         subprocess.check_call(cmd)
 
         # Now there should be something in the cache
@@ -409,7 +407,7 @@ class TestPreprocessorCalls(unittest.TestCase):
         oldPreprocessorCalls = clcache.CacheStatistics(cache).numCallsForPreprocessing()
 
         for i, invocation in enumerate(invocations, 1):
-            cmd = [PYTHON_BINARY, CLCACHE_SCRIPT] + invocation + [os.path.join(ASSETS_DIR, "minimal.cpp")]
+            cmd = CLCACHE_CMD + invocation + [os.path.join(ASSETS_DIR, "minimal.cpp")]
             subprocess.check_call(cmd)
             newPreprocessorCalls = clcache.CacheStatistics(cache).numCallsForPreprocessing()
             self.assertEqual(newPreprocessorCalls, oldPreprocessorCalls + i, str(cmd))
