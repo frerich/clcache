@@ -1358,7 +1358,7 @@ def updateCacheStatistics(cache, method):
 def processCompileRequest(cache, compiler, args):
     printTraceStatement("Parsing given commandline '{0!s}'".format(args[1:]))
 
-    cmdLine = expandCommandLine(sys.argv[1:])
+    cmdLine = expandCommandLine(args[1:])
     printTraceStatement("Expanded commandline '{0!s}'".format(cmdLine))
 
     try:
