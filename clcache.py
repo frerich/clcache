@@ -85,17 +85,26 @@ BASEDIR_REPLACEMENT = '?'
 Manifest = namedtuple('Manifest', ['includeFiles', 'hashes'])
 
 
-def printBinary(rawData, stream):
-    # See http://stackoverflow.com/questions/2374427/python-2-x-write-binary-output-to-stdout
-    if sys.version_info[0] < 3:
-        # msvcrt and O_BINARY are only available on Windows, but we like to
-        # use pylint on Unix developer machines to speed-up development, thus
-        # we disable some lint error on a per-line base here.
-        import msvcrt # pylint: disable=import-error
-        msvcrt.setmode(stream.fileno(), os.O_BINARY) # pylint: disable=no-member
+class BinaryPrinter(object):
+    didSetMsvcrtMode = defaultdict(lambda: False)
 
-    with os.fdopen(stream.fileno(), 'wb') as fp:
-        fp.write(rawData)
+    def __init__(self, stream):
+        self._stream = stream
+
+    def write(self, rawData):
+        # See http://stackoverflow.com/questions/2374427/python-2-x-write-binary-output-to-stdout
+        # Note: msvcrt.setmode must not be called twice on al given stream
+        if sys.version_info[0] < 3:
+            # msvcrt and O_BINARY are only available on Windows, but we like to
+            # use pylint on Unix developer machines to speed-up development, thus
+            # we disable some lint error on a per-line base here.
+            import msvcrt # pylint: disable=import-error
+            if not BinaryPrinter.didSetMsvcrtMode[self._stream.fileno()]:
+                msvcrt.setmode(self._stream.fileno(), os.O_BINARY) # pylint: disable=no-member
+                BinaryPrinter.didSetMsvcrtMode[self._stream.fileno()] = True
+
+        with os.fdopen(self._stream.fileno(), 'wb') as fp:
+            fp.write(rawData)
 
 
 def basenameWithoutExtension(path):
@@ -250,11 +259,11 @@ class ObjectCache(object):
         ppcmd = [compilerBinary, "/EP"]
         ppcmd += [arg for arg in commandLine if arg not in ("-c", "/c")]
         preprocessor = Popen(ppcmd, stdout=PIPE, stderr=PIPE)
-        (preprocessedSourceCode, pperr) = preprocessor.communicate()
+        (preprocessedSourceCode, ppStderrBinary) = preprocessor.communicate()
 
         if preprocessor.returncode != 0:
-            sys.stderr.write(pperr)
-            sys.stderr.write("clcache: preprocessor failed\n")
+            BinaryPrinter(sys.stderr).write(ppStderrBinary)
+            print("clcache: preprocessor failed", file=sys.stderr)
             sys.exit(preprocessor.returncode)
 
         compilerHash = getCompilerHash(compilerBinary)
@@ -1325,13 +1334,14 @@ clcache.py v{}
         return 1
 
     printTraceStatement("Found real compiler binary at '{0!s}'".format(compiler))
+    printTraceStatement("Arguments we care about: '{}'".format(sys.argv))
 
     if "CLCACHE_DISABLE" in os.environ:
         return invokeRealCompiler(compiler, sys.argv[1:])[0]
     try:
         exitCode, compilerStdout, compilerStderr = processCompileRequest(cache, compiler, sys.argv)
-        printBinary(compilerStdout.encode(CL_DEFAULT_CODEC), stream=sys.stdout)
-        printBinary(compilerStderr.encode(CL_DEFAULT_CODEC), stream=sys.stderr)
+        BinaryPrinter(sys.stdout).write(compilerStdout.encode(CL_DEFAULT_CODEC))
+        BinaryPrinter(sys.stderr).write(compilerStderr.encode(CL_DEFAULT_CODEC))
         return exitCode
     except LogicException as e:
         print(e)
