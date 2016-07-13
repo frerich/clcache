@@ -644,10 +644,7 @@ def copyOrLink(srcFilePath, dstFilePath):
 
 def myExecutablePath():
     assert hasattr(sys, "frozen"), "is not frozen by py2exe"
-    if sys.version_info >= (3, 0):
-        return sys.executable.upper()
-    else:
-        return unicode(sys.executable, sys.getfilesystemencoding()).upper()
+    return sys.executable.upper()
 
 
 def findCompilerBinary():
