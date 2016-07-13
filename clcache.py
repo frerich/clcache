@@ -81,6 +81,10 @@ BASEDIR_REPLACEMENT = '?'
 Manifest = namedtuple('Manifest', ['includeFiles', 'hashes'])
 
 
+def printBinary(stream, rawData):
+    stream.buffer.write(rawData)
+
+
 def basenameWithoutExtension(path):
     basename = os.path.basename(path)
     return os.path.splitext(basename)[0]
@@ -236,7 +240,7 @@ class ObjectCache(object):
         (preprocessedSourceCode, ppStderrBinary) = preprocessor.communicate()
 
         if preprocessor.returncode != 0:
-            sys.stderr.buffer.write(ppStderrBinary)
+            printBinary(sys.stderr, ppStderrBinary)
             print("clcache: preprocessor failed", file=sys.stderr)
             sys.exit(preprocessor.returncode)
 
@@ -1311,8 +1315,8 @@ clcache.py v{}
         return invokeRealCompiler(compiler, sys.argv[1:])[0]
     try:
         exitCode, compilerStdout, compilerStderr = processCompileRequest(cache, compiler, sys.argv)
-        sys.stdout.buffer.write(compilerStdout.encode(CL_DEFAULT_CODEC))
-        sys.stderr.buffer.write(compilerStderr.encode(CL_DEFAULT_CODEC))
+        printBinary(sys.stdout, compilerStdout.encode(CL_DEFAULT_CODEC))
+        printBinary(sys.stderr, compilerStderr.encode(CL_DEFAULT_CODEC))
         return exitCode
     except LogicException as e:
         print(e)
