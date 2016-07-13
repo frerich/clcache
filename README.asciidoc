@@ -19,7 +19,7 @@ image:https://www.quantifiedcode.com/api/v1/project/652606d7e4a94db0bf2da6f0e577
 Installation
 ~~~~~~~~~~~~
 
-Python 2.7 or Python 3.3+ is required.
+Python 3.3+ is required.
 
 The source code comes with a small http://www.py2exe.org/[py2exe] script which
 makes it easy to compile the Python code into an executable. You can generate
