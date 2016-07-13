@@ -8,7 +8,6 @@ environment:
     # AppVeyor installed Python versions
     # http://www.appveyor.com/docs/installed-software#python
 
-    - PYTHON_INSTALL: "C:\\Python27"
     - PYTHON_INSTALL: "C:\\Python33"
     - PYTHON_INSTALL: "C:\\Python34"
     - PYTHON_INSTALL: "C:\\Python35"
