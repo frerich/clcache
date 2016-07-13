@@ -81,28 +81,6 @@ BASEDIR_REPLACEMENT = '?'
 Manifest = namedtuple('Manifest', ['includeFiles', 'hashes'])
 
 
-class BinaryPrinter(object):
-    didSetMsvcrtMode = defaultdict(lambda: False)
-
-    def __init__(self, stream):
-        self._stream = stream
-
-    def write(self, rawData):
-        # See http://stackoverflow.com/questions/2374427/python-2-x-write-binary-output-to-stdout
-        # Note: msvcrt.setmode must not be called twice on al given stream
-        if sys.version_info[0] < 3:
-            # msvcrt and O_BINARY are only available on Windows, but we like to
-            # use pylint on Unix developer machines to speed-up development, thus
-            # we disable some lint error on a per-line base here.
-            import msvcrt # pylint: disable=import-error
-            if not BinaryPrinter.didSetMsvcrtMode[self._stream.fileno()]:
-                msvcrt.setmode(self._stream.fileno(), os.O_BINARY) # pylint: disable=no-member
-                BinaryPrinter.didSetMsvcrtMode[self._stream.fileno()] = True
-
-        with os.fdopen(self._stream.fileno(), 'wb') as fp:
-            fp.write(rawData)
-
-
 def basenameWithoutExtension(path):
     basename = os.path.basename(path)
     return os.path.splitext(basename)[0]
@@ -258,7 +236,7 @@ class ObjectCache(object):
         (preprocessedSourceCode, ppStderrBinary) = preprocessor.communicate()
 
         if preprocessor.returncode != 0:
-            BinaryPrinter(sys.stderr).write(ppStderrBinary)
+            sys.stderr.buffer.write(ppStderrBinary)
             print("clcache: preprocessor failed", file=sys.stderr)
             sys.exit(preprocessor.returncode)
 
@@ -1333,8 +1311,8 @@ clcache.py v{}
         return invokeRealCompiler(compiler, sys.argv[1:])[0]
     try:
         exitCode, compilerStdout, compilerStderr = processCompileRequest(cache, compiler, sys.argv)
-        BinaryPrinter(sys.stdout).write(compilerStdout.encode(CL_DEFAULT_CODEC))
-        BinaryPrinter(sys.stderr).write(compilerStderr.encode(CL_DEFAULT_CODEC))
+        sys.stdout.buffer.write(compilerStdout.encode(CL_DEFAULT_CODEC))
+        sys.stderr.buffer.write(compilerStderr.encode(CL_DEFAULT_CODEC))
         return exitCode
     except LogicException as e:
         print(e)
