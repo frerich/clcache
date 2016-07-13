@@ -470,6 +470,21 @@ class TestPreprocessorCalls(unittest.TestCase):
             self.assertEqual(newPreprocessorCalls, oldPreprocessorCalls + i, str(cmd))
 
 
+class TestNoDirectCalls(unittest.TestCase):
+    def testPreprocessorFailure(self):
+        cache = clcache.ObjectCache()
+
+        oldStats = clcache.CacheStatistics(cache)
+
+        cmd = CLCACHE_CMD + ["/nologo", "/c", "doesnotexist.cpp"]
+        env = dict(os.environ, CLCACHE_NODIRECT="1")
+        p = subprocess.Popen(cmd, env=env)
+        p.wait()
+
+        self.assertEqual(clcache.CacheStatistics(cache), oldStats)
+        self.assertNotEqual(p.returncode, 0)
+
+
 if __name__ == '__main__':
     unittest.TestCase.longMessage = True
     unittest.main()
