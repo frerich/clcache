@@ -373,6 +373,9 @@ class PersistentJSONDict(object):
     def __contains__(self, key):
         return key in self._dict
 
+    def __eq__(self, other):
+        return type(self) is type(other) and self.__dict__ == other.__dict__
+
 
 class Configuration(object):
     _defaultValues = {"MaximumCacheSize": 1073741824} # 1 GiB
@@ -422,6 +425,9 @@ class CacheStatistics(object):
         for k in CacheStatistics.RESETTABLE_KEYS | CacheStatistics.NON_RESETTABLE_KEYS:
             if k not in self._stats:
                 self._stats[k] = 0
+
+    def __eq__(self, other):
+        return type(self) is type(other) and self.__dict__ == other.__dict__
 
     def numCallsWithInvalidArgument(self):
         return self._stats["CallsWithInvalidArgument"]
