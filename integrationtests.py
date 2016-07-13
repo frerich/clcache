@@ -34,10 +34,6 @@
 # In Python unittests are always members, not functions. Silence lint in this file.
 # pylint: disable=no-self-use
 #
-from __future__ import print_function
-from __future__ import unicode_literals # All string literals are unicode strings. Requires Python 3.3+
-from __future__ import division
-
 from contextlib import contextmanager
 import glob
 import os
@@ -203,8 +199,7 @@ class TestCompileRuns(unittest.TestCase):
                 if command['directMode']:
                     testEnvironment = dict(os.environ)
                 else:
-                    # Note: explicit str() because environment needs native str type in Python 2 and Python 3
-                    testEnvironment = dict(os.environ, CLCACHE_NODIRECT=str("1"))
+                    testEnvironment = dict(os.environ, CLCACHE_NODIRECT="1")
 
                 proc = subprocess.Popen(command['cmd'], env=testEnvironment,
                                         stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -258,8 +253,7 @@ class TestPrecompiledHeaders(unittest.TestCase):
         with cd(os.path.join(ASSETS_DIR, "precompiled-headers")):
             cpp = ' '.join(CLCACHE_CMD)
 
-            # Note: explicit str() because environment needs native str type in Python 2 and Python 3
-            testEnvironment = dict(os.environ, CPP=str(cpp))
+            testEnvironment = dict(os.environ, CPP=cpp)
 
             cmd = ["nmake", "/nologo"]
             subprocess.check_call(cmd, env=testEnvironment)
@@ -316,8 +310,7 @@ class TestHeaderChange(unittest.TestCase):
             with open("version.h", "w") as header:
                 header.write("#define VERSION 1")
 
-            # Note: explicit str() because environment needs native str type in Python 2 and Python 3
-            testEnvironment = dict(os.environ, CLCACHE_NODIRECT=str("1"))
+            testEnvironment = dict(os.environ, CLCACHE_NODIRECT="1")
 
             self._compileAndLink(testEnvironment)
             cmdRun = [os.path.abspath("main.exe")]
@@ -475,6 +468,21 @@ class TestPreprocessorCalls(unittest.TestCase):
             subprocess.check_call(cmd)
             newPreprocessorCalls = clcache.CacheStatistics(cache).numCallsForPreprocessing()
             self.assertEqual(newPreprocessorCalls, oldPreprocessorCalls + i, str(cmd))
+
+
+class TestNoDirectCalls(unittest.TestCase):
+    def testPreprocessorFailure(self):
+        cache = clcache.ObjectCache()
+
+        oldStats = clcache.CacheStatistics(cache)
+
+        cmd = CLCACHE_CMD + ["/nologo", "/c", "doesnotexist.cpp"]
+        env = dict(os.environ, CLCACHE_NODIRECT="1")
+        p = subprocess.Popen(cmd, env=env)
+        p.wait()
+
+        self.assertEqual(clcache.CacheStatistics(cache), oldStats)
+        self.assertNotEqual(p.returncode, 0)
 
 
 if __name__ == '__main__':

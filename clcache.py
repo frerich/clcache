@@ -33,10 +33,6 @@
 # OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
-from __future__ import print_function
-from __future__ import unicode_literals # All string literals are unicode strings. Requires Python 3.3+
-from __future__ import division
-
 from ctypes import windll, wintypes
 import codecs
 from collections import defaultdict, namedtuple
@@ -85,26 +81,8 @@ BASEDIR_REPLACEMENT = '?'
 Manifest = namedtuple('Manifest', ['includeFiles', 'hashes'])
 
 
-class BinaryPrinter(object):
-    didSetMsvcrtMode = defaultdict(lambda: False)
-
-    def __init__(self, stream):
-        self._stream = stream
-
-    def write(self, rawData):
-        # See http://stackoverflow.com/questions/2374427/python-2-x-write-binary-output-to-stdout
-        # Note: msvcrt.setmode must not be called twice on al given stream
-        if sys.version_info[0] < 3:
-            # msvcrt and O_BINARY are only available on Windows, but we like to
-            # use pylint on Unix developer machines to speed-up development, thus
-            # we disable some lint error on a per-line base here.
-            import msvcrt # pylint: disable=import-error
-            if not BinaryPrinter.didSetMsvcrtMode[self._stream.fileno()]:
-                msvcrt.setmode(self._stream.fileno(), os.O_BINARY) # pylint: disable=no-member
-                BinaryPrinter.didSetMsvcrtMode[self._stream.fileno()] = True
-
-        with os.fdopen(self._stream.fileno(), 'wb') as fp:
-            fp.write(rawData)
+def printBinary(stream, rawData):
+    stream.buffer.write(rawData)
 
 
 def basenameWithoutExtension(path):
@@ -262,7 +240,7 @@ class ObjectCache(object):
         (preprocessedSourceCode, ppStderrBinary) = preprocessor.communicate()
 
         if preprocessor.returncode != 0:
-            BinaryPrinter(sys.stderr).write(ppStderrBinary)
+            printBinary(sys.stderr, ppStderrBinary)
             print("clcache: preprocessor failed", file=sys.stderr)
             sys.exit(preprocessor.returncode)
 
@@ -395,6 +373,9 @@ class PersistentJSONDict(object):
     def __contains__(self, key):
         return key in self._dict
 
+    def __eq__(self, other):
+        return type(self) is type(other) and self.__dict__ == other.__dict__
+
 
 class Configuration(object):
     _defaultValues = {"MaximumCacheSize": 1073741824} # 1 GiB
@@ -444,6 +425,9 @@ class CacheStatistics(object):
         for k in CacheStatistics.RESETTABLE_KEYS | CacheStatistics.NON_RESETTABLE_KEYS:
             if k not in self._stats:
                 self._stats[k] = 0
+
+    def __eq__(self, other):
+        return type(self) is type(other) and self.__dict__ == other.__dict__
 
     def numCallsWithInvalidArgument(self):
         return self._stats["CallsWithInvalidArgument"]
@@ -648,10 +632,7 @@ def copyOrLink(srcFilePath, dstFilePath):
 
 def myExecutablePath():
     assert hasattr(sys, "frozen"), "is not frozen by py2exe"
-    if sys.version_info >= (3, 0):
-        return sys.executable.upper()
-    else:
-        return unicode(sys.executable, sys.getfilesystemencoding()).upper()
+    return sys.executable.upper()
 
 
 def findCompilerBinary():
@@ -1340,8 +1321,8 @@ clcache.py v{}
         return invokeRealCompiler(compiler, sys.argv[1:])[0]
     try:
         exitCode, compilerStdout, compilerStderr = processCompileRequest(cache, compiler, sys.argv)
-        BinaryPrinter(sys.stdout).write(compilerStdout.encode(CL_DEFAULT_CODEC))
-        BinaryPrinter(sys.stderr).write(compilerStderr.encode(CL_DEFAULT_CODEC))
+        printBinary(sys.stdout, compilerStdout.encode(CL_DEFAULT_CODEC))
+        printBinary(sys.stderr, compilerStderr.encode(CL_DEFAULT_CODEC))
         return exitCode
     except LogicException as e:
         print(e)
