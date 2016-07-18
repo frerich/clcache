@@ -152,6 +152,12 @@ invocation to the actual compiler. Once the real compiler successfully
 finished its work, the generated object file (as well as the output printed
 by the compiler) is copied to the cache.
 
+License Terms
+~~~~~~~~~~~~~
+The source code of this project is - unless explicitly noted otherwise in the
+respective files - subject to the
+https://opensource.org/licenses/BSD-3-Clause[BSD 3-Clause License].
+
 Credits
 ~~~~~~~
 clcache.py was written by mailto:raabe@froglogic.com[Frerich Raabe] with a lot
