@@ -9,14 +9,11 @@
 from ctypes import windll, wintypes
 import codecs
 from collections import defaultdict, namedtuple
-try:
-    import cPickle as pickle
-except ImportError:
-    import pickle
 import errno
 import hashlib
 import json
 import os
+import pickle
 from shutil import copyfile, rmtree
 import subprocess
 from subprocess import Popen, PIPE
