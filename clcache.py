@@ -354,7 +354,6 @@ class Configuration(object):
     _defaultValues = {"MaximumCacheSize": 1073741824} # 1 GiB
 
     def __init__(self, objectCache):
-        self._objectCache = objectCache
         self._cfg = PersistentJSONDict(os.path.join(objectCache.cacheDirectory(),
                                                     "config.txt"))
         for setting, defaultValue in self._defaultValues.items():
@@ -392,7 +391,6 @@ class CacheStatistics(object):
     }
 
     def __init__(self, objectCache):
-        self.objectCache = objectCache
         self._stats = PersistentJSONDict(os.path.join(objectCache.cacheDirectory(),
                                                       "stats.txt"))
         for k in CacheStatistics.RESETTABLE_KEYS | CacheStatistics.NON_RESETTABLE_KEYS:
