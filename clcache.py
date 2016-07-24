@@ -1393,17 +1393,7 @@ def processNoDirect(cache, outputFile, compiler, cmdLine):
     cachekey = ObjectCache.computeKey(compiler, cmdLine)
     with cache.lock:
         if cache.hasEntry(cachekey):
-            stats = CacheStatistics(cache)
-            stats.registerCacheHit()
-            stats.save()
-            printTraceStatement("Reusing cached object for key {} for output file {}".format(cachekey, outputFile))
-            if outputFile is not None and os.path.exists(outputFile):
-                os.remove(outputFile)
-            copyOrLink(cache.cachedObjectName(cachekey), outputFile)
-            compilerStdout = cache.cachedCompilerOutput(cachekey)
-            compilerStderr = cache.cachedCompilerStderr(cachekey)
-            printTraceStatement("Finished. Exit code 0")
-            return 0, compilerStdout, compilerStderr
+            return processCacheHit(cache, outputFile, cachekey)
 
     returnCode, compilerStdout, compilerStderr = invokeRealCompiler(compiler, cmdLine, captureOutput=True)
     with cache.lock:
