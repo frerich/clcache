@@ -77,6 +77,44 @@ class TestManifestManager(unittest.TestCase):
         self.assertEqual(mm.manifestPath("fdde59862785f9f0ad6e661b9b5746b7"),
                          os.path.join(manifestsRootDir, "fd", "fdde59862785f9f0ad6e661b9b5746b7.json"))
 
+    def testIncludesContentHash(self):
+        self.assertEqual(
+            ManifestsManager.getIncludesContentHash([]),
+            ManifestsManager.getIncludesContentHash([])
+        )
+
+        self.assertEqual(
+            ManifestsManager.getIncludesContentHash(["d88be7edbf"]),
+            ManifestsManager.getIncludesContentHash(["d88be7edbf"])
+        )
+
+        self.assertEqual(
+            ManifestsManager.getIncludesContentHash(["d88be7edbf", "f6c8bd5733"]),
+            ManifestsManager.getIncludesContentHash(["d88be7edbf", "f6c8bd5733"])
+        )
+
+        # Wrong number of elements
+        self.assertNotEqual(
+            ManifestsManager.getIncludesContentHash([]),
+            ManifestsManager.getIncludesContentHash(["d88be7edbf"])
+        )
+
+        # Wrong order
+        self.assertNotEqual(
+            ManifestsManager.getIncludesContentHash(["d88be7edbf", "f6c8bd5733"]),
+            ManifestsManager.getIncludesContentHash(["f6c8bd5733", "d88be7edbf"])
+        )
+
+        # Content in different elements
+        self.assertNotEqual(
+            ManifestsManager.getIncludesContentHash(["", "d88be7edbf"]),
+            ManifestsManager.getIncludesContentHash(["d88be7edbf", ""])
+        )
+        self.assertNotEqual(
+            ManifestsManager.getIncludesContentHash(["d88be", "7edbf"]),
+            ManifestsManager.getIncludesContentHash(["d88b", "e7edbf"])
+        )
+
     def testStoreAndGetManifest(self):
         manifestsRootDir = os.path.join(ASSETS_DIR, "manifests")
         mm = ManifestsManager(manifestsRootDir)
