@@ -223,8 +223,16 @@ class ObjectCache(object):
 
         # Free at least 10% to avoid cleaning up too often which
         # is a big performance hit with large caches.
-        effectiveMaximumSize = maximumSize * 0.9
+        effectiveMaximumSizeOverall = maximumSize * 0.9
 
+        # Split limit in manifests (10 %) and objects (90 %)
+        effectiveMaximumSizeManifests = effectiveMaximumSizeOverall * 0.1
+        effectiveMaximumSizeObjects = effectiveMaximumSizeOverall - effectiveMaximumSizeManifests
+
+        # Clean manifests
+        self.manifestsManager.clean(effectiveMaximumSizeManifests)
+
+        # Clean objects
         objects = [os.path.join(root, "object")
                    for root, _, files in WALK(self.objectsDir)
                    if "object" in files]
@@ -246,7 +254,7 @@ class ObjectCache(object):
             rmtree(os.path.split(fn)[0], ignore_errors=True)
             removedItems += 1
             currentSize -= stat.st_size
-            if currentSize < effectiveMaximumSize:
+            if currentSize < effectiveMaximumSizeObjects:
                 break
 
         stats.setCacheSize(currentSize)
