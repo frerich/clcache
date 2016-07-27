@@ -9,6 +9,7 @@
 from ctypes import windll, wintypes
 import codecs
 from collections import defaultdict, namedtuple
+from contextlib import closing
 import errno
 import hashlib
 import json
@@ -366,6 +367,9 @@ class Configuration(object):
     def save(self):
         self._cfg.save()
 
+    def close(self):
+        self.save()
+
 
 class CacheStatistics(object):
     RESETTABLE_KEYS = {
@@ -498,6 +502,9 @@ class CacheStatistics(object):
 
     def save(self):
         self._stats.save()
+
+    def close(self):
+        self.save()
 
 
 class AnalysisError(Exception):
@@ -1067,22 +1074,19 @@ clcache statistics:
     print(out)
 
 def resetStatistics(cache):
-    stats = CacheStatistics(cache)
-    stats.resetCounters()
-    stats.save()
+    with closing(CacheStatistics(cache)) as stats:
+        stats.resetCounters()
     print('Statistics reset')
 
 def cleanCache(cache):
     cfg = Configuration(cache)
-    stats = CacheStatistics(cache)
-    cache.clean(stats, cfg.maximumCacheSize())
-    stats.save()
+    with closing(CacheStatistics(cache)) as stats:
+        cache.clean(stats, cfg.maximumCacheSize())
     print('Cache cleaned')
 
 def clearCache(cache):
-    stats = CacheStatistics(cache)
-    cache.clean(stats, 0)
-    stats.save()
+    with closing(CacheStatistics(cache)) as stats:
+        cache.clean(stats, 0)
     print('Cache cleared')
 
 
@@ -1137,9 +1141,8 @@ def addObjectToCache(stats, cache, outputFile, compilerStdout, compilerStderr, c
 
 
 def processCacheHit(cache, outputFile, cachekey):
-    stats = CacheStatistics(cache)
-    stats.registerCacheHit()
-    stats.save()
+    with closing(CacheStatistics(cache)) as stats:
+        stats.registerCacheHit()
     printTraceStatement("Reusing cached object for key {} for output file {}".format(cachekey, outputFile))
     if outputFile is not None:
         if os.path.exists(outputFile):
@@ -1155,12 +1158,10 @@ def postprocessObjectEvicted(cache, outputFile, cachekey, compilerResult):
     printTraceStatement("Cached object already evicted for key {} for output file {}".format(cachekey, outputFile))
     returnCode, compilerOutput, compilerStderr = compilerResult
 
-    with cache.lock:
-        stats = CacheStatistics(cache)
+    with cache.lock, closing(CacheStatistics(cache)) as stats:
         stats.registerEvictedMiss()
         if returnCode == 0 and (outputFile is None or os.path.exists(outputFile)):
             addObjectToCache(stats, cache, outputFile, compilerOutput, compilerStderr, cachekey)
-        stats.save()
 
     return compilerResult
 
@@ -1176,14 +1177,12 @@ def postprocessHeaderChangedMiss(cache, outputFile, manifest, manifestHash, keyI
             removedItems.append(objectHash)
         manifest.hashes[keyInManifest] = cachekey
 
-    with cache.lock:
-        stats = CacheStatistics(cache)
+    with cache.lock, closing(CacheStatistics(cache)) as stats:
         stats.registerHeaderChangedMiss()
         if returnCode == 0 and (outputFile is None or os.path.exists(outputFile)):
             addObjectToCache(stats, cache, outputFile, compilerOutput, compilerStderr, cachekey)
             cache.removeObjects(stats, removedItems)
             cache.setManifest(manifestHash, manifest)
-        stats.save()
 
     return compilerResult
 
@@ -1213,14 +1212,12 @@ def postprocessNoManifestMiss(
         cachekey = ObjectCache.getDirectCacheKey(manifestHash, keyInManifest)
         manifest.hashes[keyInManifest] = cachekey
 
-    with cache.lock:
-        stats = CacheStatistics(cache)
+    with cache.lock, closing(CacheStatistics(cache)) as stats:
         stats.registerSourceChangedMiss()
         if returnCode == 0 and (outputFile is None or os.path.exists(outputFile)):
             # Store compile output and manifest
             addObjectToCache(stats, cache, outputFile, compilerOutput, compilerStderr, cachekey)
             cache.setManifest(manifestHash, manifest)
-        stats.save()
 
     return returnCode, compilerOutput, compilerStderr
 
@@ -1271,10 +1268,8 @@ clcache.py v{}
             print("Max size argument must be greater than 0.", file=sys.stderr)
             return 1
 
-        with cache.lock:
-            cfg = Configuration(cache)
+        with cache.lock, closing(Configuration(cache)) as cfg:
             cfg.setMaximumCacheSize(maxSizeValue)
-            cfg.save()
         return 0
 
     compiler = findCompilerBinary()
@@ -1298,10 +1293,8 @@ clcache.py v{}
 
 
 def updateCacheStatistics(cache, method):
-    with cache.lock:
-        stats = CacheStatistics(cache)
+    with cache.lock, closing(CacheStatistics(cache)) as stats:
         method(stats)
-        stats.save()
 
 
 def processCompileRequest(cache, compiler, args):
@@ -1396,12 +1389,10 @@ def processNoDirect(cache, outputFile, compiler, cmdLine):
             return processCacheHit(cache, outputFile, cachekey)
 
     returnCode, compilerStdout, compilerStderr = invokeRealCompiler(compiler, cmdLine, captureOutput=True)
-    with cache.lock:
-        stats = CacheStatistics(cache)
+    with cache.lock, closing(CacheStatistics(cache)) as stats:
         stats.registerCacheMiss()
         if returnCode == 0 and outputFile is not None and os.path.exists(outputFile):
             addObjectToCache(stats, cache, outputFile, compilerStdout, compilerStderr, cachekey)
-        stats.save()
 
     printTraceStatement("Finished. Exit code {0:d}".format(returnCode))
     return returnCode, compilerStdout, compilerStderr
