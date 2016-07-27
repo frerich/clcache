@@ -14,6 +14,7 @@ import glob
 import os
 import subprocess
 import sys
+import tempfile
 import unittest
 
 import clcache
@@ -40,12 +41,13 @@ def cd(targetDirectory):
 
 
 class TestCommandLineArguments(unittest.TestCase):
-    @unittest.skip("Do not run this test by default because it change user's cache settings")
     def testValidMaxSize(self):
-        validValues = ["1", "  10", "42  ", "22222222"]
-        for value in validValues:
-            cmd = CLCACHE_CMD + ["-M", value]
-            self.assertEqual(subprocess.call(cmd), 0, "Command must not fail for max size: '" + value + "'")
+        with tempfile.TemporaryDirectory() as tempDir:
+            validValues = ["1", "  10", "42  ", "22222222"]
+            for value in validValues:
+                cmd = CLCACHE_CMD + ["-M", value]
+                p = subprocess.Popen(cmd, env=dict(os.environ, CLCACHE_DIR=tempDir))
+                self.assertEqual(p.wait(), 0, "Command must not fail for max size: '" + value + "'")
 
     def testInvalidMaxSize(self):
         invalidValues = ["ababa", "-1", "0", "1000.0"]
