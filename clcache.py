@@ -366,6 +366,9 @@ class Configuration(object):
     def save(self):
         self._cfg.save()
 
+    def close(self):
+        self.save()
+
 
 class CacheStatistics(object):
     RESETTABLE_KEYS = {
@@ -498,6 +501,9 @@ class CacheStatistics(object):
 
     def save(self):
         self._stats.save()
+
+    def close(self):
+        self.save()
 
 
 class AnalysisError(Exception):
