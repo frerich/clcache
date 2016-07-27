@@ -145,7 +145,7 @@ class ManifestsManager(object):
         return getFileHash(sourceFile, additionalData)
 
     @staticmethod
-    def getKeyInManifest(listOfHeaderHashes):
+    def getIncludesContentHash(listOfHeaderHashes):
         hasher = HashAlgorithm()
         hasher.update(','.join(listOfHeaderHashes).encode("UTF-8"))
         return hasher.hexdigest()
@@ -291,11 +291,11 @@ class ObjectCache(object):
         return hasher.hexdigest()
 
     @staticmethod
-    def getDirectCacheKey(manifestHash, keyInManifest):
+    def getDirectCacheKey(manifestHash, includesContentHash):
         # We must take into account manifestHash to avoid
         # collisions when different source files use the same
         # set of includes.
-        return ObjectCache.getHash(manifestHash + keyInManifest)
+        return ObjectCache.getHash(manifestHash + includesContentHash)
 
     def hasEntry(self, key):
         return os.path.exists(self.cachedObjectName(key)) or os.path.exists(self._cachedCompilerOutputName(key))
@@ -1197,8 +1197,8 @@ def postprocessObjectEvicted(cache, outputFile, cachekey, compilerResult):
     return compilerResult
 
 
-def postprocessHeaderChangedMiss(cache, outputFile, manifest, manifestHash, keyInManifest, compilerResult):
-    cachekey = ObjectCache.getDirectCacheKey(manifestHash, keyInManifest)
+def postprocessHeaderChangedMiss(cache, outputFile, manifest, manifestHash, includesContentHash, compilerResult):
+    cachekey = ObjectCache.getDirectCacheKey(manifestHash, includesContentHash)
     returnCode, compilerOutput, compilerStderr = compilerResult
 
     removedItems = []
@@ -1206,7 +1206,7 @@ def postprocessHeaderChangedMiss(cache, outputFile, manifest, manifestHash, keyI
         while len(manifest.hashes) >= MAX_MANIFEST_HASHES:
             _, objectHash = manifest.hashes.popitem()
             removedItems.append(objectHash)
-        manifest.hashes[keyInManifest] = cachekey
+        manifest.hashes[includesContentHash] = cachekey
 
     with cache.lock, closing(CacheStatistics(cache)) as stats:
         stats.registerHeaderChangedMiss()
@@ -1239,9 +1239,9 @@ def postprocessNoManifestMiss(
         # Store compile output and manifest
         manifest = Manifest(listOfIncludes, {})
         listOfHeaderHashes = [getFileHash(expandBasedirPlaceholder(fileName, baseDir)) for fileName in listOfIncludes]
-        keyInManifest = ManifestsManager.getKeyInManifest(listOfHeaderHashes)
-        cachekey = ObjectCache.getDirectCacheKey(manifestHash, keyInManifest)
-        manifest.hashes[keyInManifest] = cachekey
+        includesContentHash = ManifestsManager.getIncludesContentHash(listOfHeaderHashes)
+        cachekey = ObjectCache.getDirectCacheKey(manifestHash, includesContentHash)
+        manifest.hashes[includesContentHash] = cachekey
 
     with cache.lock, closing(CacheStatistics(cache)) as stats:
         stats.registerSourceChangedMiss()
@@ -1387,8 +1387,8 @@ def processDirect(cache, outputFile, compiler, cmdLine, sourceFile):
                     # May be if source does not use this header anymore (e.g. if that
                     # header was included through some other header, which now changed).
                     listOfHeaderHashes.append(fileHash)
-            keyInManifest = ManifestsManager.getKeyInManifest(listOfHeaderHashes)
-            cachekey = manifest.hashes.get(keyInManifest)
+            includesContentHash = ManifestsManager.getIncludesContentHash(listOfHeaderHashes)
+            cachekey = manifest.hashes.get(includesContentHash)
             if cachekey is not None:
                 if cache.hasEntry(cachekey):
                     return processCacheHit(cache, outputFile, cachekey)
@@ -1397,7 +1397,7 @@ def processDirect(cache, outputFile, compiler, cmdLine, sourceFile):
                         cache, outputFile, cachekey, compilerResult)
             else:
                 postProcessing = lambda compilerResult: postprocessHeaderChangedMiss(
-                    cache, outputFile, manifest, manifestHash, keyInManifest, compilerResult)
+                    cache, outputFile, manifest, manifestHash, includesContentHash, compilerResult)
         else:
             origCmdLine = cmdLine
             stripIncludes = False
