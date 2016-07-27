@@ -43,11 +43,14 @@ def cd(targetDirectory):
 class TestCommandLineArguments(unittest.TestCase):
     def testValidMaxSize(self):
         with tempfile.TemporaryDirectory() as tempDir:
+            customEnv = dict(os.environ, CLCACHE_DIR=tempDir)
             validValues = ["1", "  10", "42  ", "22222222"]
             for value in validValues:
                 cmd = CLCACHE_CMD + ["-M", value]
-                p = subprocess.Popen(cmd, env=dict(os.environ, CLCACHE_DIR=tempDir))
-                self.assertEqual(p.wait(), 0, "Command must not fail for max size: '" + value + "'")
+                self.assertEqual(
+                    subprocess.call(cmd, env=customEnv),
+                    0,
+                    "Command must not fail for max size: '" + value + "'")
 
     def testInvalidMaxSize(self):
         invalidValues = ["ababa", "-1", "0", "1000.0"]
@@ -455,27 +458,22 @@ class TestNoDirectCalls(unittest.TestCase):
 
         cmd = CLCACHE_CMD + ["/nologo", "/c", "doesnotexist.cpp"]
         env = dict(os.environ, CLCACHE_NODIRECT="1")
-        p = subprocess.Popen(cmd, env=env)
-        p.wait()
+
+        self.assertNotEqual(subprocess.call(cmd, env=env), 0)
 
         self.assertEqual(clcache.CacheStatistics(cache), oldStats)
-        self.assertNotEqual(p.returncode, 0)
 
     def testHit(self):
         with cd(os.path.join(ASSETS_DIR, "hits-and-misses")):
             cmd = CLCACHE_CMD + ["/nologo", "/EHsc", "/c", "hit.cpp"]
             env = dict(os.environ, CLCACHE_NODIRECT="1")
 
-            p = subprocess.Popen(cmd, env=env)
-            p.wait()
-            self.assertEqual(p.returncode, 0)
+            self.assertEqual(subprocess.call(cmd, env=env), 0)
 
             cache = clcache.ObjectCache()
             oldHits = clcache.CacheStatistics(cache).numCacheHits()
 
-            p = subprocess.Popen(cmd, env=env)
-            p.wait() # This should hit now
-            self.assertEqual(p.returncode, 0)
+            self.assertEqual(subprocess.call(cmd, env=env), 0) # This should hit now
             self.assertEqual(clcache.CacheStatistics(cache).numCacheHits(), oldHits + 1)
 
 
