@@ -146,7 +146,9 @@ class ManifestsManager(object):
 
     @staticmethod
     def getKeyInManifest(listOfHeaderHashes):
-        return ObjectCache.getHash(','.join(listOfHeaderHashes))
+        hasher = HashAlgorithm()
+        hasher.update(','.join(listOfHeaderHashes).encode("UTF-8"))
+        return hasher.hexdigest()
 
 
 class ObjectCacheLock(object):
