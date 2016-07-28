@@ -52,10 +52,10 @@ MAX_MANIFEST_HASHES = 100
 BASEDIR_REPLACEMENT = '?'
 
 # `includeFiles`: list of paths to include files, which this source file uses
-# `hashes`: dictionary
+# `includesContentToObjectMap`: dictionary
 #   key: cumulative hash of all include files' content in includeFiles
 #   value: key in the cache, under which the object file is stored
-Manifest = namedtuple('Manifest', ['includeFiles', 'hashes'])
+Manifest = namedtuple('Manifest', ['includeFiles', 'includesContentToObjectMap'])
 
 
 def printBinary(stream, rawData):
@@ -81,7 +81,7 @@ class LogicException(Exception):
 
 
 class ManifestsManager(object):
-    HASH_INVALIDATION_COUNTER = 2
+    HASH_INVALIDATION_COUNTER = 3
 
     def __init__(self, manifestsRootDir):
         self._manifestsRootDir = manifestsRootDir
@@ -96,7 +96,10 @@ class ManifestsManager(object):
         ensureDirectoryExists(self.manifestDir(manifestHash))
         with open(self.manifestPath(manifestHash), 'w') as outFile:
             # Convert namedtupel to dict to get key names
-            doc = {'includeFiles': manifest.includeFiles, 'hashes': manifest.hashes}
+            doc = {
+                'includeFiles': manifest.includeFiles,
+                'includesContentToObjectMap': manifest.includesContentToObjectMap
+            }
             json.dump(doc, outFile, sort_keys=True, indent=2)
 
     def getManifest(self, manifestHash):
@@ -106,7 +109,7 @@ class ManifestsManager(object):
         try:
             with open(fileName, 'r') as inFile:
                 doc = json.load(inFile)
-                return Manifest(doc['includeFiles'], doc['hashes'])
+                return Manifest(doc['includeFiles'], doc['includesContentToObjectMap'])
         except IOError:
             return None
 
@@ -1203,10 +1206,10 @@ def postprocessHeaderChangedMiss(cache, outputFile, manifest, manifestHash, incl
 
     removedItems = []
     if returnCode == 0 and (outputFile is None or os.path.exists(outputFile)):
-        while len(manifest.hashes) >= MAX_MANIFEST_HASHES:
-            _, objectHash = manifest.hashes.popitem()
+        while len(manifest.includesContentToObjectMap) >= MAX_MANIFEST_HASHES:
+            _, objectHash = manifest.includesContentToObjectMap.popitem()
             removedItems.append(objectHash)
-        manifest.hashes[includesContentHash] = cachekey
+        manifest.includesContentToObjectMap[includesContentHash] = cachekey
 
     with cache.lock, closing(CacheStatistics(cache)) as stats:
         stats.registerHeaderChangedMiss()
@@ -1241,7 +1244,7 @@ def postprocessNoManifestMiss(
         listOfHeaderHashes = [getFileHash(expandBasedirPlaceholder(fileName, baseDir)) for fileName in listOfIncludes]
         includesContentHash = ManifestsManager.getIncludesContentHash(listOfHeaderHashes)
         cachekey = ObjectCache.getDirectCacheKey(manifestHash, includesContentHash)
-        manifest.hashes[includesContentHash] = cachekey
+        manifest.includesContentToObjectMap[includesContentHash] = cachekey
 
     with cache.lock, closing(CacheStatistics(cache)) as stats:
         stats.registerSourceChangedMiss()
@@ -1388,7 +1391,7 @@ def processDirect(cache, outputFile, compiler, cmdLine, sourceFile):
                     # header was included through some other header, which now changed).
                     listOfHeaderHashes.append(fileHash)
             includesContentHash = ManifestsManager.getIncludesContentHash(listOfHeaderHashes)
-            cachekey = manifest.hashes.get(includesContentHash)
+            cachekey = manifest.includesContentToObjectMap.get(includesContentHash)
             if cachekey is not None:
                 if cache.hasEntry(cachekey):
                     return processCacheHit(cache, outputFile, cachekey)
