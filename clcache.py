@@ -154,9 +154,7 @@ class ManifestsManager(object):
 
     @staticmethod
     def getIncludesContentHash(listOfHeaderHashes):
-        hasher = HashAlgorithm()
-        hasher.update(','.join(listOfHeaderHashes).encode("UTF-8"))
-        return hasher.hexdigest()
+        return HashAlgorithm(','.join(listOfHeaderHashes).encode()).hexdigest()
 
 
 class ObjectCacheLock(object):
