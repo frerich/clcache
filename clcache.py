@@ -67,6 +67,12 @@ def basenameWithoutExtension(path):
     return os.path.splitext(basename)[0]
 
 
+def filesBeneath(path):
+    for path, _, filenames in WALK(path):
+        for filename in filenames:
+            yield os.path.join(path, filename)
+
+
 class ObjectCacheLockException(Exception):
     pass
 
@@ -119,13 +125,8 @@ class ManifestsManager(object):
             return None
 
     def clean(self, maxManifestsSize):
-        manifestFiles = []
-        for path, _, filenames in WALK(self._manifestsRootDir):
-            for filename in filenames:
-                manifestFiles.append(os.path.join(path, filename))
-
         manifestFileInfos = []
-        for filepath in manifestFiles:
+        for filepath in filesBeneath(self._manifestsRootDir):
             try:
                 manifestFileInfos.append((os.stat(filepath), filepath))
             except OSError:
