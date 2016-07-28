@@ -4,7 +4,7 @@ clcache.py - a compiler cache for Microsoft Visual Studio
 clcache.py is a little Python script which attempts to avoid unnecessary
 recompilation by reusing previously cached object files if possible. It
 is meant to be called instead of the original 'cl.exe' executable. The
-script analyses the command line to decide whether *one* source files is
+script analyses the command line to decide whether source code is
 to be compiled. If so, a cache will be queried for a previously stored
 object file.
 
@@ -122,6 +122,9 @@ line must be true:
 * The +/link+ switch must not be present
 * The +/c+ switch must be present
 * The +/Zi+ switch must not be present (+/Z7+ is okay though)
+
+If multiple source files are given on the command line, clcache.py wil invoke
+itself multiple times while respecting an optional +/MP+ switch.
 
 If all the above requirements are met, clcache forwards the call to the
 preprocessor by replacing +/c+ with +/EP+ in the command line and then
