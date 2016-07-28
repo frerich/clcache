@@ -92,7 +92,7 @@ class ManifestsManager(object):
     # invalidation, such that a manifest that was stored using the old format is not
     # interpreted using the new format. Instead the old file will not be touched
     # again due to a new manifest hash and is cleaned away after some time.
-    HASH_INVALIDATION_COUNTER = 3
+    MANIFEST_FILE_FORMAT_VERSION = 3
 
     def __init__(self, manifestsRootDir):
         self._manifestsRootDir = manifestsRootDir
@@ -146,7 +146,7 @@ class ManifestsManager(object):
         # preprocessor options. In direct mode we do not perform
         # preprocessing before cache lookup, so all parameters are important
         additionalData = "{}|{}|{}".format(
-            compilerHash, commandLine, ManifestsManager.HASH_INVALIDATION_COUNTER)
+            compilerHash, commandLine, ManifestsManager.MANIFEST_FILE_FORMAT_VERSION)
         return getFileHash(sourceFile, additionalData)
 
     @staticmethod
