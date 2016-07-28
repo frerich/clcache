@@ -106,12 +106,8 @@ class ManifestsManager(object):
     def setManifest(self, manifestHash, manifest):
         ensureDirectoryExists(self.manifestDir(manifestHash))
         with open(self.manifestPath(manifestHash), 'w') as outFile:
-            # Convert namedtupel to dict to get key names
-            doc = {
-                'includeFiles': manifest.includeFiles,
-                'includesContentToObjectMap': manifest.includesContentToObjectMap
-            }
-            json.dump(doc, outFile, sort_keys=True, indent=2)
+            # Converting namedtuple to JSON via OrderedDict preserves key names and keys order
+            json.dump(manifest._asdict(), outFile, indent=2)
 
     def getManifest(self, manifestHash):
         fileName = self.manifestPath(manifestHash)
