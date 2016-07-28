@@ -15,10 +15,9 @@ clcache changelog
    and if there if no parameter, tried `/NAME parameter`. This strategy was too simple
    and failed for like e.g. `/Fo`, which must not consume the following argument when
    no parameter is set.
- * Bugfix: manifest data written when using the 'direct' mode are no longer get
-   accumulated infinitely. As part of this change, the manifest file format was
-   changed in a backwards-incompatible fashion, so upgrading clcache may cause
-   initial cache misses.
+ * Rework manifests: use JSON to store manifests. This makes all existing manifests
+   invalid. Cleaning and clearing now removes old manifest files as well, so the old
+   .dat files are automatically removed.
  * clcache now requires Python 3.3 or newer.
 
 ## clcache 3.1.1 (2016-06-25)
