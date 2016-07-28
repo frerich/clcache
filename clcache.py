@@ -1168,9 +1168,9 @@ def parseIncludesList(compilerOutput, sourceFile, baseDir, strip):
         elif strip:
             newOutput.append(line)
     if strip:
-        return list(includesSet), ''.join(newOutput)
+        return sorted(includesSet), ''.join(newOutput)
     else:
-        return list(includesSet), compilerOutput
+        return sorted(includesSet), compilerOutput
 
 
 def addObjectToCache(stats, cache, outputFile, compilerStdout, compilerStderr, cachekey):
