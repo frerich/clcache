@@ -19,6 +19,8 @@ clcache changelog
    invalid. Cleaning and clearing now removes old manifest files as well, so the old
    .dat files are automatically removed.
  * clcache now requires Python 3.3 or newer.
+ * py2exe support was dropped, PyInstaller is now recommended for generating
+   .exe files.
 
 ## clcache 3.1.1 (2016-06-25)
 
