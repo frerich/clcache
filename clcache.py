@@ -81,6 +81,11 @@ class LogicException(Exception):
 
 
 class ManifestsManager(object):
+    # Bump this counter whenever the current manifest file format changes.
+    # E.g. changing the file format from {'oldkey': ...} to {'newkey': ...} requires
+    # invalidation, such that a manifest that was stored using the old format is not
+    # interpreted using the new format. Instead the old file will not be touched
+    # again due to a new manifest hash and is cleaned away after some time.
     HASH_INVALIDATION_COUNTER = 3
 
     def __init__(self, manifestsRootDir):
