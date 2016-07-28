@@ -14,7 +14,6 @@ import errno
 import hashlib
 import json
 import os
-import pickle
 from shutil import copyfile, rmtree
 import subprocess
 from subprocess import Popen, PIPE
@@ -26,6 +25,13 @@ VERSION = "3.1.2-dev"
 
 HashAlgorithm = hashlib.md5
 
+# try to use os.scandir or scandir.scandir
+# fall back to os.walk if not found
+try:
+    import scandir # pylint: disable=wrong-import-position
+    WALK = scandir.walk
+except ImportError:
+    WALK = os.walk
 
 # The codec that is used by clcache to store compiler STDOUR and STDERR in
 # output.txt and stderr.txt.
@@ -45,11 +51,11 @@ MAX_MANIFEST_HASHES = 100
 # to use it as mark for relative path.
 BASEDIR_REPLACEMENT = '?'
 
-# includeFiles - list of paths toi include files, which this source file use.
-# hashes - dictionary.
-# Key - cumulative hash of all include files in includeFiles;
-# Value - key in the cache, under which output file is stored.
-Manifest = namedtuple('Manifest', ['includeFiles', 'hashes'])
+# `includeFiles`: list of paths to include files, which this source file uses
+# `includesContentToObjectMap`: dictionary
+#   key: cumulative hash of all include files' content in includeFiles
+#   value: key in the cache, under which the object file is stored
+Manifest = namedtuple('Manifest', ['includeFiles', 'includesContentToObjectMap'])
 
 
 def printBinary(stream, rawData):
@@ -59,6 +65,12 @@ def printBinary(stream, rawData):
 def basenameWithoutExtension(path):
     basename = os.path.basename(path)
     return os.path.splitext(basename)[0]
+
+
+def filesBeneath(path):
+    for path, _, filenames in WALK(path):
+        for filename in filenames:
+            yield os.path.join(path, filename)
 
 
 class ObjectCacheLockException(Exception):
@@ -72,6 +84,74 @@ class LogicException(Exception):
 
     def __str__(self):
         return repr(self.message)
+
+
+class ManifestsManager(object):
+    # Bump this counter whenever the current manifest file format changes.
+    # E.g. changing the file format from {'oldkey': ...} to {'newkey': ...} requires
+    # invalidation, such that a manifest that was stored using the old format is not
+    # interpreted using the new format. Instead the old file will not be touched
+    # again due to a new manifest hash and is cleaned away after some time.
+    MANIFEST_FILE_FORMAT_VERSION = 3
+
+    def __init__(self, manifestsRootDir):
+        self._manifestsRootDir = manifestsRootDir
+
+    def manifestDir(self, manifestHash):
+        return os.path.join(self._manifestsRootDir, manifestHash[:2])
+
+    def manifestPath(self, manifestHash):
+        return os.path.join(self.manifestDir(manifestHash), manifestHash + ".json")
+
+    def setManifest(self, manifestHash, manifest):
+        ensureDirectoryExists(self.manifestDir(manifestHash))
+        with open(self.manifestPath(manifestHash), 'w') as outFile:
+            # Converting namedtuple to JSON via OrderedDict preserves key names and keys order
+            json.dump(manifest._asdict(), outFile, indent=2)
+
+    def getManifest(self, manifestHash):
+        fileName = self.manifestPath(manifestHash)
+        if not os.path.exists(fileName):
+            return None
+        try:
+            with open(fileName, 'r') as inFile:
+                doc = json.load(inFile)
+                return Manifest(doc['includeFiles'], doc['includesContentToObjectMap'])
+        except IOError:
+            return None
+
+    def clean(self, maxManifestsSize):
+        manifestFileInfos = []
+        for filepath in filesBeneath(self._manifestsRootDir):
+            try:
+                manifestFileInfos.append((os.stat(filepath), filepath))
+            except OSError:
+                pass
+
+        manifestFileInfos.sort(key=lambda t: t[0].st_atime, reverse=True)
+
+        currentSize = 0
+        for stat, filepath in manifestFileInfos:
+            currentSize += stat.st_size
+            if currentSize < maxManifestsSize:
+                # skip as long as maximal size not reached
+                continue
+            os.remove(filepath)
+
+    @staticmethod
+    def getManifestHash(compilerBinary, commandLine, sourceFile):
+        compilerHash = getCompilerHash(compilerBinary)
+
+        # NOTE: We intentionally do not normalize command line to include
+        # preprocessor options. In direct mode we do not perform
+        # preprocessing before cache lookup, so all parameters are important
+        additionalData = "{}|{}|{}".format(
+            compilerHash, commandLine, ManifestsManager.MANIFEST_FILE_FORMAT_VERSION)
+        return getFileHash(sourceFile, additionalData)
+
+    @staticmethod
+    def getIncludesContentHash(listOfHeaderHashes):
+        return HashAlgorithm(','.join(listOfHeaderHashes).encode()).hexdigest()
 
 
 class ObjectCacheLock(object):
@@ -122,8 +202,11 @@ class ObjectCache(object):
             self.dir = os.environ["CLCACHE_DIR"]
         except KeyError:
             self.dir = os.path.join(os.path.expanduser("~"), "clcache")
-        self.manifestsDir = os.path.join(self.dir, "manifests")
-        ensureDirectoryExists(self.manifestsDir)
+
+        manifestsRootDir = os.path.join(self.dir, "manifests")
+        ensureDirectoryExists(manifestsRootDir)
+        self.manifestsManager = ManifestsManager(manifestsRootDir)
+
         self.objectsDir = os.path.join(self.dir, "objects")
         ensureDirectoryExists(self.objectsDir)
         lockName = self.cacheDirectory().replace(':', '-').replace('\\', '-')
@@ -140,18 +223,18 @@ class ObjectCache(object):
 
         # Free at least 10% to avoid cleaning up too often which
         # is a big performance hit with large caches.
-        effectiveMaximumSize = maximumSize * 0.9
+        effectiveMaximumSizeOverall = maximumSize * 0.9
 
-        # try to use os.scandir or scandir.scandir
-        # fall back to os.walk if not found
-        try:
-            import scandir
-            walker = scandir.walk
-        except ImportError:
-            walker = os.walk
+        # Split limit in manifests (10 %) and objects (90 %)
+        effectiveMaximumSizeManifests = effectiveMaximumSizeOverall * 0.1
+        effectiveMaximumSizeObjects = effectiveMaximumSizeOverall - effectiveMaximumSizeManifests
 
+        # Clean manifests
+        self.manifestsManager.clean(effectiveMaximumSizeManifests)
+
+        # Clean objects
         objects = [os.path.join(root, "object")
-                   for root, _, files in walker(self.objectsDir)
+                   for root, _, files in WALK(self.objectsDir)
                    if "object" in files]
 
         objectInfos = []
@@ -171,13 +254,12 @@ class ObjectCache(object):
             rmtree(os.path.split(fn)[0], ignore_errors=True)
             removedItems += 1
             currentSize -= stat.st_size
-            if currentSize < effectiveMaximumSize:
+            if currentSize < effectiveMaximumSizeObjects:
                 break
 
         stats.setCacheSize(currentSize)
 
         stats.setNumCacheEntries(len(objectInfos) - removedItems)
-
 
     def removeObjects(self, stats, removedObjects):
         for o in removedObjects:
@@ -191,17 +273,6 @@ class ObjectCache(object):
                 fileStat = os.stat(objectPath)
                 stats.unregisterCacheEntry(fileStat.st_size)
             rmtree(dirPath, ignore_errors=True)
-
-
-    @staticmethod
-    def getManifestHash(compilerBinary, commandLine, sourceFile):
-        compilerHash = getCompilerHash(compilerBinary)
-
-        # NOTE: We intentionally do not normalize command line to include
-        # preprocessor options. In direct mode we do not perform
-        # preprocessing before cache lookup, so all parameters are important
-        additionalData = compilerHash + ' '.join(commandLine)
-        return getFileHash(sourceFile, additionalData)
 
     @staticmethod
     def computeKey(compilerBinary, commandLine):
@@ -231,15 +302,11 @@ class ObjectCache(object):
         return hasher.hexdigest()
 
     @staticmethod
-    def getKeyInManifest(listOfHeaderHashes):
-        return ObjectCache.getHash(','.join(listOfHeaderHashes))
-
-    @staticmethod
-    def getDirectCacheKey(manifestHash, keyInManifest):
+    def getDirectCacheKey(manifestHash, includesContentHash):
         # We must take into account manifestHash to avoid
         # collisions when different source files use the same
         # set of includes.
-        return ObjectCache.getHash(manifestHash + keyInManifest)
+        return ObjectCache.getHash(manifestHash + includesContentHash)
 
     def hasEntry(self, key):
         return os.path.exists(self.cachedObjectName(key)) or os.path.exists(self._cachedCompilerOutputName(key))
@@ -253,23 +320,6 @@ class ObjectCache(object):
         if compilerStderr != '':
             with open(self._cachedCompilerStderrName(key), 'wb') as f:
                 f.write(compilerStderr.encode(CACHE_COMPILER_OUTPUT_STORAGE_CODEC))
-
-    def setManifest(self, manifestHash, manifest):
-        ensureDirectoryExists(self._manifestDir(manifestHash))
-        with open(self._manifestName(manifestHash), 'wb') as outFile:
-            pickle.dump(manifest, outFile)
-
-    def getManifest(self, manifestHash):
-        fileName = self._manifestName(manifestHash)
-        if not os.path.exists(fileName):
-            return None
-        try:
-            with open(fileName, 'rb') as inFile:
-                return pickle.load(inFile)
-        except (IOError, pickle.UnpicklingError):
-            # - file does not exist or cannot be opened (IOError)?
-            # - file is corrupted (pickle.UnpicklingError)
-            return None
 
     def cachedObjectName(self, key):
         return os.path.join(self._cacheEntryDir(key), "object")
@@ -287,12 +337,6 @@ class ObjectCache(object):
 
     def _cacheEntryDir(self, key):
         return os.path.join(self.objectsDir, key[:2], key)
-
-    def _manifestDir(self, manifestHash):
-        return os.path.join(self.manifestsDir, manifestHash[:2])
-
-    def _manifestName(self, manifestHash):
-        return os.path.join(self._manifestDir(manifestHash), manifestHash + ".dat")
 
     def _cachedCompilerOutputName(self, key):
         return os.path.join(self._cacheEntryDir(key), "output.txt")
@@ -1124,9 +1168,9 @@ def parseIncludesList(compilerOutput, sourceFile, baseDir, strip):
         elif strip:
             newOutput.append(line)
     if strip:
-        return list(includesSet), ''.join(newOutput)
+        return sorted(includesSet), ''.join(newOutput)
     else:
-        return list(includesSet), compilerOutput
+        return sorted(includesSet), compilerOutput
 
 
 def addObjectToCache(stats, cache, outputFile, compilerStdout, compilerStderr, cachekey):
@@ -1164,23 +1208,23 @@ def postprocessObjectEvicted(cache, outputFile, cachekey, compilerResult):
     return compilerResult
 
 
-def postprocessHeaderChangedMiss(cache, outputFile, manifest, manifestHash, keyInManifest, compilerResult):
-    cachekey = ObjectCache.getDirectCacheKey(manifestHash, keyInManifest)
+def postprocessHeaderChangedMiss(cache, outputFile, manifest, manifestHash, includesContentHash, compilerResult):
+    cachekey = ObjectCache.getDirectCacheKey(manifestHash, includesContentHash)
     returnCode, compilerOutput, compilerStderr = compilerResult
 
     removedItems = []
     if returnCode == 0 and (outputFile is None or os.path.exists(outputFile)):
-        while len(manifest.hashes) >= MAX_MANIFEST_HASHES:
-            _, objectHash = manifest.hashes.popitem()
+        while len(manifest.includesContentToObjectMap) >= MAX_MANIFEST_HASHES:
+            _, objectHash = manifest.includesContentToObjectMap.popitem()
             removedItems.append(objectHash)
-        manifest.hashes[keyInManifest] = cachekey
+        manifest.includesContentToObjectMap[includesContentHash] = cachekey
 
     with cache.lock, closing(CacheStatistics(cache)) as stats:
         stats.registerHeaderChangedMiss()
         if returnCode == 0 and (outputFile is None or os.path.exists(outputFile)):
             addObjectToCache(stats, cache, outputFile, compilerOutput, compilerStderr, cachekey)
             cache.removeObjects(stats, removedItems)
-            cache.setManifest(manifestHash, manifest)
+            cache.manifestsManager.setManifest(manifestHash, manifest)
 
     return compilerResult
 
@@ -1206,16 +1250,16 @@ def postprocessNoManifestMiss(
         # Store compile output and manifest
         manifest = Manifest(listOfIncludes, {})
         listOfHeaderHashes = [getFileHash(expandBasedirPlaceholder(fileName, baseDir)) for fileName in listOfIncludes]
-        keyInManifest = ObjectCache.getKeyInManifest(listOfHeaderHashes)
-        cachekey = ObjectCache.getDirectCacheKey(manifestHash, keyInManifest)
-        manifest.hashes[keyInManifest] = cachekey
+        includesContentHash = ManifestsManager.getIncludesContentHash(listOfHeaderHashes)
+        cachekey = ObjectCache.getDirectCacheKey(manifestHash, includesContentHash)
+        manifest.includesContentToObjectMap[includesContentHash] = cachekey
 
     with cache.lock, closing(CacheStatistics(cache)) as stats:
         stats.registerSourceChangedMiss()
         if returnCode == 0 and (outputFile is None or os.path.exists(outputFile)):
             # Store compile output and manifest
             addObjectToCache(stats, cache, outputFile, compilerOutput, compilerStderr, cachekey)
-            cache.setManifest(manifestHash, manifest)
+            cache.manifestsManager.setManifest(manifestHash, manifest)
 
     return returnCode, compilerOutput, compilerStderr
 
@@ -1339,9 +1383,9 @@ def processCompileRequest(cache, compiler, args):
 
 
 def processDirect(cache, outputFile, compiler, cmdLine, sourceFile):
-    manifestHash = ObjectCache.getManifestHash(compiler, cmdLine, sourceFile)
+    manifestHash = ManifestsManager.getManifestHash(compiler, cmdLine, sourceFile)
     with cache.lock:
-        manifest = cache.getManifest(manifestHash)
+        manifest = cache.manifestsManager.getManifest(manifestHash)
         baseDir = os.environ.get('CLCACHE_BASEDIR')
         if baseDir and not baseDir.endswith(os.path.sep):
             baseDir += os.path.sep
@@ -1354,8 +1398,8 @@ def processDirect(cache, outputFile, compiler, cmdLine, sourceFile):
                     # May be if source does not use this header anymore (e.g. if that
                     # header was included through some other header, which now changed).
                     listOfHeaderHashes.append(fileHash)
-            keyInManifest = ObjectCache.getKeyInManifest(listOfHeaderHashes)
-            cachekey = manifest.hashes.get(keyInManifest)
+            includesContentHash = ManifestsManager.getIncludesContentHash(listOfHeaderHashes)
+            cachekey = manifest.includesContentToObjectMap.get(includesContentHash)
             if cachekey is not None:
                 if cache.hasEntry(cachekey):
                     return processCacheHit(cache, outputFile, cachekey)
@@ -1364,7 +1408,7 @@ def processDirect(cache, outputFile, compiler, cmdLine, sourceFile):
                         cache, outputFile, cachekey, compilerResult)
             else:
                 postProcessing = lambda compilerResult: postprocessHeaderChangedMiss(
-                    cache, outputFile, manifest, manifestHash, keyInManifest, compilerResult)
+                    cache, outputFile, manifest, manifestHash, includesContentHash, compilerResult)
         else:
             origCmdLine = cmdLine
             stripIncludes = False

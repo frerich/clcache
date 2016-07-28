@@ -15,7 +15,11 @@ import os
 import unittest
 
 import clcache
-from clcache import CommandLineAnalyzer
+from clcache import (
+    CommandLineAnalyzer,
+    Manifest,
+    ManifestsManager,
+)
 from clcache import (
     AnalysisError,
     CalledForLinkError,
@@ -52,6 +56,146 @@ class TestHelperFunctions(unittest.TestCase):
         self.assertEqual(clcache.basenameWithoutExtension(r"README.asciidoc.tmp"), "README.asciidoc")
         self.assertEqual(clcache.basenameWithoutExtension(r"/home/user/README.asciidoc.tmp"), "README.asciidoc")
         self.assertEqual(clcache.basenameWithoutExtension(r"C:\Project\README.asciidoc.tmp"), "README.asciidoc")
+
+    def testFilesBeneathSimple(self):
+        with cd(os.path.join(ASSETS_DIR, "files-beneath")):
+            files = list(clcache.filesBeneath("a"))
+            self.assertEqual(len(files), 2)
+            self.assertIn(r"a\1.txt", files)
+            self.assertIn(r"a\2.txt", files)
+
+    def testFilesBeneathDeep(self):
+        with cd(os.path.join(ASSETS_DIR, "files-beneath")):
+            files = list(clcache.filesBeneath("b"))
+            self.assertEqual(len(files), 1)
+            self.assertIn(r"b\c\3.txt", files)
+
+    def testFilesBeneathRecursive(self):
+        with cd(os.path.join(ASSETS_DIR, "files-beneath")):
+            files = list(clcache.filesBeneath("."))
+            self.assertEqual(len(files), 5)
+            self.assertIn(r".\a\1.txt", files)
+            self.assertIn(r".\a\2.txt", files)
+            self.assertIn(r".\b\c\3.txt", files)
+            self.assertIn(r".\d\4.txt", files)
+            self.assertIn(r".\d\e\5.txt", files)
+
+
+class TestManifestManager(unittest.TestCase):
+    def _getDirectorySize(self, dirPath):
+        def filesize(path, filename):
+            return os.stat(os.path.join(path, filename)).st_size
+
+        size = 0
+        for path, _, filenames in clcache.WALK(dirPath):
+            size += sum(filesize(path, f) for f in filenames)
+
+        return size
+
+    def testPaths(self):
+        manifestsRootDir = os.path.join(ASSETS_DIR, "manifests")
+        mm = ManifestsManager(manifestsRootDir)
+
+        self.assertEqual(mm.manifestDir("fdde59862785f9f0ad6e661b9b5746b7"), os.path.join(manifestsRootDir, "fd"))
+        self.assertEqual(mm.manifestPath("fdde59862785f9f0ad6e661b9b5746b7"),
+                         os.path.join(manifestsRootDir, "fd", "fdde59862785f9f0ad6e661b9b5746b7.json"))
+
+    def testIncludesContentHash(self):
+        self.assertEqual(
+            ManifestsManager.getIncludesContentHash([]),
+            ManifestsManager.getIncludesContentHash([])
+        )
+
+        self.assertEqual(
+            ManifestsManager.getIncludesContentHash(["d88be7edbf"]),
+            ManifestsManager.getIncludesContentHash(["d88be7edbf"])
+        )
+
+        self.assertEqual(
+            ManifestsManager.getIncludesContentHash(["d88be7edbf", "f6c8bd5733"]),
+            ManifestsManager.getIncludesContentHash(["d88be7edbf", "f6c8bd5733"])
+        )
+
+        # Wrong number of elements
+        self.assertNotEqual(
+            ManifestsManager.getIncludesContentHash([]),
+            ManifestsManager.getIncludesContentHash(["d88be7edbf"])
+        )
+
+        # Wrong order
+        self.assertNotEqual(
+            ManifestsManager.getIncludesContentHash(["d88be7edbf", "f6c8bd5733"]),
+            ManifestsManager.getIncludesContentHash(["f6c8bd5733", "d88be7edbf"])
+        )
+
+        # Content in different elements
+        self.assertNotEqual(
+            ManifestsManager.getIncludesContentHash(["", "d88be7edbf"]),
+            ManifestsManager.getIncludesContentHash(["d88be7edbf", ""])
+        )
+        self.assertNotEqual(
+            ManifestsManager.getIncludesContentHash(["d88be", "7edbf"]),
+            ManifestsManager.getIncludesContentHash(["d88b", "e7edbf"])
+        )
+
+    def testStoreAndGetManifest(self):
+        manifestsRootDir = os.path.join(ASSETS_DIR, "manifests")
+        mm = ManifestsManager(manifestsRootDir)
+
+        manifest1 = Manifest([r'somepath\myinclude.h'], {
+            "fdde59862785f9f0ad6e661b9b5746b7": "a649723940dc975ebd17167d29a532f8"
+        })
+        manifest2 = Manifest([r'somepath\myinclude.h', 'moreincludes.h'], {
+            "474e7fc26a592d84dfa7416c10f036c6": "8771d7ebcf6c8bd57a3d6485f63e3a89"
+        })
+
+        mm.setManifest("8a33738d88be7edbacef48e262bbb5bc", manifest1)
+        mm.setManifest("0623305942d216c165970948424ae7d1", manifest2)
+
+        retrieved1 = mm.getManifest("8a33738d88be7edbacef48e262bbb5bc")
+        self.assertIsNotNone(retrieved1)
+        self.assertEqual(retrieved1.includesContentToObjectMap["fdde59862785f9f0ad6e661b9b5746b7"],
+                         "a649723940dc975ebd17167d29a532f8")
+
+        retrieved2 = mm.getManifest("0623305942d216c165970948424ae7d1")
+        self.assertIsNotNone(retrieved2)
+        self.assertEqual(retrieved2.includesContentToObjectMap["474e7fc26a592d84dfa7416c10f036c6"],
+                         "8771d7ebcf6c8bd57a3d6485f63e3a89")
+
+    def testNonExistingManifest(self):
+        manifestsRootDir = os.path.join(ASSETS_DIR, "manifests")
+        mm = ManifestsManager(manifestsRootDir)
+
+        retrieved = mm.getManifest("ffffffffffffffffffffffffffffffff")
+        self.assertIsNone(retrieved)
+
+    def testClean(self):
+        manifestsRootDir = os.path.join(ASSETS_DIR, "manifests")
+        mm = ManifestsManager(manifestsRootDir)
+
+        # Size in (120, 240] bytes
+        manifest1 = Manifest([r'somepath\myinclude.h'], {
+            "fdde59862785f9f0ad6e661b9b5746b7": "a649723940dc975ebd17167d29a532f8"
+        })
+        # Size in (120, 240] bytes
+        manifest2 = Manifest([r'somepath\myinclude.h', 'moreincludes.h'], {
+            "474e7fc26a592d84dfa7416c10f036c6": "8771d7ebcf6c8bd57a3d6485f63e3a89"
+        })
+        mm.setManifest("8a33738d88be7edbacef48e262bbb5bc", manifest1)
+        mm.setManifest("0623305942d216c165970948424ae7d1", manifest2)
+
+        mm.clean(240)
+        # Only one of those manifests can be left
+        self.assertLessEqual(self._getDirectorySize(manifestsRootDir), 240)
+
+        mm.clean(240)
+        # The one remaining is remains alive
+        self.assertLessEqual(self._getDirectorySize(manifestsRootDir), 240)
+        self.assertGreaterEqual(self._getDirectorySize(manifestsRootDir), 120)
+
+        mm.clean(0)
+        # All manifest are gone
+        self.assertEqual(self._getDirectorySize(manifestsRootDir), 0)
 
 
 class TestArgumentClasses(unittest.TestCase):
