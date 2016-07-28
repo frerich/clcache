@@ -21,6 +21,9 @@ Installation
 
 Python 3.3+ is required.
 
+Installation via exe
+^^^^^^^^^^^^^^^^^^^^
+
 You can generate a self-contained 'clcache.exe' file using
 http://www.pyinstaller.org[PyInstaller]. If you don't have it already,
 installing PyInstaller is usually a matter of running
@@ -42,8 +45,8 @@ renamed and forward all the arguments to the real compiler executable.
 This way, simply running 'cl' will invoke the script instead of the real
 compiler.
 
-Installation For Visual Studio
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Installation for Visual Studio
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Some users have reported (see e.g. GitHub issue #18) that in order to make Visual Studio pick up `clcache`, the original compiler binary needs to be moved out of the
 way and replaced with the executable generated via the `py2exe` script:
@@ -52,6 +55,29 @@ way and replaced with the executable generated via the `py2exe` script:
 2. Rename `cl.exe.config` to e.g. `cl_original.exe.config`
 3. Copy `clcache.exe` to `cl.exe`
 4. Set `CLCACHE_CL` environment variable to point to `cl_original.exe`.
+
+Alternative installation via clcache.bat
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+This method is especially handy when there are multiple Python installations
+on a system.
+
+Create a clcache.bat and put it in a directory in PATH (e.g. %HOME%\bin):
+
+    @echo off
+    @setlocal
+    rem this is a good place for clcache environment variables
+    set CLCACHE_HARDLINK=1
+    C:\Python35\python.exe C:\clcache\clcache.py %*
+
+Now set your compiler to `clcache.bat` in the build system, e.g. for cmake
+
+    set CC=clcache.bat
+    set CXX=clcache.bat
+    cmake ...
+    nmake
+
+Check stats via `clcache.bat -s`, clear cache `clcache.bat -C` and so on.
 
 Options
 ~~~~~~~
