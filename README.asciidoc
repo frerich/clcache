@@ -21,11 +21,15 @@ Installation
 
 Python 3.3+ is required.
 
-The source code comes with a small http://www.py2exe.org/[py2exe] script which
-makes it easy to compile the Python code into an executable. You can generate
-an executable on your system by running
+You can generate a self-contained 'clcache.exe' file using
+http://www.pyinstaller.org[PyInstaller]. If you don't have it already,
+installing PyInstaller is usually a matter of running
 
-    python setup.py py2exe
+    pip install pyinstaller
+
+Afterwards, you can generate an executable by running
+
+    pyinstaller --onefile clcache.py
 
 This will put the resulting binary and all the dependencies into a 'dist\\'
 subdirectory.  You could then tell your build system to use 'clcache.exe' as
