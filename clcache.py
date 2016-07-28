@@ -563,15 +563,13 @@ def getFileHash(filePath, additionalData=None):
     return hasher.hexdigest()
 
 
-def getRelFileHash(filePath, baseDir):
-    absFilePath = filePath
-    if absFilePath.startswith(BASEDIR_REPLACEMENT):
+def expandBasedirPlaceholder(path, baseDir):
+    if path.startswith(BASEDIR_REPLACEMENT):
         if not baseDir:
-            raise LogicException('No CLCACHE_BASEDIR set, but found relative path ' + filePath)
-        absFilePath = absFilePath.replace(BASEDIR_REPLACEMENT, baseDir, 1)
-    if not os.path.exists(absFilePath):
-        return None
-    return getFileHash(absFilePath)
+            raise LogicException('No CLCACHE_BASEDIR set, but found relative path ' + path)
+        return path.replace(BASEDIR_REPLACEMENT, baseDir, 1)
+    else:
+        return path
 
 
 def ensureDirectoryExists(path):
@@ -1207,7 +1205,7 @@ def postprocessNoManifestMiss(
     if returnCode == 0 and (outputFile is None or os.path.exists(outputFile)):
         # Store compile output and manifest
         manifest = Manifest(listOfIncludes, {})
-        listOfHeaderHashes = [getRelFileHash(fileName, baseDir) for fileName in listOfIncludes]
+        listOfHeaderHashes = [getFileHash(expandBasedirPlaceholder(fileName, baseDir)) for fileName in listOfIncludes]
         keyInManifest = ObjectCache.getKeyInManifest(listOfHeaderHashes)
         cachekey = ObjectCache.getDirectCacheKey(manifestHash, keyInManifest)
         manifest.hashes[keyInManifest] = cachekey
@@ -1351,7 +1349,7 @@ def processDirect(cache, outputFile, compiler, cmdLine, sourceFile):
             # NOTE: command line options already included in hash for manifest name
             listOfHeaderHashes = []
             for fileName in manifest.includeFiles:
-                fileHash = getRelFileHash(fileName, baseDir)
+                fileHash = getFileHash(expandBasedirPlaceholder(fileName, baseDir))
                 if fileHash is not None:
                     # May be if source does not use this header anymore (e.g. if that
                     # header was included through some other header, which now changed).
