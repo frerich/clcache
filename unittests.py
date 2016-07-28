@@ -162,6 +162,13 @@ class TestManifestManager(unittest.TestCase):
         self.assertEqual(retrieved2.includesContentToObjectMap["474e7fc26a592d84dfa7416c10f036c6"],
                          "8771d7ebcf6c8bd57a3d6485f63e3a89")
 
+    def testNonExistingManifest(self):
+        manifestsRootDir = os.path.join(ASSETS_DIR, "manifests")
+        mm = ManifestsManager(manifestsRootDir)
+
+        retrieved = mm.getManifest("ffffffffffffffffffffffffffffffff")
+        self.assertIsNone(retrieved)
+
     def testClean(self):
         manifestsRootDir = os.path.join(ASSETS_DIR, "manifests")
         mm = ManifestsManager(manifestsRootDir)
