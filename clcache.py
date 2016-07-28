@@ -21,7 +21,7 @@ import sys
 import multiprocessing
 import re
 
-VERSION = "3.2.0"
+VERSION = "3.2.0-dev"
 
 HashAlgorithm = hashlib.md5
 

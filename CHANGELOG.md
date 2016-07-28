@@ -1,6 +1,10 @@
 clcache changelog
 =================
 
+## Upcoming release
+
+ * Nothing yet.
+
 ## clcache 3.2.0 (2016-07-28)
 
  * Bugfix: When preprocessing was used together with an /Fo argument (which makes
