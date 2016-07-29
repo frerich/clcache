@@ -134,9 +134,6 @@ class ManifestsManager(object):
     def setManifest(self, manifestHash, manifest):
         self.manifestSection(manifestHash).setManifest(manifestHash, manifest)
 
-    def getManifest(self, manifestHash):
-        return self.manifestSection(manifestHash).getManifest(manifestHash)
-
     def clean(self, maxManifestsSize):
         manifestFileInfos = []
         for filepath in filesBeneath(self._manifestsRootDir):
@@ -1391,7 +1388,7 @@ def processCompileRequest(cache, compiler, args):
 def processDirect(cache, objectFile, compiler, cmdLine, sourceFile):
     manifestHash = ManifestsManager.getManifestHash(compiler, cmdLine, sourceFile)
     with cache.lock:
-        manifest = cache.manifestsManager.getManifest(manifestHash)
+        manifest = cache.manifestsManager.manifestSection(manifestHash).getManifest(manifestHash)
         baseDir = os.environ.get('CLCACHE_BASEDIR')
         if baseDir and not baseDir.endswith(os.path.sep):
             baseDir += os.path.sep
