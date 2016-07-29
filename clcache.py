@@ -125,9 +125,6 @@ class ManifestsManager(object):
     def manifestSection(self, manifestHash):
         return ManifestSection(os.path.join(self._manifestsRootDir, manifestHash[:2]))
 
-    def setManifest(self, manifestHash, manifest):
-        self.manifestSection(manifestHash).setManifest(manifestHash, manifest)
-
     def clean(self, maxManifestsSize):
         manifestFileInfos = []
         for filepath in filesBeneath(self._manifestsRootDir):
@@ -1230,7 +1227,7 @@ def postprocessHeaderChangedMiss(cache, objectFile, manifest, manifestHash, incl
         if returnCode == 0 and os.path.exists(objectFile):
             addObjectToCache(stats, cache, objectFile, compilerOutput, compilerStderr, cachekey)
             cache.removeObjects(stats, removedItems)
-            cache.manifestsManager.setManifest(manifestHash, manifest)
+            cache.manifestsManager.manifestSection(manifestHash).setManifest(manifestHash, manifest)
 
     return compilerResult
 
@@ -1255,7 +1252,7 @@ def postprocessNoManifestMiss(cache, objectFile, manifestHash, baseDir, sourceFi
         if returnCode == 0 and os.path.exists(objectFile):
             # Store compile output and manifest
             addObjectToCache(stats, cache, objectFile, compilerOutput, compilerStderr, cachekey)
-            cache.manifestsManager.setManifest(manifestHash, manifest)
+            cache.manifestsManager.manifestSection(manifestHash).setManifest(manifestHash, manifest)
 
     return returnCode, compilerOutput, compilerStderr
 
