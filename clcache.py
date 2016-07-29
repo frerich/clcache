@@ -125,9 +125,6 @@ class ManifestsManager(object):
     def manifestSection(self, manifestHash):
         return ManifestSection(os.path.join(self._manifestsRootDir, manifestHash[:2]))
 
-    def manifestDir(self, manifestHash):
-        return self.manifestSection(manifestHash).manifestSectionDir
-
     def manifestPath(self, manifestHash):
         return self.manifestSection(manifestHash).manifestPath(manifestHash)
 

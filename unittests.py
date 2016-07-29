@@ -96,7 +96,7 @@ class TestManifestManager(unittest.TestCase):
         manifestsRootDir = os.path.join(ASSETS_DIR, "manifests")
         mm = ManifestsManager(manifestsRootDir)
 
-        self.assertEqual(mm.manifestDir("fdde59862785f9f0ad6e661b9b5746b7"), os.path.join(manifestsRootDir, "fd"))
+        self.assertEqual(mm.manifestSection("fdde59862785f9f0ad6e661b9b5746b7").manifestSectionDir, os.path.join(manifestsRootDir, "fd"))
         self.assertEqual(mm.manifestPath("fdde59862785f9f0ad6e661b9b5746b7"),
                          os.path.join(manifestsRootDir, "fd", "fdde59862785f9f0ad6e661b9b5746b7.json"))
 
