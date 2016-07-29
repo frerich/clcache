@@ -1229,19 +1229,9 @@ def postprocessHeaderChangedMiss(cache, outputFile, manifest, manifestHash, incl
     return compilerResult
 
 
-def postprocessNoManifestMiss(
-        cache, outputFile, manifestHash, baseDir, cmdLine, sourceFile, compilerResult, stripIncludes):
+def postprocessNoManifestMiss(cache, outputFile, manifestHash, baseDir, sourceFile, compilerResult, stripIncludes):
     returnCode, compilerOutput, compilerStderr = compilerResult
-    grabStderr = False
-    # If these options present, cl.exe will list includes on stderr, not stdout
-    for option in ['/E', '/EP', '/P']:
-        if option in cmdLine:
-            grabStderr = True
-            break
-    if grabStderr:
-        listOfIncludes, compilerStderr = parseIncludesList(compilerStderr, sourceFile, baseDir, stripIncludes)
-    else:
-        listOfIncludes, compilerOutput = parseIncludesList(compilerOutput, sourceFile, baseDir, stripIncludes)
+    listOfIncludes, compilerOutput = parseIncludesList(compilerOutput, sourceFile, baseDir, stripIncludes)
 
     manifest = None
     cachekey = None
@@ -1416,7 +1406,7 @@ def processDirect(cache, outputFile, compiler, cmdLine, sourceFile):
                 cmdLine = ['/showIncludes'] + origCmdLine
                 stripIncludes = True
             postProcessing = lambda compilerResult: postprocessNoManifestMiss(
-                cache, outputFile, manifestHash, baseDir, origCmdLine, sourceFile, compilerResult, stripIncludes)
+                cache, outputFile, manifestHash, baseDir, sourceFile, compilerResult, stripIncludes)
 
     compilerResult = invokeRealCompiler(compiler, cmdLine, captureOutput=True)
     compilerResult = postProcessing(compilerResult)
