@@ -1211,7 +1211,8 @@ def postprocessObjectEvicted(cache, objectFile, cachekey, compilerResult):
     return compilerResult
 
 
-def postprocessHeaderChangedMiss(cache, objectFile, manifest, manifestHash, includesContentHash, compilerResult):
+def postprocessHeaderChangedMiss(
+        cache, objectFile, manifestSection, manifest, manifestHash, includesContentHash, compilerResult):
     cachekey = ObjectCache.getDirectCacheKey(manifestHash, includesContentHash)
     returnCode, compilerOutput, compilerStderr = compilerResult
 
@@ -1227,12 +1228,13 @@ def postprocessHeaderChangedMiss(cache, objectFile, manifest, manifestHash, incl
         if returnCode == 0 and os.path.exists(objectFile):
             addObjectToCache(stats, cache, objectFile, compilerOutput, compilerStderr, cachekey)
             cache.removeObjects(stats, removedItems)
-            cache.manifestsManager.manifestSection(manifestHash).setManifest(manifestHash, manifest)
+            manifestSection.setManifest(manifestHash, manifest)
 
     return compilerResult
 
 
-def postprocessNoManifestMiss(cache, objectFile, manifestHash, baseDir, sourceFile, compilerResult, stripIncludes):
+def postprocessNoManifestMiss(
+        cache, objectFile, manifestSection, manifestHash, baseDir, sourceFile, compilerResult, stripIncludes):
     returnCode, compilerOutput, compilerStderr = compilerResult
     listOfIncludes, compilerOutput = parseIncludesList(compilerOutput, sourceFile, baseDir, stripIncludes)
 
@@ -1252,7 +1254,7 @@ def postprocessNoManifestMiss(cache, objectFile, manifestHash, baseDir, sourceFi
         if returnCode == 0 and os.path.exists(objectFile):
             # Store compile output and manifest
             addObjectToCache(stats, cache, objectFile, compilerOutput, compilerStderr, cachekey)
-            cache.manifestsManager.manifestSection(manifestHash).setManifest(manifestHash, manifest)
+            manifestSection.setManifest(manifestHash, manifest)
 
     return returnCode, compilerOutput, compilerStderr
 
@@ -1378,8 +1380,9 @@ def processCompileRequest(cache, compiler, args):
 
 def processDirect(cache, objectFile, compiler, cmdLine, sourceFile):
     manifestHash = ManifestsManager.getManifestHash(compiler, cmdLine, sourceFile)
+    manifestSection = cache.manifestsManager.manifestSection(manifestHash)
     with cache.lock:
-        manifest = cache.manifestsManager.manifestSection(manifestHash).getManifest(manifestHash)
+        manifest = manifestSection.getManifest(manifestHash)
         baseDir = os.environ.get('CLCACHE_BASEDIR')
         if baseDir and not baseDir.endswith(os.path.sep):
             baseDir += os.path.sep
@@ -1402,7 +1405,7 @@ def processDirect(cache, objectFile, compiler, cmdLine, sourceFile):
                         cache, objectFile, cachekey, compilerResult)
             else:
                 postProcessing = lambda compilerResult: postprocessHeaderChangedMiss(
-                    cache, objectFile, manifest, manifestHash, includesContentHash, compilerResult)
+                    cache, objectFile, manifestSection, manifest, manifestHash, includesContentHash, compilerResult)
         else:
             origCmdLine = cmdLine
             stripIncludes = False
@@ -1410,7 +1413,7 @@ def processDirect(cache, objectFile, compiler, cmdLine, sourceFile):
                 cmdLine = ['/showIncludes'] + origCmdLine
                 stripIncludes = True
             postProcessing = lambda compilerResult: postprocessNoManifestMiss(
-                cache, objectFile, manifestHash, baseDir, sourceFile, compilerResult, stripIncludes)
+                cache, objectFile, manifestSection, manifestHash, baseDir, sourceFile, compilerResult, stripIncludes)
 
     compilerResult = invokeRealCompiler(compiler, cmdLine, captureOutput=True)
     compilerResult = postProcessing(compilerResult)
