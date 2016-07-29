@@ -227,6 +227,11 @@ class ObjectCacheLock(object):
         self._acquired = False
 
 
+class CacheSection(object):
+    def __init__(self, cacheSectionDir):
+        self.cacheSectionDir = cacheSectionDir
+
+
 class ObjectCache(object):
     def __init__(self, cacheDirectory=None):
         self.dir = cacheDirectory
