@@ -125,6 +125,12 @@ class ManifestsManager(object):
     def manifestSection(self, manifestHash):
         return ManifestSection(os.path.join(self._manifestsRootDir, manifestHash[:2]))
 
+    def manifestSections(self):
+        for entry in os.listdir(self._manifestsRootDir):
+            path = os.path.join(self._manifestsRootDir, entry)
+            if os.path.isdir(path):
+                yield ManifestSection(path)
+
     def clean(self, maxManifestsSize):
         manifestFileInfos = []
         for filepath in filesBeneath(self._manifestsRootDir):
