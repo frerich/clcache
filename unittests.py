@@ -95,9 +95,10 @@ class TestManifestManager(unittest.TestCase):
     def testPaths(self):
         manifestsRootDir = os.path.join(ASSETS_DIR, "manifests")
         mm = ManifestsManager(manifestsRootDir)
+        ms = mm.manifestSection("fdde59862785f9f0ad6e661b9b5746b7")
 
-        self.assertEqual(mm.manifestSection("fdde59862785f9f0ad6e661b9b5746b7").manifestSectionDir, os.path.join(manifestsRootDir, "fd"))
-        self.assertEqual(mm.manifestPath("fdde59862785f9f0ad6e661b9b5746b7"),
+        self.assertEqual(ms.manifestSectionDir, os.path.join(manifestsRootDir, "fd"))
+        self.assertEqual(ms.manifestPath("fdde59862785f9f0ad6e661b9b5746b7"),
                          os.path.join(manifestsRootDir, "fd", "fdde59862785f9f0ad6e661b9b5746b7.json"))
 
     def testIncludesContentHash(self):
