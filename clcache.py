@@ -93,6 +93,9 @@ class ManifestSection(object):
     def manifestPath(self, manifestHash):
         return os.path.join(self.manifestSectionDir, manifestHash + ".json")
 
+    def manifestFiles(self):
+        return filesBeneath(self.manifestSectionDir)
+
     def setManifest(self, manifestHash, manifest):
         ensureDirectoryExists(self.manifestSectionDir)
         with open(self.manifestPath(manifestHash), 'w') as outFile:
@@ -133,11 +136,12 @@ class ManifestsManager(object):
 
     def clean(self, maxManifestsSize):
         manifestFileInfos = []
-        for filepath in filesBeneath(self._manifestsRootDir):
-            try:
-                manifestFileInfos.append((os.stat(filepath), filepath))
-            except OSError:
-                pass
+        for section in self.manifestSections():
+            for filePath in section.manifestFiles():
+                try:
+                    manifestFileInfos.append((os.stat(filePath), filePath))
+                except OSError:
+                    pass
 
         manifestFileInfos.sort(key=lambda t: t[0].st_atime, reverse=True)
 
