@@ -86,25 +86,15 @@ class LogicException(Exception):
         return repr(self.message)
 
 
-class ManifestsManager(object):
-    # Bump this counter whenever the current manifest file format changes.
-    # E.g. changing the file format from {'oldkey': ...} to {'newkey': ...} requires
-    # invalidation, such that a manifest that was stored using the old format is not
-    # interpreted using the new format. Instead the old file will not be touched
-    # again due to a new manifest hash and is cleaned away after some time.
-    MANIFEST_FILE_FORMAT_VERSION = 3
-
-    def __init__(self, manifestsRootDir):
-        self._manifestsRootDir = manifestsRootDir
-
-    def manifestDir(self, manifestHash):
-        return os.path.join(self._manifestsRootDir, manifestHash[:2])
+class ManifestSection(object):
+    def __init__(self, manifestSectionDir):
+        self.manifestSectionDir = manifestSectionDir
 
     def manifestPath(self, manifestHash):
-        return os.path.join(self.manifestDir(manifestHash), manifestHash + ".json")
+        return os.path.join(self.manifestSectionDir, manifestHash + ".json")
 
     def setManifest(self, manifestHash, manifest):
-        ensureDirectoryExists(self.manifestDir(manifestHash))
+        ensureDirectoryExists(self.manifestSectionDir)
         with open(self.manifestPath(manifestHash), 'w') as outFile:
             # Converting namedtuple to JSON via OrderedDict preserves key names and keys order
             json.dump(manifest._asdict(), outFile, indent=2)
@@ -119,6 +109,33 @@ class ManifestsManager(object):
                 return Manifest(doc['includeFiles'], doc['includesContentToObjectMap'])
         except IOError:
             return None
+
+
+class ManifestsManager(object):
+    # Bump this counter whenever the current manifest file format changes.
+    # E.g. changing the file format from {'oldkey': ...} to {'newkey': ...} requires
+    # invalidation, such that a manifest that was stored using the old format is not
+    # interpreted using the new format. Instead the old file will not be touched
+    # again due to a new manifest hash and is cleaned away after some time.
+    MANIFEST_FILE_FORMAT_VERSION = 3
+
+    def __init__(self, manifestsRootDir):
+        self._manifestsRootDir = manifestsRootDir
+
+    def manifestSection(self, manifestHash):
+        return ManifestSection(os.path.join(self._manifestsRootDir, manifestHash[:2]))
+
+    def manifestDir(self, manifestHash):
+        return self.manifestSection(manifestHash).manifestSectionDir
+
+    def manifestPath(self, manifestHash):
+        return self.manifestSection(manifestHash).manifestPath(manifestHash)
+
+    def setManifest(self, manifestHash, manifest):
+        self.manifestSection(manifestHash).setManifest(manifestHash, manifest)
+
+    def getManifest(self, manifestHash):
+        return self.manifestSection(manifestHash).getManifest(manifestHash)
 
     def clean(self, maxManifestsSize):
         manifestFileInfos = []
