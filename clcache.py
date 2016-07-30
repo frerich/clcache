@@ -145,14 +145,13 @@ class ManifestsManager(object):
 
         manifestFileInfos.sort(key=lambda t: t[0].st_atime, reverse=True)
 
-        currentSize = 0
+        remainingObjectsSize = 0
         for stat, filepath in manifestFileInfos:
-            currentSize += stat.st_size
-            if currentSize < maxManifestsSize:
-                # skip as long as maximal size not reached
-                continue
-            os.remove(filepath)
-        return currentSize
+            if remainingObjectsSize + stat.st_size <= maxManifestsSize:
+                remainingObjectsSize += stat.st_size
+            else:
+                os.remove(filepath)
+        return remainingObjectsSize
 
     @staticmethod
     def getManifestHash(compilerBinary, commandLine, sourceFile):
