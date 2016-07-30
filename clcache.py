@@ -150,7 +150,8 @@ class ManifestsManager(object):
         return getFileHash(sourceFile, additionalData)
 
     @staticmethod
-    def getIncludesContentHash(listOfHeaderHashes):
+    def getIncludesContentHash(listOfIncludes):
+        listOfHeaderHashes = [getFileHash(expandBasedirPlaceholder(fileName, baseDir)) for fileName in listOfIncludes]
         return HashAlgorithm(','.join(listOfHeaderHashes).encode()).hexdigest()
 
 
@@ -1239,8 +1240,7 @@ def postprocessNoManifestMiss(cache, outputFile, manifestHash, baseDir, sourceFi
     if returnCode == 0 and (outputFile is None or os.path.exists(outputFile)):
         # Store compile output and manifest
         manifest = Manifest(listOfIncludes, {})
-        listOfHeaderHashes = [getFileHash(expandBasedirPlaceholder(fileName, baseDir)) for fileName in listOfIncludes]
-        includesContentHash = ManifestsManager.getIncludesContentHash(listOfHeaderHashes)
+        includesContentHash = ManifestsManager.getIncludesContentHash(listOfIncludes)
         cachekey = ObjectCache.getDirectCacheKey(manifestHash, includesContentHash)
         manifest.includesContentToObjectMap[includesContentHash] = cachekey
 
@@ -1381,8 +1381,7 @@ def processDirect(cache, outputFile, compiler, cmdLine, sourceFile):
             baseDir += os.path.sep
         if manifest is not None:
             # NOTE: command line options already included in hash for manifest name
-            listOfHeaderHashes = [getFileHash(expandBasedirPlaceholder(fileName, baseDir)) for fileName in manifest.includeFiles]
-            includesContentHash = ManifestsManager.getIncludesContentHash(listOfHeaderHashes)
+            includesContentHash = ManifestsManager.getIncludesContentHash(manifest.includeFiles)
             cachekey = manifest.includesContentToObjectMap.get(includesContentHash)
             if cachekey is not None:
                 if cache.hasEntry(cachekey):
