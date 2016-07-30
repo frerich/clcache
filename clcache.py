@@ -436,23 +436,38 @@ class Configuration(object):
 
 
 class CacheStatistics(object):
+    CALLS_WITH_INVALID_ARGUMENT = "CallsWithInvalidArgument"
+    CALLS_WITHOUT_SOURCE_FILE = "CallsWithoutSourceFile"
+    CALLS_WITH_MULTIPLE_SOURCE_FILES = "CallsWithMultipleSourceFiles"
+    CALLS_WITH_PCH = "CallsWithPch"
+    CALLS_FOR_LINKING = "CallsForLinking"
+    CALLS_FOR_EXTERNAL_DEBUG_INFO = "CallsForExternalDebugInfo"
+    CALLS_FOR_PREPROCESSING = "CallsForPreprocessing"
+    CACHE_HITS = "CacheHits"
+    CACHE_MISSES = "CacheMisses"
+    EVICTED_MISSES = "EvictedMisses"
+    HEADER_CHANGED_MISSES = "HeaderChangedMisses"
+    SOURCE_CHANGED_MISSES = "SourceChangedMisses"
+    CACHE_ENTRIES = "CacheEntries"
+    CACHE_SIZE = "CacheSize"
+
     RESETTABLE_KEYS = {
-        "CallsWithInvalidArgument",
-        "CallsWithoutSourceFile",
-        "CallsWithMultipleSourceFiles",
-        "CallsWithPch",
-        "CallsForLinking",
-        "CallsForExternalDebugInfo",
-        "CallsForPreprocessing",
-        "CacheHits",
-        "CacheMisses",
-        "EvictedMisses",
-        "HeaderChangedMisses",
-        "SourceChangedMisses",
+        CALLS_WITH_INVALID_ARGUMENT,
+        CALLS_WITHOUT_SOURCE_FILE,
+        CALLS_WITH_MULTIPLE_SOURCE_FILES,
+        CALLS_WITH_PCH,
+        CALLS_FOR_LINKING,
+        CALLS_FOR_EXTERNAL_DEBUG_INFO,
+        CALLS_FOR_PREPROCESSING,
+        CACHE_HITS,
+        CACHE_MISSES,
+        EVICTED_MISSES,
+        HEADER_CHANGED_MISSES,
+        SOURCE_CHANGED_MISSES,
     }
     NON_RESETTABLE_KEYS = {
-        "CacheEntries",
-        "CacheSize",
+        CACHE_ENTRIES,
+        CACHE_SIZE,
     }
 
     def __init__(self, objectCache):
@@ -466,99 +481,99 @@ class CacheStatistics(object):
         return type(self) is type(other) and self.__dict__ == other.__dict__
 
     def numCallsWithInvalidArgument(self):
-        return self._stats["CallsWithInvalidArgument"]
+        return self._stats[CacheStatistics.CALLS_WITH_INVALID_ARGUMENT]
 
     def registerCallWithInvalidArgument(self):
-        self._stats["CallsWithInvalidArgument"] += 1
+        self._stats[CacheStatistics.CALLS_WITH_INVALID_ARGUMENT] += 1
 
     def numCallsWithoutSourceFile(self):
-        return self._stats["CallsWithoutSourceFile"]
+        return self._stats[CacheStatistics.CALLS_WITHOUT_SOURCE_FILE]
 
     def registerCallWithoutSourceFile(self):
-        self._stats["CallsWithoutSourceFile"] += 1
+        self._stats[CacheStatistics.CALLS_WITHOUT_SOURCE_FILE] += 1
 
     def numCallsWithMultipleSourceFiles(self):
-        return self._stats["CallsWithMultipleSourceFiles"]
+        return self._stats[CacheStatistics.CALLS_WITH_MULTIPLE_SOURCE_FILES]
 
     def registerCallWithMultipleSourceFiles(self):
-        self._stats["CallsWithMultipleSourceFiles"] += 1
+        self._stats[CacheStatistics.CALLS_WITH_MULTIPLE_SOURCE_FILES] += 1
 
     def numCallsWithPch(self):
-        return self._stats["CallsWithPch"]
+        return self._stats[CacheStatistics.CALLS_WITH_PCH]
 
     def registerCallWithPch(self):
-        self._stats["CallsWithPch"] += 1
+        self._stats[CacheStatistics.CALLS_WITH_PCH] += 1
 
     def numCallsForLinking(self):
-        return self._stats["CallsForLinking"]
+        return self._stats[CacheStatistics.CALLS_FOR_LINKING]
 
     def registerCallForLinking(self):
-        self._stats["CallsForLinking"] += 1
+        self._stats[CacheStatistics.CALLS_FOR_LINKING] += 1
 
     def numCallsForExternalDebugInfo(self):
-        return self._stats["CallsForExternalDebugInfo"]
+        return self._stats[CacheStatistics.CALLS_FOR_EXTERNAL_DEBUG_INFO]
 
     def registerCallForExternalDebugInfo(self):
-        self._stats["CallsForExternalDebugInfo"] += 1
+        self._stats[CacheStatistics.CALLS_FOR_EXTERNAL_DEBUG_INFO] += 1
 
     def numEvictedMisses(self):
-        return self._stats["EvictedMisses"]
+        return self._stats[CacheStatistics.EVICTED_MISSES]
 
     def registerEvictedMiss(self):
         self.registerCacheMiss()
-        self._stats["EvictedMisses"] += 1
+        self._stats[CacheStatistics.EVICTED_MISSES] += 1
 
     def numHeaderChangedMisses(self):
-        return self._stats["HeaderChangedMisses"]
+        return self._stats[CacheStatistics.HEADER_CHANGED_MISSES]
 
     def registerHeaderChangedMiss(self):
         self.registerCacheMiss()
-        self._stats["HeaderChangedMisses"] += 1
+        self._stats[CacheStatistics.HEADER_CHANGED_MISSES] += 1
 
     def numSourceChangedMisses(self):
-        return self._stats["SourceChangedMisses"]
+        return self._stats[CacheStatistics.SOURCE_CHANGED_MISSES]
 
     def registerSourceChangedMiss(self):
         self.registerCacheMiss()
-        self._stats["SourceChangedMisses"] += 1
+        self._stats[CacheStatistics.SOURCE_CHANGED_MISSES] += 1
 
     def numCacheEntries(self):
-        return self._stats["CacheEntries"]
+        return self._stats[CacheStatistics.CACHE_ENTRIES]
 
     def setNumCacheEntries(self, number):
-        self._stats["CacheEntries"] = number
+        self._stats[CacheStatistics.CACHE_ENTRIES] = number
 
     def registerCacheEntry(self, size):
-        self._stats["CacheEntries"] += 1
-        self._stats["CacheSize"] += size
+        self._stats[CacheStatistics.CACHE_ENTRIES] += 1
+        self._stats[CacheStatistics.CACHE_SIZE] += size
 
     def unregisterCacheEntry(self, size):
-        self._stats["CacheEntries"] -= 1
-        self._stats["CacheSize"] -= size
+        self._stats[CacheStatistics.CACHE_ENTRIES] -= 1
+        self._stats[CacheStatistics.CACHE_SIZE] -= size
 
     def currentCacheSize(self):
-        return self._stats["CacheSize"]
+        return self._stats[CacheStatistics.CACHE_SIZE]
 
     def setCacheSize(self, size):
-        self._stats["CacheSize"] = size
+        self._stats[CacheStatistics.CACHE_SIZE] = size
 
     def numCacheHits(self):
-        return self._stats["CacheHits"]
+        return self._stats[CacheStatistics.CACHE_HITS]
 
     def registerCacheHit(self):
-        self._stats["CacheHits"] += 1
+        self._stats[CacheStatistics.CACHE_HITS] += 1
 
     def numCacheMisses(self):
-        return self._stats["CacheMisses"]
+        return self._stats[CacheStatistics.CACHE_MISSES]
 
     def registerCacheMiss(self):
-        self._stats["CacheMisses"] += 1
+        self._stats[CacheStatistics.CACHE_MISSES] += 1
 
     def numCallsForPreprocessing(self):
-        return self._stats["CallsForPreprocessing"]
+        return self._stats[CacheStatistics.CALLS_FOR_PREPROCESSING]
 
     def registerCallForPreprocessing(self):
-        self._stats["CallsForPreprocessing"] += 1
+        self._stats[CacheStatistics.CALLS_FOR_PREPROCESSING] += 1
 
     def resetCounters(self):
         for k in CacheStatistics.RESETTABLE_KEYS:
