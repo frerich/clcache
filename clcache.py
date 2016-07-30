@@ -150,8 +150,13 @@ class ManifestsManager(object):
         return getFileHash(sourceFile, additionalData)
 
     @staticmethod
-    def getIncludesContentHash(listOfHeaderHashes):
-        return HashAlgorithm(','.join(listOfHeaderHashes).encode()).hexdigest()
+    def getIncludesContentHashForFiles(listOfIncludesAbsolute):
+        listOfIncludesHashes = [getFileHash(filepath) for filepath in listOfIncludesAbsolute]
+        return ManifestsManager.getIncludesContentHashForHashes(listOfIncludesHashes)
+
+    @staticmethod
+    def getIncludesContentHashForHashes(listOfIncludesHashes):
+        return HashAlgorithm(','.join(listOfIncludesHashes).encode()).hexdigest()
 
 
 class ObjectCacheLock(object):
@@ -1237,8 +1242,8 @@ def postprocessNoManifestMiss(cache, objectFile, manifestHash, baseDir, sourceFi
     if returnCode == 0 and os.path.exists(objectFile):
         # Store compile output and manifest
         manifest = Manifest(listOfIncludes, {})
-        listOfHeaderHashes = [getFileHash(expandBasedirPlaceholder(fileName, baseDir)) for fileName in listOfIncludes]
-        includesContentHash = ManifestsManager.getIncludesContentHash(listOfHeaderHashes)
+        includesContentHash = ManifestsManager.getIncludesContentHashForFiles(
+            [expandBasedirPlaceholder(include, baseDir) for include in listOfIncludes])
         cachekey = ObjectCache.getDirectCacheKey(manifestHash, includesContentHash)
         manifest.includesContentToObjectMap[includesContentHash] = cachekey
 
@@ -1380,14 +1385,8 @@ def processDirect(cache, objectFile, compiler, cmdLine, sourceFile):
             baseDir += os.path.sep
         if manifest is not None:
             # NOTE: command line options already included in hash for manifest name
-            listOfHeaderHashes = []
-            for fileName in manifest.includeFiles:
-                fileHash = getFileHash(expandBasedirPlaceholder(fileName, baseDir))
-                if fileHash is not None:
-                    # May be if source does not use this header anymore (e.g. if that
-                    # header was included through some other header, which now changed).
-                    listOfHeaderHashes.append(fileHash)
-            includesContentHash = ManifestsManager.getIncludesContentHash(listOfHeaderHashes)
+            includesContentHash = ManifestsManager.getIncludesContentHashForFiles(
+                [expandBasedirPlaceholder(include, baseDir) for include in manifest.includeFiles])
             cachekey = manifest.includesContentToObjectMap.get(includesContentHash)
             if cachekey is not None:
                 if cache.hasEntry(cachekey):

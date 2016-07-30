@@ -102,40 +102,40 @@ class TestManifestManager(unittest.TestCase):
 
     def testIncludesContentHash(self):
         self.assertEqual(
-            ManifestsManager.getIncludesContentHash([]),
-            ManifestsManager.getIncludesContentHash([])
+            ManifestsManager.getIncludesContentHashForHashes([]),
+            ManifestsManager.getIncludesContentHashForHashes([])
         )
 
         self.assertEqual(
-            ManifestsManager.getIncludesContentHash(["d88be7edbf"]),
-            ManifestsManager.getIncludesContentHash(["d88be7edbf"])
+            ManifestsManager.getIncludesContentHashForHashes(["d88be7edbf"]),
+            ManifestsManager.getIncludesContentHashForHashes(["d88be7edbf"])
         )
 
         self.assertEqual(
-            ManifestsManager.getIncludesContentHash(["d88be7edbf", "f6c8bd5733"]),
-            ManifestsManager.getIncludesContentHash(["d88be7edbf", "f6c8bd5733"])
+            ManifestsManager.getIncludesContentHashForHashes(["d88be7edbf", "f6c8bd5733"]),
+            ManifestsManager.getIncludesContentHashForHashes(["d88be7edbf", "f6c8bd5733"])
         )
 
         # Wrong number of elements
         self.assertNotEqual(
-            ManifestsManager.getIncludesContentHash([]),
-            ManifestsManager.getIncludesContentHash(["d88be7edbf"])
+            ManifestsManager.getIncludesContentHashForHashes([]),
+            ManifestsManager.getIncludesContentHashForHashes(["d88be7edbf"])
         )
 
         # Wrong order
         self.assertNotEqual(
-            ManifestsManager.getIncludesContentHash(["d88be7edbf", "f6c8bd5733"]),
-            ManifestsManager.getIncludesContentHash(["f6c8bd5733", "d88be7edbf"])
+            ManifestsManager.getIncludesContentHashForHashes(["d88be7edbf", "f6c8bd5733"]),
+            ManifestsManager.getIncludesContentHashForHashes(["f6c8bd5733", "d88be7edbf"])
         )
 
         # Content in different elements
         self.assertNotEqual(
-            ManifestsManager.getIncludesContentHash(["", "d88be7edbf"]),
-            ManifestsManager.getIncludesContentHash(["d88be7edbf", ""])
+            ManifestsManager.getIncludesContentHashForHashes(["", "d88be7edbf"]),
+            ManifestsManager.getIncludesContentHashForHashes(["d88be7edbf", ""])
         )
         self.assertNotEqual(
-            ManifestsManager.getIncludesContentHash(["d88be", "7edbf"]),
-            ManifestsManager.getIncludesContentHash(["d88b", "e7edbf"])
+            ManifestsManager.getIncludesContentHashForHashes(["d88be", "7edbf"]),
+            ManifestsManager.getIncludesContentHashForHashes(["d88b", "e7edbf"])
         )
 
     def testStoreAndGetManifest(self):
