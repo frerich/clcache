@@ -1381,10 +1381,7 @@ def processDirect(cache, outputFile, compiler, cmdLine, sourceFile):
             baseDir += os.path.sep
         if manifest is not None:
             # NOTE: command line options already included in hash for manifest name
-            listOfHeaderHashes = []
-            for fileName in manifest.includeFiles:
-                fileHash = getFileHash(expandBasedirPlaceholder(fileName, baseDir))
-                listOfHeaderHashes.append(fileHash)
+            listOfHeaderHashes = [getFileHash(expandBasedirPlaceholder(fileName, baseDir)) for fileName in manifest.includeFiles]
             includesContentHash = ManifestsManager.getIncludesContentHash(listOfHeaderHashes)
             cachekey = manifest.includesContentToObjectMap.get(includesContentHash)
             if cachekey is not None:
