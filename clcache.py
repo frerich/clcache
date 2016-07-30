@@ -150,9 +150,13 @@ class ManifestsManager(object):
         return getFileHash(sourceFile, additionalData)
 
     @staticmethod
-    def getIncludesContentHash(listOfIncludesAbsolute):
-        listOfHeaderHashes = [getFileHash(filepath) for filepath in listOfIncludesAbsolute]
-        return HashAlgorithm(','.join(listOfHeaderHashes).encode()).hexdigest()
+    def getIncludesContentHashForFiles(listOfIncludesAbsolute):
+        listOfIncludesHashes = [getFileHash(filepath) for filepath in listOfIncludesAbsolute]
+        return ManifestsManager.getIncludesContentHashForHashes(listOfIncludesHashes)
+
+    @staticmethod
+    def getIncludesContentHashForHashes(listOfIncludesHashes):
+        return HashAlgorithm(','.join(listOfIncludesHashes).encode()).hexdigest()
 
 
 class ObjectCacheLock(object):
@@ -1240,7 +1244,7 @@ def postprocessNoManifestMiss(cache, outputFile, manifestHash, baseDir, sourceFi
     if returnCode == 0 and (outputFile is None or os.path.exists(outputFile)):
         # Store compile output and manifest
         manifest = Manifest(listOfIncludes, {})
-        includesContentHash = ManifestsManager.getIncludesContentHash(
+        includesContentHash = ManifestsManager.getIncludesContentHashForFiles(
             [expandBasedirPlaceholder(include, baseDir) for include in listOfIncludes])
         cachekey = ObjectCache.getDirectCacheKey(manifestHash, includesContentHash)
         manifest.includesContentToObjectMap[includesContentHash] = cachekey
@@ -1382,7 +1386,7 @@ def processDirect(cache, outputFile, compiler, cmdLine, sourceFile):
             baseDir += os.path.sep
         if manifest is not None:
             # NOTE: command line options already included in hash for manifest name
-            includesContentHash = ManifestsManager.getIncludesContentHash(
+            includesContentHash = ManifestsManager.getIncludesContentHashForFiles(
                 [expandBasedirPlaceholder(include, baseDir) for include in manifest.includeFiles])
             cachekey = manifest.includesContentToObjectMap.get(includesContentHash)
             if cachekey is not None:
