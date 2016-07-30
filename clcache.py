@@ -1384,10 +1384,7 @@ def processDirect(cache, outputFile, compiler, cmdLine, sourceFile):
             listOfHeaderHashes = []
             for fileName in manifest.includeFiles:
                 fileHash = getFileHash(expandBasedirPlaceholder(fileName, baseDir))
-                if fileHash is not None:
-                    # May be if source does not use this header anymore (e.g. if that
-                    # header was included through some other header, which now changed).
-                    listOfHeaderHashes.append(fileHash)
+                listOfHeaderHashes.append(fileHash)
             includesContentHash = ManifestsManager.getIncludesContentHash(listOfHeaderHashes)
             cachekey = manifest.includesContentToObjectMap.get(includesContentHash)
             if cachekey is not None:
