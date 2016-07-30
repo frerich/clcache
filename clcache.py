@@ -86,25 +86,18 @@ class LogicException(Exception):
         return repr(self.message)
 
 
-class ManifestsManager(object):
-    # Bump this counter whenever the current manifest file format changes.
-    # E.g. changing the file format from {'oldkey': ...} to {'newkey': ...} requires
-    # invalidation, such that a manifest that was stored using the old format is not
-    # interpreted using the new format. Instead the old file will not be touched
-    # again due to a new manifest hash and is cleaned away after some time.
-    MANIFEST_FILE_FORMAT_VERSION = 3
-
-    def __init__(self, manifestsRootDir):
-        self._manifestsRootDir = manifestsRootDir
-
-    def manifestDir(self, manifestHash):
-        return os.path.join(self._manifestsRootDir, manifestHash[:2])
+class ManifestSection(object):
+    def __init__(self, manifestSectionDir):
+        self.manifestSectionDir = manifestSectionDir
 
     def manifestPath(self, manifestHash):
-        return os.path.join(self.manifestDir(manifestHash), manifestHash + ".json")
+        return os.path.join(self.manifestSectionDir, manifestHash + ".json")
+
+    def manifestFiles(self):
+        return filesBeneath(self.manifestSectionDir)
 
     def setManifest(self, manifestHash, manifest):
-        ensureDirectoryExists(self.manifestDir(manifestHash))
+        ensureDirectoryExists(self.manifestSectionDir)
         with open(self.manifestPath(manifestHash), 'w') as outFile:
             # Converting namedtuple to JSON via OrderedDict preserves key names and keys order
             json.dump(manifest._asdict(), outFile, indent=2)
@@ -120,13 +113,35 @@ class ManifestsManager(object):
         except IOError:
             return None
 
+
+class ManifestsManager(object):
+    # Bump this counter whenever the current manifest file format changes.
+    # E.g. changing the file format from {'oldkey': ...} to {'newkey': ...} requires
+    # invalidation, such that a manifest that was stored using the old format is not
+    # interpreted using the new format. Instead the old file will not be touched
+    # again due to a new manifest hash and is cleaned away after some time.
+    MANIFEST_FILE_FORMAT_VERSION = 3
+
+    def __init__(self, manifestsRootDir):
+        self._manifestsRootDir = manifestsRootDir
+
+    def manifestSection(self, manifestHash):
+        return ManifestSection(os.path.join(self._manifestsRootDir, manifestHash[:2]))
+
+    def manifestSections(self):
+        for entry in os.listdir(self._manifestsRootDir):
+            path = os.path.join(self._manifestsRootDir, entry)
+            if os.path.isdir(path):
+                yield ManifestSection(path)
+
     def clean(self, maxManifestsSize):
         manifestFileInfos = []
-        for filepath in filesBeneath(self._manifestsRootDir):
-            try:
-                manifestFileInfos.append((os.stat(filepath), filepath))
-            except OSError:
-                pass
+        for section in self.manifestSections():
+            for filePath in section.manifestFiles():
+                try:
+                    manifestFileInfos.append((os.stat(filePath), filePath))
+                except OSError:
+                    pass
 
         manifestFileInfos.sort(key=lambda t: t[0].st_atime, reverse=True)
 
@@ -1211,7 +1226,8 @@ def postprocessObjectEvicted(cache, objectFile, cachekey, compilerResult):
     return compilerResult
 
 
-def postprocessHeaderChangedMiss(cache, objectFile, manifest, manifestHash, includesContentHash, compilerResult):
+def postprocessHeaderChangedMiss(
+        cache, objectFile, manifestSection, manifest, manifestHash, includesContentHash, compilerResult):
     cachekey = ObjectCache.getDirectCacheKey(manifestHash, includesContentHash)
     returnCode, compilerOutput, compilerStderr = compilerResult
 
@@ -1227,12 +1243,13 @@ def postprocessHeaderChangedMiss(cache, objectFile, manifest, manifestHash, incl
         if returnCode == 0 and os.path.exists(objectFile):
             addObjectToCache(stats, cache, objectFile, compilerOutput, compilerStderr, cachekey)
             cache.removeObjects(stats, removedItems)
-            cache.manifestsManager.setManifest(manifestHash, manifest)
+            manifestSection.setManifest(manifestHash, manifest)
 
     return compilerResult
 
 
-def postprocessNoManifestMiss(cache, objectFile, manifestHash, baseDir, sourceFile, compilerResult, stripIncludes):
+def postprocessNoManifestMiss(
+        cache, objectFile, manifestSection, manifestHash, baseDir, sourceFile, compilerResult, stripIncludes):
     returnCode, compilerOutput, compilerStderr = compilerResult
     listOfIncludes, compilerOutput = parseIncludesList(compilerOutput, sourceFile, baseDir, stripIncludes)
 
@@ -1252,7 +1269,7 @@ def postprocessNoManifestMiss(cache, objectFile, manifestHash, baseDir, sourceFi
         if returnCode == 0 and os.path.exists(objectFile):
             # Store compile output and manifest
             addObjectToCache(stats, cache, objectFile, compilerOutput, compilerStderr, cachekey)
-            cache.manifestsManager.setManifest(manifestHash, manifest)
+            manifestSection.setManifest(manifestHash, manifest)
 
     return returnCode, compilerOutput, compilerStderr
 
@@ -1378,8 +1395,9 @@ def processCompileRequest(cache, compiler, args):
 
 def processDirect(cache, objectFile, compiler, cmdLine, sourceFile):
     manifestHash = ManifestsManager.getManifestHash(compiler, cmdLine, sourceFile)
+    manifestSection = cache.manifestsManager.manifestSection(manifestHash)
     with cache.lock:
-        manifest = cache.manifestsManager.getManifest(manifestHash)
+        manifest = manifestSection.getManifest(manifestHash)
         baseDir = os.environ.get('CLCACHE_BASEDIR')
         if baseDir and not baseDir.endswith(os.path.sep):
             baseDir += os.path.sep
@@ -1396,7 +1414,7 @@ def processDirect(cache, objectFile, compiler, cmdLine, sourceFile):
                         cache, objectFile, cachekey, compilerResult)
             else:
                 postProcessing = lambda compilerResult: postprocessHeaderChangedMiss(
-                    cache, objectFile, manifest, manifestHash, includesContentHash, compilerResult)
+                    cache, objectFile, manifestSection, manifest, manifestHash, includesContentHash, compilerResult)
         else:
             origCmdLine = cmdLine
             stripIncludes = False
@@ -1404,7 +1422,7 @@ def processDirect(cache, objectFile, compiler, cmdLine, sourceFile):
                 cmdLine = ['/showIncludes'] + origCmdLine
                 stripIncludes = True
             postProcessing = lambda compilerResult: postprocessNoManifestMiss(
-                cache, objectFile, manifestHash, baseDir, sourceFile, compilerResult, stripIncludes)
+                cache, objectFile, manifestSection, manifestHash, baseDir, sourceFile, compilerResult, stripIncludes)
 
     compilerResult = invokeRealCompiler(compiler, cmdLine, captureOutput=True)
     compilerResult = postProcessing(compilerResult)

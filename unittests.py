@@ -95,9 +95,10 @@ class TestManifestManager(unittest.TestCase):
     def testPaths(self):
         manifestsRootDir = os.path.join(ASSETS_DIR, "manifests")
         mm = ManifestsManager(manifestsRootDir)
+        ms = mm.manifestSection("fdde59862785f9f0ad6e661b9b5746b7")
 
-        self.assertEqual(mm.manifestDir("fdde59862785f9f0ad6e661b9b5746b7"), os.path.join(manifestsRootDir, "fd"))
-        self.assertEqual(mm.manifestPath("fdde59862785f9f0ad6e661b9b5746b7"),
+        self.assertEqual(ms.manifestSectionDir, os.path.join(manifestsRootDir, "fd"))
+        self.assertEqual(ms.manifestPath("fdde59862785f9f0ad6e661b9b5746b7"),
                          os.path.join(manifestsRootDir, "fd", "fdde59862785f9f0ad6e661b9b5746b7.json"))
 
     def testIncludesContentHash(self):
@@ -149,15 +150,18 @@ class TestManifestManager(unittest.TestCase):
             "474e7fc26a592d84dfa7416c10f036c6": "8771d7ebcf6c8bd57a3d6485f63e3a89"
         })
 
-        mm.setManifest("8a33738d88be7edbacef48e262bbb5bc", manifest1)
-        mm.setManifest("0623305942d216c165970948424ae7d1", manifest2)
+        ms1 = mm.manifestSection("8a33738d88be7edbacef48e262bbb5bc")
+        ms2 = mm.manifestSection("0623305942d216c165970948424ae7d1")
 
-        retrieved1 = mm.getManifest("8a33738d88be7edbacef48e262bbb5bc")
+        ms1.setManifest("8a33738d88be7edbacef48e262bbb5bc", manifest1)
+        ms2.setManifest("0623305942d216c165970948424ae7d1", manifest2)
+
+        retrieved1 = ms1.getManifest("8a33738d88be7edbacef48e262bbb5bc")
         self.assertIsNotNone(retrieved1)
         self.assertEqual(retrieved1.includesContentToObjectMap["fdde59862785f9f0ad6e661b9b5746b7"],
                          "a649723940dc975ebd17167d29a532f8")
 
-        retrieved2 = mm.getManifest("0623305942d216c165970948424ae7d1")
+        retrieved2 = ms2.getManifest("0623305942d216c165970948424ae7d1")
         self.assertIsNotNone(retrieved2)
         self.assertEqual(retrieved2.includesContentToObjectMap["474e7fc26a592d84dfa7416c10f036c6"],
                          "8771d7ebcf6c8bd57a3d6485f63e3a89")
@@ -166,7 +170,8 @@ class TestManifestManager(unittest.TestCase):
         manifestsRootDir = os.path.join(ASSETS_DIR, "manifests")
         mm = ManifestsManager(manifestsRootDir)
 
-        retrieved = mm.getManifest("ffffffffffffffffffffffffffffffff")
+        retrieved = mm.manifestSection("ffffffffffffffffffffffffffffffff") \
+                      .getManifest("ffffffffffffffffffffffffffffffff")
         self.assertIsNone(retrieved)
 
     def testClean(self):
@@ -181,8 +186,10 @@ class TestManifestManager(unittest.TestCase):
         manifest2 = Manifest([r'somepath\myinclude.h', 'moreincludes.h'], {
             "474e7fc26a592d84dfa7416c10f036c6": "8771d7ebcf6c8bd57a3d6485f63e3a89"
         })
-        mm.setManifest("8a33738d88be7edbacef48e262bbb5bc", manifest1)
-        mm.setManifest("0623305942d216c165970948424ae7d1", manifest2)
+        mm.manifestSection("8a33738d88be7edbacef48e262bbb5bc") \
+          .setManifest("8a33738d88be7edbacef48e262bbb5bc", manifest1)
+        mm.manifestSection("0623305942d216c165970948424ae7d1") \
+          .setManifest("0623305942d216c165970948424ae7d1", manifest2)
 
         mm.clean(240)
         # Only one of those manifests can be left
