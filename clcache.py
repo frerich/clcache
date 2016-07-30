@@ -1173,47 +1173,45 @@ def parseIncludesList(compilerOutput, sourceFile, baseDir, strip):
         return sorted(includesSet), compilerOutput
 
 
-def addObjectToCache(stats, cache, outputFile, compilerStdout, compilerStderr, cachekey):
-    printTraceStatement("Adding file {} to cache using key {}".format(outputFile, cachekey))
-    cache.setEntry(cachekey, outputFile, compilerStdout, compilerStderr)
-    if outputFile is not None:
-        stats.registerCacheEntry(os.path.getsize(outputFile))
-        cfg = Configuration(cache)
-        cache.clean(stats, cfg.maximumCacheSize())
+def addObjectToCache(stats, cache, objectFile, compilerStdout, compilerStderr, cachekey):
+    printTraceStatement("Adding file {} to cache using key {}".format(objectFile, cachekey))
+    cache.setEntry(cachekey, objectFile, compilerStdout, compilerStderr)
+    stats.registerCacheEntry(os.path.getsize(objectFile))
+    cfg = Configuration(cache)
+    cache.clean(stats, cfg.maximumCacheSize())
 
 
-def processCacheHit(cache, outputFile, cachekey):
+def processCacheHit(cache, objectFile, cachekey):
     with closing(CacheStatistics(cache)) as stats:
         stats.registerCacheHit()
-    printTraceStatement("Reusing cached object for key {} for output file {}".format(cachekey, outputFile))
-    if outputFile is not None:
-        if os.path.exists(outputFile):
-            os.remove(outputFile)
-        copyOrLink(cache.cachedObjectName(cachekey), outputFile)
+    printTraceStatement("Reusing cached object for key {} for object file {}".format(cachekey, objectFile))
+    if os.path.exists(objectFile):
+        os.remove(objectFile)
+    copyOrLink(cache.cachedObjectName(cachekey), objectFile)
     compilerOutput = cache.cachedCompilerOutput(cachekey)
     compilerStderr = cache.cachedCompilerStderr(cachekey)
     printTraceStatement("Finished. Exit code 0")
     return 0, compilerOutput, compilerStderr
 
 
-def postprocessObjectEvicted(cache, outputFile, cachekey, compilerResult):
-    printTraceStatement("Cached object already evicted for key {} for output file {}".format(cachekey, outputFile))
+def postprocessObjectEvicted(cache, objectFile, cachekey, compilerResult):
+    printTraceStatement("Cached object already evicted for key {} for object {}".format(cachekey, objectFile))
     returnCode, compilerOutput, compilerStderr = compilerResult
 
     with cache.lock, closing(CacheStatistics(cache)) as stats:
         stats.registerEvictedMiss()
-        if returnCode == 0 and (outputFile is None or os.path.exists(outputFile)):
-            addObjectToCache(stats, cache, outputFile, compilerOutput, compilerStderr, cachekey)
+        if returnCode == 0 and os.path.exists(objectFile):
+            addObjectToCache(stats, cache, objectFile, compilerOutput, compilerStderr, cachekey)
 
     return compilerResult
 
 
-def postprocessHeaderChangedMiss(cache, outputFile, manifest, manifestHash, includesContentHash, compilerResult):
+def postprocessHeaderChangedMiss(cache, objectFile, manifest, manifestHash, includesContentHash, compilerResult):
     cachekey = ObjectCache.getDirectCacheKey(manifestHash, includesContentHash)
     returnCode, compilerOutput, compilerStderr = compilerResult
 
     removedItems = []
-    if returnCode == 0 and (outputFile is None or os.path.exists(outputFile)):
+    if returnCode == 0 and os.path.exists(objectFile):
         while len(manifest.includesContentToObjectMap) >= MAX_MANIFEST_HASHES:
             _, objectHash = manifest.includesContentToObjectMap.popitem()
             removedItems.append(objectHash)
@@ -1221,22 +1219,22 @@ def postprocessHeaderChangedMiss(cache, outputFile, manifest, manifestHash, incl
 
     with cache.lock, closing(CacheStatistics(cache)) as stats:
         stats.registerHeaderChangedMiss()
-        if returnCode == 0 and (outputFile is None or os.path.exists(outputFile)):
-            addObjectToCache(stats, cache, outputFile, compilerOutput, compilerStderr, cachekey)
+        if returnCode == 0 and os.path.exists(objectFile):
+            addObjectToCache(stats, cache, objectFile, compilerOutput, compilerStderr, cachekey)
             cache.removeObjects(stats, removedItems)
             cache.manifestsManager.setManifest(manifestHash, manifest)
 
     return compilerResult
 
 
-def postprocessNoManifestMiss(cache, outputFile, manifestHash, baseDir, sourceFile, compilerResult, stripIncludes):
+def postprocessNoManifestMiss(cache, objectFile, manifestHash, baseDir, sourceFile, compilerResult, stripIncludes):
     returnCode, compilerOutput, compilerStderr = compilerResult
     listOfIncludes, compilerOutput = parseIncludesList(compilerOutput, sourceFile, baseDir, stripIncludes)
 
     manifest = None
     cachekey = None
 
-    if returnCode == 0 and (outputFile is None or os.path.exists(outputFile)):
+    if returnCode == 0 and os.path.exists(objectFile):
         # Store compile output and manifest
         manifest = Manifest(listOfIncludes, {})
         listOfHeaderHashes = [getFileHash(expandBasedirPlaceholder(fileName, baseDir)) for fileName in listOfIncludes]
@@ -1246,9 +1244,9 @@ def postprocessNoManifestMiss(cache, outputFile, manifestHash, baseDir, sourceFi
 
     with cache.lock, closing(CacheStatistics(cache)) as stats:
         stats.registerSourceChangedMiss()
-        if returnCode == 0 and (outputFile is None or os.path.exists(outputFile)):
+        if returnCode == 0 and os.path.exists(objectFile):
             # Store compile output and manifest
-            addObjectToCache(stats, cache, outputFile, compilerOutput, compilerStderr, cachekey)
+            addObjectToCache(stats, cache, objectFile, compilerOutput, compilerStderr, cachekey)
             cache.manifestsManager.setManifest(manifestHash, manifest)
 
     return returnCode, compilerOutput, compilerStderr
@@ -1336,15 +1334,16 @@ def processCompileRequest(cache, compiler, args):
     printTraceStatement("Expanded commandline '{0!s}'".format(cmdLine))
 
     try:
-        sourceFiles, outputFile = CommandLineAnalyzer.analyze(cmdLine)
+        sourceFiles, objectFile = CommandLineAnalyzer.analyze(cmdLine)
 
         if len(sourceFiles) > 1:
             return reinvokePerSourceFile(cmdLine, sourceFiles), '', ''
         else:
+            assert objectFile is not None
             if 'CLCACHE_NODIRECT' in os.environ:
-                return processNoDirect(cache, outputFile, compiler, cmdLine)
+                return processNoDirect(cache, objectFile, compiler, cmdLine)
             else:
-                return processDirect(cache, outputFile, compiler, cmdLine, sourceFiles[0])
+                return processDirect(cache, objectFile, compiler, cmdLine, sourceFiles[0])
     except InvalidArgumentError:
         printTraceStatement("Cannot cache invocation as {}: invalid argument".format(cmdLine))
         updateCacheStatistics(cache, CacheStatistics.registerCallWithInvalidArgument)
@@ -1372,7 +1371,7 @@ def processCompileRequest(cache, compiler, args):
     return invokeRealCompiler(compiler, args[1:])
 
 
-def processDirect(cache, outputFile, compiler, cmdLine, sourceFile):
+def processDirect(cache, objectFile, compiler, cmdLine, sourceFile):
     manifestHash = ManifestsManager.getManifestHash(compiler, cmdLine, sourceFile)
     with cache.lock:
         manifest = cache.manifestsManager.getManifest(manifestHash)
@@ -1392,13 +1391,13 @@ def processDirect(cache, outputFile, compiler, cmdLine, sourceFile):
             cachekey = manifest.includesContentToObjectMap.get(includesContentHash)
             if cachekey is not None:
                 if cache.hasEntry(cachekey):
-                    return processCacheHit(cache, outputFile, cachekey)
+                    return processCacheHit(cache, objectFile, cachekey)
                 else:
                     postProcessing = lambda compilerResult: postprocessObjectEvicted(
-                        cache, outputFile, cachekey, compilerResult)
+                        cache, objectFile, cachekey, compilerResult)
             else:
                 postProcessing = lambda compilerResult: postprocessHeaderChangedMiss(
-                    cache, outputFile, manifest, manifestHash, includesContentHash, compilerResult)
+                    cache, objectFile, manifest, manifestHash, includesContentHash, compilerResult)
         else:
             origCmdLine = cmdLine
             stripIncludes = False
@@ -1406,7 +1405,7 @@ def processDirect(cache, outputFile, compiler, cmdLine, sourceFile):
                 cmdLine = ['/showIncludes'] + origCmdLine
                 stripIncludes = True
             postProcessing = lambda compilerResult: postprocessNoManifestMiss(
-                cache, outputFile, manifestHash, baseDir, sourceFile, compilerResult, stripIncludes)
+                cache, objectFile, manifestHash, baseDir, sourceFile, compilerResult, stripIncludes)
 
     compilerResult = invokeRealCompiler(compiler, cmdLine, captureOutput=True)
     compilerResult = postProcessing(compilerResult)
@@ -1414,17 +1413,17 @@ def processDirect(cache, outputFile, compiler, cmdLine, sourceFile):
     return compilerResult
 
 
-def processNoDirect(cache, outputFile, compiler, cmdLine):
+def processNoDirect(cache, objectFile, compiler, cmdLine):
     cachekey = ObjectCache.computeKey(compiler, cmdLine)
     with cache.lock:
         if cache.hasEntry(cachekey):
-            return processCacheHit(cache, outputFile, cachekey)
+            return processCacheHit(cache, objectFile, cachekey)
 
     returnCode, compilerStdout, compilerStderr = invokeRealCompiler(compiler, cmdLine, captureOutput=True)
     with cache.lock, closing(CacheStatistics(cache)) as stats:
         stats.registerCacheMiss()
-        if returnCode == 0 and outputFile is not None and os.path.exists(outputFile):
-            addObjectToCache(stats, cache, outputFile, compilerStdout, compilerStderr, cachekey)
+        if returnCode == 0 and os.path.exists(objectFile):
+            addObjectToCache(stats, cache, objectFile, compilerStdout, compilerStderr, cachekey)
 
     printTraceStatement("Finished. Exit code {0:d}".format(returnCode))
     return returnCode, compilerStdout, compilerStderr
