@@ -142,7 +142,7 @@ inlinevar-rgx=([a-z]+[0-9]*[A-Z]?){1,6}$
 variable-rgx=([a-z]+[0-9]*[A-Z]?){1,6}$
 
 # Regular expression matching correct class attribute names
-class-attribute-rgx=([A-Za-z_][A-Za-z0-9_]{1,30}|(__.*__))$
+class-attribute-rgx=([A-Za-z_][A-Za-z0-9_]{1,40}|(__.*__))$
 
 # Regular expression which should only match function or class names that do
 # not require a docstring.
