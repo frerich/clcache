@@ -191,17 +191,21 @@ class TestManifestManager(unittest.TestCase):
         mm.manifestSection("0623305942d216c165970948424ae7d1") \
           .setManifest("0623305942d216c165970948424ae7d1", manifest2)
 
-        mm.clean(240)
+        cleaningResultSize = mm.clean(240)
         # Only one of those manifests can be left
+        self.assertLessEqual(cleaningResultSize, 240)
         self.assertLessEqual(self._getDirectorySize(manifestsRootDir), 240)
 
-        mm.clean(240)
+        cleaningResultSize = mm.clean(240)
         # The one remaining is remains alive
+        self.assertLessEqual(cleaningResultSize, 240)
+        self.assertGreaterEqual(cleaningResultSize, 120)
         self.assertLessEqual(self._getDirectorySize(manifestsRootDir), 240)
         self.assertGreaterEqual(self._getDirectorySize(manifestsRootDir), 120)
 
-        mm.clean(0)
+        cleaningResultSize = mm.clean(0)
         # All manifest are gone
+        self.assertEqual(cleaningResultSize, 0)
         self.assertEqual(self._getDirectorySize(manifestsRootDir), 0)
 
 
