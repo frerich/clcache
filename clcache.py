@@ -217,11 +217,13 @@ class ObjectCacheLock(object):
 
 
 class ObjectCache(object):
-    def __init__(self):
-        try:
-            self.dir = os.environ["CLCACHE_DIR"]
-        except KeyError:
-            self.dir = os.path.join(os.path.expanduser("~"), "clcache")
+    def __init__(self, cacheDirectory=None):
+        self.dir = cacheDirectory
+        if not self.dir:
+            try:
+                self.dir = os.environ["CLCACHE_DIR"]
+            except KeyError:
+                self.dir = os.path.join(os.path.expanduser("~"), "clcache")
 
         manifestsRootDir = os.path.join(self.dir, "manifests")
         ensureDirectoryExists(manifestsRootDir)
