@@ -312,6 +312,26 @@ class TestHeaderChange(unittest.TestCase):
             self.assertEqual(output, "2")
 
 
+class TestHeaderMiss(unittest.TestCase):
+    # When a required header disappears, we must fall back to real compiler
+    # complaining about the miss
+    def testRequiredHeaderDisappears(self):
+        with cd(os.path.join(ASSETS_DIR, "header-miss")):
+            compileCmd = CLCACHE_CMD + ["/nologo", "/EHsc", "/c", "main.cpp"]
+
+            with open("info.h", "w") as header:
+                header.write("#define INFO 1337\n")
+            subprocess.check_call(compileCmd)
+
+            os.remove("info.h")
+
+            # real compiler fails
+            process = subprocess.Popen(compileCmd, stdout=subprocess.PIPE)
+            stdout, _ = process.communicate()
+            self.assertEqual(process.returncode, 2)
+            self.assertTrue("C1083" in stdout.decode(clcache.CL_DEFAULT_CODEC))
+
+
 class TestRunParallel(unittest.TestCase):
     def _zeroStats(self):
         subprocess.check_call(CLCACHE_CMD + ["-z"])
