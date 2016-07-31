@@ -217,11 +217,13 @@ class ObjectCacheLock(object):
 
 
 class ObjectCache(object):
-    def __init__(self):
-        try:
-            self.dir = os.environ["CLCACHE_DIR"]
-        except KeyError:
-            self.dir = os.path.join(os.path.expanduser("~"), "clcache")
+    def __init__(self, cacheDirectory=None):
+        self.dir = cacheDirectory
+        if not self.dir:
+            try:
+                self.dir = os.environ["CLCACHE_DIR"]
+            except KeyError:
+                self.dir = os.path.join(os.path.expanduser("~"), "clcache")
 
         manifestsRootDir = os.path.join(self.dir, "manifests")
         ensureDirectoryExists(manifestsRootDir)
@@ -646,6 +648,15 @@ def expandBasedirPlaceholder(path, baseDir):
         if not baseDir:
             raise LogicException('No CLCACHE_BASEDIR set, but found relative path ' + path)
         return path.replace(BASEDIR_REPLACEMENT, baseDir, 1)
+    else:
+        return path
+
+
+def collapseBasedirToPlaceholder(path, baseDir):
+    assert path == os.path.normcase(path)
+    assert baseDir == os.path.normcase(baseDir)
+    if path.startswith(baseDir):
+        return path.replace(baseDir, BASEDIR_REPLACEMENT, 1)
     else:
         return path
 
@@ -1169,7 +1180,7 @@ def clearCache(cache):
 # Returns pair - list of includes and new compiler output.
 # Output changes if strip is True in that case all lines with include
 # directives are stripped from it
-def parseIncludesList(compilerOutput, sourceFile, baseDir, strip):
+def parseIncludesList(compilerOutput, sourceFile, strip):
     newOutput = []
     includesSet = set([])
 
@@ -1188,16 +1199,12 @@ def parseIncludesList(compilerOutput, sourceFile, baseDir, strip):
     reFilePath = re.compile(r'^(\w+): ([ \w]+):( +)(?P<file_path>\S.*)$')
 
     absSourceFile = os.path.normcase(os.path.abspath(sourceFile))
-    if baseDir:
-        baseDir = os.path.normcase(baseDir)
     for line in compilerOutput.splitlines(True):
         match = reFilePath.match(line.rstrip('\r\n'))
         if match is not None:
             filePath = match.group('file_path')
             filePath = os.path.normcase(os.path.abspath(filePath))
             if filePath != absSourceFile:
-                if baseDir and filePath.startswith(baseDir):
-                    filePath = filePath.replace(baseDir, BASEDIR_REPLACEMENT, 1)
                 includesSet.add(filePath)
         elif strip:
             newOutput.append(line)
@@ -1265,16 +1272,19 @@ def postprocessHeaderChangedMiss(
 def postprocessNoManifestMiss(
         cache, objectFile, manifestSection, manifestHash, baseDir, sourceFile, compilerResult, stripIncludes):
     returnCode, compilerOutput, compilerStderr = compilerResult
-    listOfIncludes, compilerOutput = parseIncludesList(compilerOutput, sourceFile, baseDir, stripIncludes)
+    listOfIncludes, compilerOutput = parseIncludesList(compilerOutput, sourceFile, stripIncludes)
 
     manifest = None
     cachekey = None
 
     if returnCode == 0 and os.path.exists(objectFile):
         # Store compile output and manifest
-        manifest = Manifest(listOfIncludes, {})
-        includesContentHash = ManifestsManager.getIncludesContentHashForFiles(
-            [expandBasedirPlaceholder(include, baseDir) for include in listOfIncludes])
+        if baseDir:
+            relocatableIncludePaths = [collapseBasedirToPlaceholder(path, baseDir) for path in listOfIncludes]
+            manifest = Manifest(relocatableIncludePaths, {})
+        else:
+            manifest = Manifest(listOfIncludes, {})
+        includesContentHash = ManifestsManager.getIncludesContentHashForFiles(listOfIncludes)
         cachekey = ObjectCache.getDirectCacheKey(manifestHash, includesContentHash)
         manifest.includesContentToObjectMap[includesContentHash] = cachekey
 
@@ -1413,8 +1423,10 @@ def processDirect(cache, objectFile, compiler, cmdLine, sourceFile):
     with cache.lock:
         manifest = manifestSection.getManifest(manifestHash)
         baseDir = os.environ.get('CLCACHE_BASEDIR')
-        if baseDir and not baseDir.endswith(os.path.sep):
-            baseDir += os.path.sep
+        if baseDir:
+            baseDir = os.path.normcase(baseDir)
+            if not baseDir.endswith(os.path.sep):
+                baseDir += os.path.sep
         if manifest is not None:
             # NOTE: command line options already included in hash for manifest name
             includesContentHash = ManifestsManager.getIncludesContentHashForFiles(

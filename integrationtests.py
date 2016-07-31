@@ -12,6 +12,7 @@
 from contextlib import contextmanager
 import glob
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -475,6 +476,38 @@ class TestNoDirectCalls(unittest.TestCase):
 
             self.assertEqual(subprocess.call(cmd, env=env), 0) # This should hit now
             self.assertEqual(clcache.CacheStatistics(cache).numCacheHits(), oldHits + 1)
+
+
+class TestBasedir(unittest.TestCase):
+    def testBasedir(self):
+        with cd(os.path.join(ASSETS_DIR, "basedir")), tempfile.TemporaryDirectory() as tempDir:
+            # First, create two separate build directories with the same sources
+            for buildDir in ["builddir_a", "builddir_b"]:
+                shutil.rmtree(buildDir, ignore_errors=True)
+                os.mkdir(buildDir)
+
+                shutil.copy("main.cpp", buildDir)
+                shutil.copy("constants.h", buildDir)
+
+            cache = clcache.ObjectCache(tempDir)
+
+            cmd = CLCACHE_CMD + ["/nologo", "/EHsc", "/c", "main.cpp"]
+
+            # Build once in one directory
+            with cd("builddir_a"):
+                env = dict(os.environ, CLCACHE_DIR=tempDir, CLCACHE_BASEDIR=os.getcwd())
+                self.assertEqual(subprocess.call(cmd, env=env), 0)
+                self.assertEqual(clcache.CacheStatistics(cache).numCacheMisses(), 1)
+                self.assertEqual(clcache.CacheStatistics(cache).numCacheHits(), 0)
+
+            shutil.rmtree("builddir_a", ignore_errors=True)
+
+            # Build again in a different directory, this should hit now because of CLCACHE_BASEDIR
+            with cd("builddir_b"):
+                env = dict(os.environ, CLCACHE_DIR=tempDir, CLCACHE_BASEDIR=os.getcwd())
+                self.assertEqual(subprocess.call(cmd, env=env), 0)
+                self.assertEqual(clcache.CacheStatistics(cache).numCacheMisses(), 1)
+                self.assertEqual(clcache.CacheStatistics(cache).numCacheHits(), 1)
 
 
 if __name__ == '__main__':

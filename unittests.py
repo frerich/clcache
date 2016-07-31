@@ -721,7 +721,6 @@ class TestParseIncludes(unittest.TestCase):
         includesSet, newCompilerOutput = clcache.parseIncludesList(
             sample['CompilerOutput'],
             r'C:\Projects\test\smartsqlite\src\version.cpp',
-            None,
             strip=False)
 
         self.assertEqual(len(includesSet), sample['UniqueIncludesCount'])
@@ -736,7 +735,6 @@ class TestParseIncludes(unittest.TestCase):
         includesSet, newCompilerOutput = clcache.parseIncludesList(
             sample['CompilerOutput'],
             r'C:\Projects\test\smartsqlite\src\version.cpp',
-            None,
             strip=True)
 
         self.assertEqual(len(includesSet), sample['UniqueIncludesCount'])
@@ -752,7 +750,6 @@ class TestParseIncludes(unittest.TestCase):
             includesSet, newCompilerOutput = clcache.parseIncludesList(
                 sample['CompilerOutput'],
                 r"C:\Projects\test\myproject\main.cpp",
-                None,
                 strip=stripIncludes)
 
             self.assertEqual(len(includesSet), sample['UniqueIncludesCount'])
@@ -763,7 +760,6 @@ class TestParseIncludes(unittest.TestCase):
         includesSet, _ = clcache.parseIncludesList(
             sample['CompilerOutput'],
             r"C:\Projects\test\smartsqlite\src\version.cpp",
-            None,
             strip=False)
 
         self.assertEqual(len(includesSet), sample['UniqueIncludesCount'])
