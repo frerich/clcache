@@ -331,6 +331,28 @@ class TestHeaderMiss(unittest.TestCase):
             self.assertEqual(process.returncode, 2)
             self.assertTrue("C1083" in stdout.decode(clcache.CL_DEFAULT_CODEC))
 
+    # When a header included by another header becomes obsolete and disappers,
+    # we must fall back to real compiler.
+    def testObsoleteHeaderDisappears(self):
+        # A includes B
+        with cd(os.path.join(ASSETS_DIR, "header-miss-obsolete")):
+            compileCmd = CLCACHE_CMD + ["/I.", "/nologo", "/EHsc", "/c", "main.cpp"]
+
+            with open("A.h", "w") as header:
+                header.write('#define INFO 1337\n')
+                header.write('#include "B.h"\n')
+            with open("B.h", "w") as header:
+                header.write('#define SOMETHING 1\n')
+
+            subprocess.check_call(compileCmd)
+
+            with open("A.h", "w") as header:
+                header.write('#define INFO 1337\n')
+                header.write('\n')
+            os.remove("B.h")
+
+            subprocess.check_call(compileCmd)
+
 
 class TestRunParallel(unittest.TestCase):
     def _zeroStats(self):
