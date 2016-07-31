@@ -145,13 +145,13 @@ class ManifestsManager(object):
 
         manifestFileInfos.sort(key=lambda t: t[0].st_atime, reverse=True)
 
-        currentSize = 0
+        remainingObjectsSize = 0
         for stat, filepath in manifestFileInfos:
-            currentSize += stat.st_size
-            if currentSize < maxManifestsSize:
-                # skip as long as maximal size not reached
-                continue
-            os.remove(filepath)
+            if remainingObjectsSize + stat.st_size <= maxManifestsSize:
+                remainingObjectsSize += stat.st_size
+            else:
+                os.remove(filepath)
+        return remainingObjectsSize
 
     @staticmethod
     def getManifestHash(compilerBinary, commandLine, sourceFile):
@@ -250,7 +250,7 @@ class ObjectCache(object):
         effectiveMaximumSizeObjects = effectiveMaximumSizeOverall - effectiveMaximumSizeManifests
 
         # Clean manifests
-        self.manifestsManager.clean(effectiveMaximumSizeManifests)
+        currentSizeManifests = self.manifestsManager.clean(effectiveMaximumSizeManifests)
 
         # Clean objects
         objects = [os.path.join(root, "object")
@@ -267,18 +267,17 @@ class ObjectCache(object):
         objectInfos.sort(key=lambda t: t[0].st_atime)
 
         # compute real current size to fix up the stored cacheSize
-        currentSize = sum(x[0].st_size for x in objectInfos)
+        currentSizeObjects = sum(x[0].st_size for x in objectInfos)
 
         removedItems = 0
         for stat, fn in objectInfos:
             rmtree(os.path.split(fn)[0], ignore_errors=True)
             removedItems += 1
-            currentSize -= stat.st_size
-            if currentSize < effectiveMaximumSizeObjects:
+            currentSizeObjects -= stat.st_size
+            if currentSizeObjects < effectiveMaximumSizeObjects:
                 break
 
-        stats.setCacheSize(currentSize)
-
+        stats.setCacheSize(currentSizeObjects + currentSizeManifests)
         stats.setNumCacheEntries(len(objectInfos) - removedItems)
 
     def removeObjects(self, stats, removedObjects):
