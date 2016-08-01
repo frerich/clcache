@@ -231,6 +231,42 @@ class CacheSection(object):
     def __init__(self, cacheSectionDir):
         self.cacheSectionDir = cacheSectionDir
 
+    def cacheEntryDir(self, key):
+        return os.path.join(self.cacheSectionDir, key)
+
+    def cachedObjectName(self, key):
+        return os.path.join(self.cacheEntryDir(key), "object")
+
+    def cachedCompilerOutput(self, key):
+        with open(self.cachedCompilerOutputName(key), 'rb') as f:
+            return f.read().decode(CACHE_COMPILER_OUTPUT_STORAGE_CODEC)
+
+    def cachedCompilerStderr(self, key):
+        fileName = self.cachedCompilerStderrName(key)
+        if os.path.exists(fileName):
+            with open(fileName, 'rb') as f:
+                return f.read().decode(CACHE_COMPILER_OUTPUT_STORAGE_CODEC)
+        return ''
+
+    def cachedCompilerOutputName(self, key):
+        return os.path.join(self.cacheEntryDir(key), "output.txt")
+
+    def cachedCompilerStderrName(self, key):
+        return os.path.join(self.cacheEntryDir(key), "stderr.txt")
+
+    def hasEntry(self, key):
+        return os.path.exists(self.cachedObjectName(key)) or os.path.exists(self.cachedCompilerOutputName(key))
+
+    def setEntry(self, key, objectFileName, compilerOutput, compilerStderr):
+        ensureDirectoryExists(self.cacheEntryDir(key))
+        if objectFileName is not None:
+            copyOrLink(objectFileName, self.cachedObjectName(key))
+        with open(self.cachedCompilerOutputName(key), 'wb') as f:
+            f.write(compilerOutput.encode(CACHE_COMPILER_OUTPUT_STORAGE_CODEC))
+        if compilerStderr != '':
+            with open(self.cachedCompilerStderrName(key), 'wb') as f:
+                f.write(compilerStderr.encode(CACHE_COMPILER_OUTPUT_STORAGE_CODEC))
+
 
 class ObjectCache(object):
     def __init__(self, cacheDirectory=None):
@@ -349,40 +385,28 @@ class ObjectCache(object):
         return ObjectCache.getHash(manifestHash + includesContentHash)
 
     def hasEntry(self, key):
-        return os.path.exists(self.cachedObjectName(key)) or os.path.exists(self._cachedCompilerOutputName(key))
+        return self.cacheSection(key).hasEntry(key)
 
     def setEntry(self, key, objectFileName, compilerOutput, compilerStderr):
-        ensureDirectoryExists(self._cacheEntryDir(key))
-        if objectFileName is not None:
-            copyOrLink(objectFileName, self.cachedObjectName(key))
-        with open(self._cachedCompilerOutputName(key), 'wb') as f:
-            f.write(compilerOutput.encode(CACHE_COMPILER_OUTPUT_STORAGE_CODEC))
-        if compilerStderr != '':
-            with open(self._cachedCompilerStderrName(key), 'wb') as f:
-                f.write(compilerStderr.encode(CACHE_COMPILER_OUTPUT_STORAGE_CODEC))
+        return self.cacheSection(key).setEntry(key, objectFileName, compilerOutput, compilerStderr)
 
     def cachedObjectName(self, key):
-        return os.path.join(self._cacheEntryDir(key), "object")
+        return self.cacheSection(key).cachedObjectName(key)
 
     def cachedCompilerOutput(self, key):
-        with open(self._cachedCompilerOutputName(key), 'rb') as f:
-            return f.read().decode(CACHE_COMPILER_OUTPUT_STORAGE_CODEC)
+        return self.cacheSection(key).cachedCompilerOutput(key)
 
     def cachedCompilerStderr(self, key):
-        fileName = self._cachedCompilerStderrName(key)
-        if os.path.exists(fileName):
-            with open(fileName, 'rb') as f:
-                return f.read().decode(CACHE_COMPILER_OUTPUT_STORAGE_CODEC)
-        return ''
+        return self.cacheSection(key).cachedCompilerStderr(key)
 
     def _cacheEntryDir(self, key):
-        return os.path.join(self.objectsDir, key[:2], key)
+        return self.cacheSection(key).cacheEntryDir(key)
 
     def _cachedCompilerOutputName(self, key):
-        return os.path.join(self._cacheEntryDir(key), "output.txt")
+        return self.cacheSection(key).cachedCompilerOutputName(key)
 
     def _cachedCompilerStderrName(self, key):
-        return os.path.join(self._cacheEntryDir(key), "stderr.txt")
+        return self.cacheSection(key).cachedCompilerStderrName(key)
 
     @staticmethod
     def _normalizedCommandLine(cmdline):
