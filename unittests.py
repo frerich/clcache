@@ -19,6 +19,7 @@ from clcache import (
     CommandLineAnalyzer,
     Manifest,
     ManifestsManager,
+    Statistics,
 )
 from clcache import (
     AnalysisError,
@@ -95,6 +96,58 @@ class TestHelperFunctions(unittest.TestCase):
             self.assertIn(r".\b\c\3.txt", files)
             self.assertIn(r".\d\4.txt", files)
             self.assertIn(r".\d\e\5.txt", files)
+
+
+class TestStatistics(unittest.TestCase):
+    def testOpenClose(self):
+        stats = Statistics(os.path.join(ASSETS_DIR, "statistics", "testOpenClose.json"))
+        with stats:
+            pass
+
+    def testHitCounts(self):
+        stats = Statistics(os.path.join(ASSETS_DIR, "statistics", "testHitCounts.json"))
+        with stats as s:
+            self.assertEqual(s.numCallsWithInvalidArgument(), 0)
+            self.assertEqual(s.numCallsWithoutSourceFile(), 0)
+            self.assertEqual(s.numCallsWithMultipleSourceFiles(), 0)
+            self.assertEqual(s.numCallsWithPch(), 0)
+            self.assertEqual(s.numCallsForLinking(), 0)
+            self.assertEqual(s.numCallsForExternalDebugInfo(), 0)
+            self.assertEqual(s.numEvictedMisses(), 0)
+            self.assertEqual(s.numHeaderChangedMisses(), 0)
+            self.assertEqual(s.numSourceChangedMisses(), 0)
+            self.assertEqual(s.numCacheHits(), 0)
+            self.assertEqual(s.numCacheMisses(), 0)
+            self.assertEqual(s.numCallsForPreprocessing(), 0)
+
+            # Bump all by 1
+            s.registerCallWithInvalidArgument()
+            s.registerCallWithoutSourceFile()
+            s.registerCallWithMultipleSourceFiles()
+            s.registerCallWithPch()
+            s.registerCallForLinking()
+            s.registerCallForExternalDebugInfo()
+            s.registerEvictedMiss()
+            s.registerHeaderChangedMiss()
+            s.registerSourceChangedMiss()
+            s.registerCacheHit()
+            s.registerCacheMiss()
+            s.registerCallForPreprocessing()
+
+            self.assertEqual(s.numCallsWithInvalidArgument(), 1)
+            self.assertEqual(s.numCallsWithoutSourceFile(), 1)
+            self.assertEqual(s.numCallsWithMultipleSourceFiles(), 1)
+            self.assertEqual(s.numCallsWithPch(), 1)
+            self.assertEqual(s.numCallsForLinking(), 1)
+            self.assertEqual(s.numCallsForExternalDebugInfo(), 1)
+            self.assertEqual(s.numEvictedMisses(), 1)
+            self.assertEqual(s.numHeaderChangedMisses(), 1)
+            self.assertEqual(s.numSourceChangedMisses(), 1)
+            self.assertEqual(s.numCacheHits(), 1)
+            self.assertEqual(s.numCallsForPreprocessing(), 1)
+
+            # accumulated: headerChanged, sourceChanged, eviced, miss
+            self.assertEqual(s.numCacheMisses(), 4)
 
 
 class TestManifestManager(unittest.TestCase):

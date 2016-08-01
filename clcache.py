@@ -294,6 +294,8 @@ class Cache(object):
         timeoutMs = int(os.environ.get('CLCACHE_OBJECT_CACHE_TIMEOUT_MS', 10 * 1000))
         self.lock = CacheLock(lockName, timeoutMs)
 
+        self.statistics = Statistics(os.path.join(self.dir, "stats.txt"))
+
     def cacheDirectory(self):
         return self.dir
 
@@ -463,7 +465,7 @@ class Configuration(object):
         self.save()
 
 
-class CacheStatistics(object):
+class Statistics(object):
     CALLS_WITH_INVALID_ARGUMENT = "CallsWithInvalidArgument"
     CALLS_WITHOUT_SOURCE_FILE = "CallsWithoutSourceFile"
     CALLS_WITH_MULTIPLE_SOURCE_FILES = "CallsWithMultipleSourceFiles"
@@ -498,120 +500,122 @@ class CacheStatistics(object):
         CACHE_SIZE,
     }
 
-    def __init__(self, objectCache):
-        self._stats = PersistentJSONDict(os.path.join(objectCache.cacheDirectory(),
-                                                      "stats.txt"))
-        for k in CacheStatistics.RESETTABLE_KEYS | CacheStatistics.NON_RESETTABLE_KEYS:
+    def __init__(self, statsFile):
+        self._statsFile = statsFile
+        self._stats = None
+
+    def __enter__(self):
+        self._stats = PersistentJSONDict(self._statsFile)
+        for k in Statistics.RESETTABLE_KEYS | Statistics.NON_RESETTABLE_KEYS:
             if k not in self._stats:
                 self._stats[k] = 0
+        return self
+
+    def __exit__(self, typ, value, traceback):
+        # Does not write to disc when unchanged
+        self._stats.save()
 
     def __eq__(self, other):
         return type(self) is type(other) and self.__dict__ == other.__dict__
 
     def numCallsWithInvalidArgument(self):
-        return self._stats[CacheStatistics.CALLS_WITH_INVALID_ARGUMENT]
+        return self._stats[Statistics.CALLS_WITH_INVALID_ARGUMENT]
 
     def registerCallWithInvalidArgument(self):
-        self._stats[CacheStatistics.CALLS_WITH_INVALID_ARGUMENT] += 1
+        self._stats[Statistics.CALLS_WITH_INVALID_ARGUMENT] += 1
 
     def numCallsWithoutSourceFile(self):
-        return self._stats[CacheStatistics.CALLS_WITHOUT_SOURCE_FILE]
+        return self._stats[Statistics.CALLS_WITHOUT_SOURCE_FILE]
 
     def registerCallWithoutSourceFile(self):
-        self._stats[CacheStatistics.CALLS_WITHOUT_SOURCE_FILE] += 1
+        self._stats[Statistics.CALLS_WITHOUT_SOURCE_FILE] += 1
 
     def numCallsWithMultipleSourceFiles(self):
-        return self._stats[CacheStatistics.CALLS_WITH_MULTIPLE_SOURCE_FILES]
+        return self._stats[Statistics.CALLS_WITH_MULTIPLE_SOURCE_FILES]
 
     def registerCallWithMultipleSourceFiles(self):
-        self._stats[CacheStatistics.CALLS_WITH_MULTIPLE_SOURCE_FILES] += 1
+        self._stats[Statistics.CALLS_WITH_MULTIPLE_SOURCE_FILES] += 1
 
     def numCallsWithPch(self):
-        return self._stats[CacheStatistics.CALLS_WITH_PCH]
+        return self._stats[Statistics.CALLS_WITH_PCH]
 
     def registerCallWithPch(self):
-        self._stats[CacheStatistics.CALLS_WITH_PCH] += 1
+        self._stats[Statistics.CALLS_WITH_PCH] += 1
 
     def numCallsForLinking(self):
-        return self._stats[CacheStatistics.CALLS_FOR_LINKING]
+        return self._stats[Statistics.CALLS_FOR_LINKING]
 
     def registerCallForLinking(self):
-        self._stats[CacheStatistics.CALLS_FOR_LINKING] += 1
+        self._stats[Statistics.CALLS_FOR_LINKING] += 1
 
     def numCallsForExternalDebugInfo(self):
-        return self._stats[CacheStatistics.CALLS_FOR_EXTERNAL_DEBUG_INFO]
+        return self._stats[Statistics.CALLS_FOR_EXTERNAL_DEBUG_INFO]
 
     def registerCallForExternalDebugInfo(self):
-        self._stats[CacheStatistics.CALLS_FOR_EXTERNAL_DEBUG_INFO] += 1
+        self._stats[Statistics.CALLS_FOR_EXTERNAL_DEBUG_INFO] += 1
 
     def numEvictedMisses(self):
-        return self._stats[CacheStatistics.EVICTED_MISSES]
+        return self._stats[Statistics.EVICTED_MISSES]
 
     def registerEvictedMiss(self):
         self.registerCacheMiss()
-        self._stats[CacheStatistics.EVICTED_MISSES] += 1
+        self._stats[Statistics.EVICTED_MISSES] += 1
 
     def numHeaderChangedMisses(self):
-        return self._stats[CacheStatistics.HEADER_CHANGED_MISSES]
+        return self._stats[Statistics.HEADER_CHANGED_MISSES]
 
     def registerHeaderChangedMiss(self):
         self.registerCacheMiss()
-        self._stats[CacheStatistics.HEADER_CHANGED_MISSES] += 1
+        self._stats[Statistics.HEADER_CHANGED_MISSES] += 1
 
     def numSourceChangedMisses(self):
-        return self._stats[CacheStatistics.SOURCE_CHANGED_MISSES]
+        return self._stats[Statistics.SOURCE_CHANGED_MISSES]
 
     def registerSourceChangedMiss(self):
         self.registerCacheMiss()
-        self._stats[CacheStatistics.SOURCE_CHANGED_MISSES] += 1
+        self._stats[Statistics.SOURCE_CHANGED_MISSES] += 1
 
     def numCacheEntries(self):
-        return self._stats[CacheStatistics.CACHE_ENTRIES]
+        return self._stats[Statistics.CACHE_ENTRIES]
 
     def setNumCacheEntries(self, number):
-        self._stats[CacheStatistics.CACHE_ENTRIES] = number
+        self._stats[Statistics.CACHE_ENTRIES] = number
 
     def registerCacheEntry(self, size):
-        self._stats[CacheStatistics.CACHE_ENTRIES] += 1
-        self._stats[CacheStatistics.CACHE_SIZE] += size
+        self._stats[Statistics.CACHE_ENTRIES] += 1
+        self._stats[Statistics.CACHE_SIZE] += size
 
     def unregisterCacheEntry(self, size):
-        self._stats[CacheStatistics.CACHE_ENTRIES] -= 1
-        self._stats[CacheStatistics.CACHE_SIZE] -= size
+        self._stats[Statistics.CACHE_ENTRIES] -= 1
+        self._stats[Statistics.CACHE_SIZE] -= size
 
     def currentCacheSize(self):
-        return self._stats[CacheStatistics.CACHE_SIZE]
+        return self._stats[Statistics.CACHE_SIZE]
 
     def setCacheSize(self, size):
-        self._stats[CacheStatistics.CACHE_SIZE] = size
+        self._stats[Statistics.CACHE_SIZE] = size
 
     def numCacheHits(self):
-        return self._stats[CacheStatistics.CACHE_HITS]
+        return self._stats[Statistics.CACHE_HITS]
 
     def registerCacheHit(self):
-        self._stats[CacheStatistics.CACHE_HITS] += 1
+        self._stats[Statistics.CACHE_HITS] += 1
 
     def numCacheMisses(self):
-        return self._stats[CacheStatistics.CACHE_MISSES]
+        return self._stats[Statistics.CACHE_MISSES]
 
     def registerCacheMiss(self):
-        self._stats[CacheStatistics.CACHE_MISSES] += 1
+        self._stats[Statistics.CACHE_MISSES] += 1
 
     def numCallsForPreprocessing(self):
-        return self._stats[CacheStatistics.CALLS_FOR_PREPROCESSING]
+        return self._stats[Statistics.CALLS_FOR_PREPROCESSING]
 
     def registerCallForPreprocessing(self):
-        self._stats[CacheStatistics.CALLS_FOR_PREPROCESSING] += 1
+        self._stats[Statistics.CALLS_FOR_PREPROCESSING] += 1
 
     def resetCounters(self):
-        for k in CacheStatistics.RESETTABLE_KEYS:
+        for k in Statistics.RESETTABLE_KEYS:
             self._stats[k] = 0
-
-    def save(self):
-        self._stats.save()
-
-    def close(self):
-        self.save()
 
 
 class AnalysisError(Exception):
@@ -1146,9 +1150,7 @@ def reinvokePerSourceFile(cmdLine, sourceFiles):
     return runJobs(commands, jobCount(cmdLine))
 
 def printStatistics(cache):
-    cfg = Configuration(cache)
-    stats = CacheStatistics(cache)
-    out = """
+    template = """
 clcache statistics:
   current cache dir         : {}
   cache size                : {:,} bytes
@@ -1167,39 +1169,42 @@ clcache statistics:
     called for external debug  : {}
     called w/o source          : {}
     called w/ multiple sources : {}
-    called w/ PCH              : {}""".strip().format(
-        cache.cacheDirectory(),
-        stats.currentCacheSize(),
-        cfg.maximumCacheSize(),
-        stats.numCacheEntries(),
-        stats.numCacheHits(),
-        stats.numCacheMisses(),
-        stats.numEvictedMisses(),
-        stats.numHeaderChangedMisses(),
-        stats.numSourceChangedMisses(),
-        stats.numCallsWithInvalidArgument(),
-        stats.numCallsForPreprocessing(),
-        stats.numCallsForLinking(),
-        stats.numCallsForExternalDebugInfo(),
-        stats.numCallsWithoutSourceFile(),
-        stats.numCallsWithMultipleSourceFiles(),
-        stats.numCallsWithPch(),
-    )
-    print(out)
+    called w/ PCH              : {}""".strip()
+
+    cfg = Configuration(cache)
+    with cache.statistics as stats:
+        print(template.format(
+            cache.cacheDirectory(),
+            stats.currentCacheSize(),
+            cfg.maximumCacheSize(),
+            stats.numCacheEntries(),
+            stats.numCacheHits(),
+            stats.numCacheMisses(),
+            stats.numEvictedMisses(),
+            stats.numHeaderChangedMisses(),
+            stats.numSourceChangedMisses(),
+            stats.numCallsWithInvalidArgument(),
+            stats.numCallsForPreprocessing(),
+            stats.numCallsForLinking(),
+            stats.numCallsForExternalDebugInfo(),
+            stats.numCallsWithoutSourceFile(),
+            stats.numCallsWithMultipleSourceFiles(),
+            stats.numCallsWithPch(),
+        ))
 
 def resetStatistics(cache):
-    with closing(CacheStatistics(cache)) as stats:
+    with cache.statistics as stats:
         stats.resetCounters()
     print('Statistics reset')
 
 def cleanCache(cache):
     cfg = Configuration(cache)
-    with closing(CacheStatistics(cache)) as stats:
+    with cache.statistics as stats:
         cache.clean(stats, cfg.maximumCacheSize())
     print('Cache cleaned')
 
 def clearCache(cache):
-    with closing(CacheStatistics(cache)) as stats:
+    with cache.statistics as stats:
         cache.clean(stats, 0)
     print('Cache cleared')
 
@@ -1250,7 +1255,7 @@ def addObjectToCache(stats, cache, objectFile, compilerStdout, compilerStderr, c
 
 
 def processCacheHit(cache, objectFile, cachekey):
-    with closing(CacheStatistics(cache)) as stats:
+    with cache.statistics as stats:
         stats.registerCacheHit()
     printTraceStatement("Reusing cached object for key {} for object file {}".format(cachekey, objectFile))
     if os.path.exists(objectFile):
@@ -1267,7 +1272,7 @@ def postprocessObjectEvicted(cache, objectFile, cachekey, compilerResult):
     printTraceStatement("Cached object already evicted for key {} for object {}".format(cachekey, objectFile))
     returnCode, compilerOutput, compilerStderr = compilerResult
 
-    with cache.lock, closing(CacheStatistics(cache)) as stats:
+    with cache.lock, cache.statistics as stats:
         stats.registerEvictedMiss()
         if returnCode == 0 and os.path.exists(objectFile):
             addObjectToCache(stats, cache, objectFile, compilerOutput, compilerStderr, cachekey)
@@ -1287,7 +1292,7 @@ def postprocessHeaderChangedMiss(
             removedItems.append(objectHash)
         manifest.includesContentToObjectMap[includesContentHash] = cachekey
 
-    with cache.lock, closing(CacheStatistics(cache)) as stats:
+    with cache.lock, cache.statistics as stats:
         stats.registerHeaderChangedMiss()
         if returnCode == 0 and os.path.exists(objectFile):
             addObjectToCache(stats, cache, objectFile, compilerOutput, compilerStderr, cachekey)
@@ -1316,7 +1321,7 @@ def postprocessNoManifestMiss(
         cachekey = Cache.getDirectCacheKey(manifestHash, includesContentHash)
         manifest.includesContentToObjectMap[includesContentHash] = cachekey
 
-    with cache.lock, closing(CacheStatistics(cache)) as stats:
+    with cache.lock, cache.statistics as stats:
         stats.registerSourceChangedMiss()
         if returnCode == 0 and os.path.exists(objectFile):
             # Store compile output and manifest
@@ -1397,7 +1402,7 @@ clcache.py v{}
 
 
 def updateCacheStatistics(cache, method):
-    with cache.lock, closing(CacheStatistics(cache)) as stats:
+    with cache.lock, cache.statistics as stats:
         method(stats)
 
 
@@ -1420,27 +1425,27 @@ def processCompileRequest(cache, compiler, args):
                 return processDirect(cache, objectFile, compiler, cmdLine, sourceFiles[0])
     except InvalidArgumentError:
         printTraceStatement("Cannot cache invocation as {}: invalid argument".format(cmdLine))
-        updateCacheStatistics(cache, CacheStatistics.registerCallWithInvalidArgument)
+        updateCacheStatistics(cache, Statistics.registerCallWithInvalidArgument)
     except NoSourceFileError:
         printTraceStatement("Cannot cache invocation as {}: no source file found".format(cmdLine))
-        updateCacheStatistics(cache, CacheStatistics.registerCallWithoutSourceFile)
+        updateCacheStatistics(cache, Statistics.registerCallWithoutSourceFile)
     except MultipleSourceFilesComplexError:
         printTraceStatement("Cannot cache invocation as {}: multiple source files found".format(cmdLine))
-        updateCacheStatistics(cache, CacheStatistics.registerCallWithMultipleSourceFiles)
+        updateCacheStatistics(cache, Statistics.registerCallWithMultipleSourceFiles)
     except CalledWithPchError:
         printTraceStatement("Cannot cache invocation as {}: precompiled headers in use".format(cmdLine))
-        updateCacheStatistics(cache, CacheStatistics.registerCallWithPch)
+        updateCacheStatistics(cache, Statistics.registerCallWithPch)
     except CalledForLinkError:
         printTraceStatement("Cannot cache invocation as {}: called for linking".format(cmdLine))
-        updateCacheStatistics(cache, CacheStatistics.registerCallForLinking)
+        updateCacheStatistics(cache, Statistics.registerCallForLinking)
     except ExternalDebugInfoError:
         printTraceStatement(
             "Cannot cache invocation as {}: external debug information (/Zi) is not supported".format(cmdLine)
         )
-        updateCacheStatistics(cache, CacheStatistics.registerCallForExternalDebugInfo)
+        updateCacheStatistics(cache, Statistics.registerCallForExternalDebugInfo)
     except CalledForPreprocessingError:
         printTraceStatement("Cannot cache invocation as {}: called for preprocessing".format(cmdLine))
-        updateCacheStatistics(cache, CacheStatistics.registerCallForPreprocessing)
+        updateCacheStatistics(cache, Statistics.registerCallForPreprocessing)
 
     return invokeRealCompiler(compiler, args[1:])
 
@@ -1487,7 +1492,7 @@ def processNoDirect(cache, objectFile, compiler, cmdLine):
             return processCacheHit(cache, objectFile, cachekey)
 
     returnCode, compilerStdout, compilerStderr = invokeRealCompiler(compiler, cmdLine, captureOutput=True)
-    with cache.lock, closing(CacheStatistics(cache)) as stats:
+    with cache.lock, cache.statistics as stats:
         stats.registerCacheMiss()
         if returnCode == 0 and os.path.exists(objectFile):
             addObjectToCache(stats, cache, objectFile, compilerStdout, compilerStderr, cachekey)
