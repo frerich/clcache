@@ -322,16 +322,14 @@ class ObjectCache(object):
         currentSizeManifests = self.manifestsManager.clean(effectiveMaximumSizeManifests)
 
         # Clean objects
-        objects = [os.path.join(root, "object")
-                   for root, _, files in WALK(self.objectsDir)
-                   if "object" in files]
-
         objectInfos = []
-        for o in objects:
-            try:
-                objectInfos.append((os.stat(o), o))
-            except OSError:
-                pass
+        for section in self.cacheSections():
+            objects = (section.cachedObjectName(key) for key in section.cacheEntries())
+            for o in objects:
+                try:
+                    objectInfos.append((os.stat(o), o))
+                except OSError:
+                    pass
 
         objectInfos.sort(key=lambda t: t[0].st_atime)
 
