@@ -339,7 +339,7 @@ class ObjectCache(object):
 
     def removeObjects(self, stats, removedObjects):
         for o in removedObjects:
-            dirPath = self._cacheEntryDir(o)
+            dirPath = self.cacheSection(o).cacheEntryDir(o)
             if not os.path.exists(dirPath):
                 continue  # May be if object already evicted.
             objectPath = os.path.join(dirPath, "object")
@@ -383,9 +383,6 @@ class ObjectCache(object):
         # collisions when different source files use the same
         # set of includes.
         return ObjectCache.getHash(manifestHash + includesContentHash)
-
-    def _cacheEntryDir(self, key):
-        return self.cacheSection(key).cacheEntryDir(key)
 
     @staticmethod
     def _normalizedCommandLine(cmdline):
