@@ -387,12 +387,6 @@ class ObjectCache(object):
     def _cacheEntryDir(self, key):
         return self.cacheSection(key).cacheEntryDir(key)
 
-    def _cachedCompilerOutputName(self, key):
-        return self.cacheSection(key).cachedCompilerOutputName(key)
-
-    def _cachedCompilerStderrName(self, key):
-        return self.cacheSection(key).cachedCompilerStderrName(key)
-
     @staticmethod
     def _normalizedCommandLine(cmdline):
         # Remove all arguments from the command line which only influence the
