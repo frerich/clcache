@@ -254,6 +254,9 @@ class ObjectCache(object):
     def cacheDirectory(self):
         return self.dir
 
+    def cacheSection(self, key):
+        return CacheSection(os.path.join(self.objectsDir, key[:2]))
+
     def clean(self, stats, maximumSize):
         currentSize = stats.currentCacheSize()
         if currentSize < maximumSize:
