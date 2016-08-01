@@ -10,6 +10,7 @@
 # pylint: disable=no-self-use
 #
 from contextlib import contextmanager
+import copy
 import glob
 import os
 import shutil
@@ -223,9 +224,9 @@ class TestHits(unittest.TestCase):
             subprocess.check_call(cmd) # Ensure it has been compiled before
 
             cache = clcache.Cache()
-            oldHits = clcache.Statistics(cache).numCacheHits()
+            oldHits = cache.openStatistics().numCacheHits()
             subprocess.check_call(cmd) # This must hit now
-            newHits = clcache.Statistics(cache).numCacheHits()
+            newHits = cache.openStatistics().numCacheHits()
             self.assertEqual(newHits, oldHits + 1)
 
 
@@ -334,16 +335,16 @@ class TestRunParallel(unittest.TestCase):
             self._buildAll()
 
             cache = clcache.Cache()
-            hits = clcache.Statistics(cache).numCacheHits()
-            misses = clcache.Statistics(cache).numCacheMisses()
+            hits = cache.openStatistics().numCacheHits()
+            misses = cache.openStatistics().numCacheMisses()
             self.assertEqual(hits + misses, 10)
 
             # Compile second time
             self._buildAll()
 
             cache = clcache.Cache()
-            hits = clcache.Statistics(cache).numCacheHits()
-            misses = clcache.Statistics(cache).numCacheMisses()
+            hits = cache.openStatistics().numCacheHits()
+            misses = cache.openStatistics().numCacheMisses()
             self.assertEqual(hits + misses, 20)
 
 
@@ -355,15 +356,13 @@ class TestClearing(unittest.TestCase):
         cache = clcache.Cache()
 
         self._clearCache()
-        stats = clcache.Statistics(cache)
-        self.assertEqual(stats.currentCacheSize(), 0)
-        self.assertEqual(stats.numCacheEntries(), 0)
+        self.assertEqual(cache.openStatistics().currentCacheSize(), 0)
+        self.assertEqual(cache.openStatistics().numCacheEntries(), 0)
 
         # Clearing should be idempotent
         self._clearCache()
-        stats = clcache.Statistics(cache)
-        self.assertEqual(stats.currentCacheSize(), 0)
-        self.assertEqual(stats.numCacheEntries(), 0)
+        self.assertEqual(cache.openStatistics().currentCacheSize(), 0)
+        self.assertEqual(cache.openStatistics().numCacheEntries(), 0)
 
     def testClearPostcondition(self):
         cache = clcache.Cache()
@@ -373,15 +372,14 @@ class TestClearing(unittest.TestCase):
         subprocess.check_call(cmd)
 
         # Now there should be something in the cache
-        stats = clcache.Statistics(cache)
-        self.assertTrue(stats.currentCacheSize() > 0)
-        self.assertTrue(stats.numCacheEntries() > 0)
+        self.assertTrue(cache.openStatistics().currentCacheSize() > 0)
+        self.assertTrue(cache.openStatistics().numCacheEntries() > 0)
 
         # Now, clear the cache: the stats should remain unchanged except for
         # the cache size and number of cache entries.
+        oldStats = copy.copy(cache.openStatistics())
         self._clearCache()
-        oldStats = stats
-        stats = clcache.Statistics(cache)
+        stats = cache.openStatistics()
         self.assertEqual(stats.currentCacheSize(), 0)
         self.assertEqual(stats.numCacheEntries(), 0)
         self.assertEqual(stats.numCallsWithoutSourceFile(), oldStats.numCallsWithoutSourceFile())
@@ -442,12 +440,12 @@ class TestPreprocessorCalls(unittest.TestCase):
         ]
 
         cache = clcache.Cache()
-        oldPreprocessorCalls = clcache.Statistics(cache).numCallsForPreprocessing()
+        oldPreprocessorCalls = cache.openStatistics().numCallsForPreprocessing()
 
         for i, invocation in enumerate(invocations, 1):
             cmd = CLCACHE_CMD + invocation + [os.path.join(ASSETS_DIR, "minimal.cpp")]
             subprocess.check_call(cmd)
-            newPreprocessorCalls = clcache.Statistics(cache).numCallsForPreprocessing()
+            newPreprocessorCalls = cache.openStatistics().numCallsForPreprocessing()
             self.assertEqual(newPreprocessorCalls, oldPreprocessorCalls + i, str(cmd))
 
 
@@ -455,14 +453,14 @@ class TestNoDirectCalls(unittest.TestCase):
     def testPreprocessorFailure(self):
         cache = clcache.Cache()
 
-        oldStats = clcache.Statistics(cache)
+        oldStats = copy.copy(cache.openStatistics())
 
         cmd = CLCACHE_CMD + ["/nologo", "/c", "doesnotexist.cpp"]
         env = dict(os.environ, CLCACHE_NODIRECT="1")
 
         self.assertNotEqual(subprocess.call(cmd, env=env), 0)
 
-        self.assertEqual(clcache.Statistics(cache), oldStats)
+        self.assertEqual(cache.openStatistics(), oldStats)
 
     def testHit(self):
         with cd(os.path.join(ASSETS_DIR, "hits-and-misses")):
@@ -472,10 +470,10 @@ class TestNoDirectCalls(unittest.TestCase):
             self.assertEqual(subprocess.call(cmd, env=env), 0)
 
             cache = clcache.Cache()
-            oldHits = clcache.Statistics(cache).numCacheHits()
+            oldHits = cache.openStatistics().numCacheHits()
 
             self.assertEqual(subprocess.call(cmd, env=env), 0) # This should hit now
-            self.assertEqual(clcache.Statistics(cache).numCacheHits(), oldHits + 1)
+            self.assertEqual(cache.openStatistics().numCacheHits(), oldHits + 1)
 
 
 class TestBasedir(unittest.TestCase):
@@ -497,8 +495,8 @@ class TestBasedir(unittest.TestCase):
             with cd("builddir_a"):
                 env = dict(os.environ, CLCACHE_DIR=tempDir, CLCACHE_BASEDIR=os.getcwd())
                 self.assertEqual(subprocess.call(cmd, env=env), 0)
-                self.assertEqual(clcache.Statistics(cache).numCacheMisses(), 1)
-                self.assertEqual(clcache.Statistics(cache).numCacheHits(), 0)
+                self.assertEqual(cache.openStatistics().numCacheMisses(), 1)
+                self.assertEqual(cache.openStatistics().numCacheHits(), 0)
 
             shutil.rmtree("builddir_a", ignore_errors=True)
 
@@ -506,8 +504,8 @@ class TestBasedir(unittest.TestCase):
             with cd("builddir_b"):
                 env = dict(os.environ, CLCACHE_DIR=tempDir, CLCACHE_BASEDIR=os.getcwd())
                 self.assertEqual(subprocess.call(cmd, env=env), 0)
-                self.assertEqual(clcache.Statistics(cache).numCacheMisses(), 1)
-                self.assertEqual(clcache.Statistics(cache).numCacheHits(), 1)
+                self.assertEqual(cache.openStatistics().numCacheMisses(), 1)
+                self.assertEqual(cache.openStatistics().numCacheHits(), 1)
 
 
 if __name__ == '__main__':
