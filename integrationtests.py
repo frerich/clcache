@@ -222,7 +222,7 @@ class TestHits(unittest.TestCase):
             cmd = CLCACHE_CMD + ["/nologo", "/EHsc", "/c", 'hit.cpp']
             subprocess.check_call(cmd) # Ensure it has been compiled before
 
-            cache = clcache.ObjectCache()
+            cache = clcache.Cache()
             oldHits = clcache.CacheStatistics(cache).numCacheHits()
             subprocess.check_call(cmd) # This must hit now
             newHits = clcache.CacheStatistics(cache).numCacheHits()
@@ -333,7 +333,7 @@ class TestRunParallel(unittest.TestCase):
             # Compile first time
             self._buildAll()
 
-            cache = clcache.ObjectCache()
+            cache = clcache.Cache()
             hits = clcache.CacheStatistics(cache).numCacheHits()
             misses = clcache.CacheStatistics(cache).numCacheMisses()
             self.assertEqual(hits + misses, 10)
@@ -341,7 +341,7 @@ class TestRunParallel(unittest.TestCase):
             # Compile second time
             self._buildAll()
 
-            cache = clcache.ObjectCache()
+            cache = clcache.Cache()
             hits = clcache.CacheStatistics(cache).numCacheHits()
             misses = clcache.CacheStatistics(cache).numCacheMisses()
             self.assertEqual(hits + misses, 20)
@@ -352,7 +352,7 @@ class TestClearing(unittest.TestCase):
         subprocess.check_call(CLCACHE_CMD + ["-C"])
 
     def testClearIdempotency(self):
-        cache = clcache.ObjectCache()
+        cache = clcache.Cache()
 
         self._clearCache()
         stats = clcache.CacheStatistics(cache)
@@ -366,7 +366,7 @@ class TestClearing(unittest.TestCase):
         self.assertEqual(stats.numCacheEntries(), 0)
 
     def testClearPostcondition(self):
-        cache = clcache.ObjectCache()
+        cache = clcache.Cache()
 
         # Compile a random file to populate cache
         cmd = CLCACHE_CMD + ["/nologo", "/EHsc", "/c", os.path.join(ASSETS_DIR, "fibonacci.cpp")]
@@ -441,7 +441,7 @@ class TestPreprocessorCalls(unittest.TestCase):
             ["/nologo", "/E", "/EP"],
         ]
 
-        cache = clcache.ObjectCache()
+        cache = clcache.Cache()
         oldPreprocessorCalls = clcache.CacheStatistics(cache).numCallsForPreprocessing()
 
         for i, invocation in enumerate(invocations, 1):
@@ -453,7 +453,7 @@ class TestPreprocessorCalls(unittest.TestCase):
 
 class TestNoDirectCalls(unittest.TestCase):
     def testPreprocessorFailure(self):
-        cache = clcache.ObjectCache()
+        cache = clcache.Cache()
 
         oldStats = clcache.CacheStatistics(cache)
 
@@ -471,7 +471,7 @@ class TestNoDirectCalls(unittest.TestCase):
 
             self.assertEqual(subprocess.call(cmd, env=env), 0)
 
-            cache = clcache.ObjectCache()
+            cache = clcache.Cache()
             oldHits = clcache.CacheStatistics(cache).numCacheHits()
 
             self.assertEqual(subprocess.call(cmd, env=env), 0) # This should hit now
@@ -489,7 +489,7 @@ class TestBasedir(unittest.TestCase):
                 shutil.copy("main.cpp", buildDir)
                 shutil.copy("constants.h", buildDir)
 
-            cache = clcache.ObjectCache(tempDir)
+            cache = clcache.Cache(tempDir)
 
             cmd = CLCACHE_CMD + ["/nologo", "/EHsc", "/c", "main.cpp"]
 

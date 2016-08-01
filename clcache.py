@@ -274,7 +274,7 @@ class CacheSection(object):
                 f.write(compilerStderr.encode(CACHE_COMPILER_OUTPUT_STORAGE_CODEC))
 
 
-class ObjectCache(object):
+class Cache(object):
     def __init__(self, cacheDirectory=None):
         self.dir = cacheDirectory
         if not self.dir:
@@ -373,7 +373,7 @@ class ObjectCache(object):
             sys.exit(preprocessor.returncode)
 
         compilerHash = getCompilerHash(compilerBinary)
-        normalizedCmdLine = ObjectCache._normalizedCommandLine(commandLine)
+        normalizedCmdLine = Cache._normalizedCommandLine(commandLine)
 
         h = HashAlgorithm()
         h.update(compilerHash.encode("UTF-8"))
@@ -392,7 +392,7 @@ class ObjectCache(object):
         # We must take into account manifestHash to avoid
         # collisions when different source files use the same
         # set of includes.
-        return ObjectCache.getHash(manifestHash + includesContentHash)
+        return Cache.getHash(manifestHash + includesContentHash)
 
     @staticmethod
     def _normalizedCommandLine(cmdline):
@@ -1279,7 +1279,7 @@ def postprocessObjectEvicted(cache, objectFile, cachekey, compilerResult):
 
 def postprocessHeaderChangedMiss(
         cache, objectFile, manifestSection, manifest, manifestHash, includesContentHash, compilerResult):
-    cachekey = ObjectCache.getDirectCacheKey(manifestHash, includesContentHash)
+    cachekey = Cache.getDirectCacheKey(manifestHash, includesContentHash)
     returnCode, compilerOutput, compilerStderr = compilerResult
 
     removedItems = []
@@ -1315,7 +1315,7 @@ def postprocessNoManifestMiss(
         else:
             manifest = Manifest(listOfIncludes, {})
         includesContentHash = ManifestsManager.getIncludesContentHashForFiles(listOfIncludes)
-        cachekey = ObjectCache.getDirectCacheKey(manifestHash, includesContentHash)
+        cachekey = Cache.getDirectCacheKey(manifestHash, includesContentHash)
         manifest.includesContentToObjectMap[includesContentHash] = cachekey
 
     with cache.lock, closing(CacheStatistics(cache)) as stats:
@@ -1341,7 +1341,7 @@ clcache.py v{}
 """.strip().format(VERSION))
         return 0
 
-    cache = ObjectCache()
+    cache = Cache()
 
     if len(sys.argv) == 2 and sys.argv[1] == "-s":
         with cache.lock:
@@ -1483,7 +1483,7 @@ def processDirect(cache, objectFile, compiler, cmdLine, sourceFile):
 
 
 def processNoDirect(cache, objectFile, compiler, cmdLine):
-    cachekey = ObjectCache.computeKey(compiler, cmdLine)
+    cachekey = Cache.computeKey(compiler, cmdLine)
     with cache.lock:
         if cache.cacheSection(cachekey).hasEntry(cachekey):
             return processCacheHit(cache, objectFile, cachekey)
