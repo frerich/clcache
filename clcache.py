@@ -234,6 +234,12 @@ class CacheSection(object):
     def cacheEntryDir(self, key):
         return os.path.join(self.cacheSectionDir, key)
 
+    def cacheEntries(self):
+        for entry in os.listdir(self.cacheSectionDir):
+            path = os.path.join(self.cacheSectionDir, entry)
+            if os.path.isdir(path):
+                yield entry
+
     def cachedObjectName(self, key):
         return os.path.join(self.cacheEntryDir(key), "object")
 
