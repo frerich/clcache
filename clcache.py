@@ -73,6 +73,17 @@ def filesBeneath(path):
             yield os.path.join(path, filename)
 
 
+def normalizeBaseDir(baseDir):
+    if baseDir:
+        baseDir = os.path.normcase(baseDir)
+        if not baseDir.endswith(os.path.sep):
+            baseDir += os.path.sep
+        return baseDir
+    else:
+        # Converts empty string to None
+        return None
+
+
 class ObjectCacheLockException(Exception):
     pass
 
@@ -1418,15 +1429,11 @@ def processCompileRequest(cache, compiler, args):
 
 
 def processDirect(cache, objectFile, compiler, cmdLine, sourceFile):
+    baseDir = normalizeBaseDir(os.environ.get('CLCACHE_BASEDIR'))
     manifestHash = ManifestsManager.getManifestHash(compiler, cmdLine, sourceFile)
     manifestSection = cache.manifestsManager.manifestSection(manifestHash)
     with cache.lock:
         manifest = manifestSection.getManifest(manifestHash)
-        baseDir = os.environ.get('CLCACHE_BASEDIR')
-        if baseDir:
-            baseDir = os.path.normcase(baseDir)
-            if not baseDir.endswith(os.path.sep):
-                baseDir += os.path.sep
         if manifest is not None:
             # NOTE: command line options already included in hash for manifest name
             includesContentHash = ManifestsManager.getIncludesContentHashForFiles(

@@ -57,6 +57,22 @@ class TestHelperFunctions(unittest.TestCase):
         self.assertEqual(clcache.basenameWithoutExtension(r"/home/user/README.asciidoc.tmp"), "README.asciidoc")
         self.assertEqual(clcache.basenameWithoutExtension(r"C:\Project\README.asciidoc.tmp"), "README.asciidoc")
 
+    def testNormalizeBaseDir(self):
+        self.assertIsNone(clcache.normalizeBaseDir(None))
+        self.assertIsNone(clcache.normalizeBaseDir(r""))
+
+        # Note: raw string literals cannot end in an odd number of backslashes
+        # https://docs.python.org/3/faq/design.html#why-can-t-raw-strings-r-strings-end-with-a-backslash
+        # So we consistenly use basic literals
+        self.assertEqual(clcache.normalizeBaseDir("c:"), "c:\\")
+        self.assertEqual(clcache.normalizeBaseDir("c:\\projects"), "c:\\projects\\")
+
+        self.assertEqual(clcache.normalizeBaseDir("C:\\"), "c:\\")
+        self.assertEqual(clcache.normalizeBaseDir("C:\\Projects\\"), "c:\\projects\\")
+
+        self.assertEqual(clcache.normalizeBaseDir("c:\\projects with space"), "c:\\projects with space\\")
+        self.assertEqual(clcache.normalizeBaseDir("c:\\projects with ö"), "c:\\projects with ö\\")
+
     def testFilesBeneathSimple(self):
         with cd(os.path.join(ASSETS_DIR, "files-beneath")):
             files = list(clcache.filesBeneath("a"))
