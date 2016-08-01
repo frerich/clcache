@@ -73,6 +73,13 @@ def filesBeneath(path):
             yield os.path.join(path, filename)
 
 
+def childDirectories(path, absolute=True):
+    for entry in os.listdir(path):
+        absPath = os.path.join(path, entry)
+        if os.path.isdir(absPath):
+            yield absPath if absolute else entry
+
+
 def normalizeBaseDir(baseDir):
     if baseDir:
         baseDir = os.path.normcase(baseDir)
@@ -140,10 +147,7 @@ class ManifestsManager(object):
         return ManifestSection(os.path.join(self._manifestsRootDir, manifestHash[:2]))
 
     def manifestSections(self):
-        for entry in os.listdir(self._manifestsRootDir):
-            path = os.path.join(self._manifestsRootDir, entry)
-            if os.path.isdir(path):
-                yield ManifestSection(path)
+        return (ManifestSection(path) for path in childDirectories(self._manifestsRootDir))
 
     def clean(self, maxManifestsSize):
         manifestFileInfos = []
@@ -235,10 +239,7 @@ class CacheSection(object):
         return os.path.join(self.cacheSectionDir, key)
 
     def cacheEntries(self):
-        for entry in os.listdir(self.cacheSectionDir):
-            path = os.path.join(self.cacheSectionDir, entry)
-            if os.path.isdir(path):
-                yield entry
+        return childDirectories(self.cacheSectionDir, absolute=False)
 
     def cachedObjectName(self, key):
         return os.path.join(self.cacheEntryDir(key), "object")
@@ -300,10 +301,7 @@ class ObjectCache(object):
         return CacheSection(os.path.join(self.objectsDir, key[:2]))
 
     def cacheSections(self):
-        for entry in os.listdir(self.objectsDir):
-            path = os.path.join(self.objectsDir, entry)
-            if os.path.isdir(path):
-                yield CacheSection(path)
+        return (CacheSection(path) for path in childDirectories(self.objectsDir))
 
     def clean(self, stats, maximumSize):
         currentSize = stats.currentCacheSize()
