@@ -10,7 +10,6 @@
 # pylint: disable=no-self-use
 #
 from contextlib import contextmanager
-from contextlib import closing
 import multiprocessing
 import os
 import unittest
@@ -102,12 +101,12 @@ class TestHelperFunctions(unittest.TestCase):
 class TestStatistics(unittest.TestCase):
     def testOpenClose(self):
         stats = Statistics(os.path.join(ASSETS_DIR, "statistics", "testOpenClose.json"))
-        with closing(stats):
+        with stats:
             pass
 
     def testHitCounts(self):
         stats = Statistics(os.path.join(ASSETS_DIR, "statistics", "testHitCounts.json"))
-        with closing(stats) as s:
+        with stats as s:
             self.assertEqual(s.numCallsWithInvalidArgument(), 0)
             self.assertEqual(s.numCallsWithoutSourceFile(), 0)
             self.assertEqual(s.numCallsWithMultipleSourceFiles(), 0)
