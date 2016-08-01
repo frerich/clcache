@@ -296,9 +296,6 @@ class Cache(object):
 
         self.statistics = Statistics(os.path.join(self.dir, "stats.txt"))
 
-    def openStatistics(self):
-        return self.statistics
-
     def cacheDirectory(self):
         return self.dir
 
@@ -1175,7 +1172,7 @@ clcache statistics:
     called w/ PCH              : {}""".strip()
 
     cfg = Configuration(cache)
-    with cache.openStatistics() as stats:
+    with cache.statistics as stats:
         print(template.format(
             cache.cacheDirectory(),
             stats.currentCacheSize(),
@@ -1196,18 +1193,18 @@ clcache statistics:
         ))
 
 def resetStatistics(cache):
-    with cache.openStatistics() as stats:
+    with cache.statistics as stats:
         stats.resetCounters()
     print('Statistics reset')
 
 def cleanCache(cache):
     cfg = Configuration(cache)
-    with cache.openStatistics() as stats:
+    with cache.statistics as stats:
         cache.clean(stats, cfg.maximumCacheSize())
     print('Cache cleaned')
 
 def clearCache(cache):
-    with cache.openStatistics() as stats:
+    with cache.statistics as stats:
         cache.clean(stats, 0)
     print('Cache cleared')
 
@@ -1258,7 +1255,7 @@ def addObjectToCache(stats, cache, objectFile, compilerStdout, compilerStderr, c
 
 
 def processCacheHit(cache, objectFile, cachekey):
-    with cache.openStatistics() as stats:
+    with cache.statistics as stats:
         stats.registerCacheHit()
     printTraceStatement("Reusing cached object for key {} for object file {}".format(cachekey, objectFile))
     if os.path.exists(objectFile):
@@ -1275,7 +1272,7 @@ def postprocessObjectEvicted(cache, objectFile, cachekey, compilerResult):
     printTraceStatement("Cached object already evicted for key {} for object {}".format(cachekey, objectFile))
     returnCode, compilerOutput, compilerStderr = compilerResult
 
-    with cache.lock, cache.openStatistics() as stats:
+    with cache.lock, cache.statistics as stats:
         stats.registerEvictedMiss()
         if returnCode == 0 and os.path.exists(objectFile):
             addObjectToCache(stats, cache, objectFile, compilerOutput, compilerStderr, cachekey)
@@ -1295,7 +1292,7 @@ def postprocessHeaderChangedMiss(
             removedItems.append(objectHash)
         manifest.includesContentToObjectMap[includesContentHash] = cachekey
 
-    with cache.lock, cache.openStatistics() as stats:
+    with cache.lock, cache.statistics as stats:
         stats.registerHeaderChangedMiss()
         if returnCode == 0 and os.path.exists(objectFile):
             addObjectToCache(stats, cache, objectFile, compilerOutput, compilerStderr, cachekey)
@@ -1324,7 +1321,7 @@ def postprocessNoManifestMiss(
         cachekey = Cache.getDirectCacheKey(manifestHash, includesContentHash)
         manifest.includesContentToObjectMap[includesContentHash] = cachekey
 
-    with cache.lock, cache.openStatistics() as stats:
+    with cache.lock, cache.statistics as stats:
         stats.registerSourceChangedMiss()
         if returnCode == 0 and os.path.exists(objectFile):
             # Store compile output and manifest
@@ -1405,7 +1402,7 @@ clcache.py v{}
 
 
 def updateCacheStatistics(cache, method):
-    with cache.lock, cache.openStatistics() as stats:
+    with cache.lock, cache.statistics as stats:
         method(stats)
 
 
@@ -1495,7 +1492,7 @@ def processNoDirect(cache, objectFile, compiler, cmdLine):
             return processCacheHit(cache, objectFile, cachekey)
 
     returnCode, compilerStdout, compilerStderr = invokeRealCompiler(compiler, cmdLine, captureOutput=True)
-    with cache.lock, cache.openStatistics() as stats:
+    with cache.lock, cache.statistics as stats:
         stats.registerCacheMiss()
         if returnCode == 0 and os.path.exists(objectFile):
             addObjectToCache(stats, cache, objectFile, compilerStdout, compilerStderr, cachekey)
