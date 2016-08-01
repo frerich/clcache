@@ -227,6 +227,53 @@ class ObjectCacheLock(object):
         self._acquired = False
 
 
+class CacheSection(object):
+    def __init__(self, cacheSectionDir):
+        self.cacheSectionDir = cacheSectionDir
+
+    def cacheEntryDir(self, key):
+        return os.path.join(self.cacheSectionDir, key)
+
+    def cacheEntries(self):
+        for entry in os.listdir(self.cacheSectionDir):
+            path = os.path.join(self.cacheSectionDir, entry)
+            if os.path.isdir(path):
+                yield entry
+
+    def cachedObjectName(self, key):
+        return os.path.join(self.cacheEntryDir(key), "object")
+
+    def cachedCompilerOutput(self, key):
+        with open(self.cachedCompilerOutputName(key), 'rb') as f:
+            return f.read().decode(CACHE_COMPILER_OUTPUT_STORAGE_CODEC)
+
+    def cachedCompilerStderr(self, key):
+        fileName = self.cachedCompilerStderrName(key)
+        if os.path.exists(fileName):
+            with open(fileName, 'rb') as f:
+                return f.read().decode(CACHE_COMPILER_OUTPUT_STORAGE_CODEC)
+        return ''
+
+    def cachedCompilerOutputName(self, key):
+        return os.path.join(self.cacheEntryDir(key), "output.txt")
+
+    def cachedCompilerStderrName(self, key):
+        return os.path.join(self.cacheEntryDir(key), "stderr.txt")
+
+    def hasEntry(self, key):
+        return os.path.exists(self.cachedObjectName(key)) or os.path.exists(self.cachedCompilerOutputName(key))
+
+    def setEntry(self, key, objectFileName, compilerOutput, compilerStderr):
+        ensureDirectoryExists(self.cacheEntryDir(key))
+        if objectFileName is not None:
+            copyOrLink(objectFileName, self.cachedObjectName(key))
+        with open(self.cachedCompilerOutputName(key), 'wb') as f:
+            f.write(compilerOutput.encode(CACHE_COMPILER_OUTPUT_STORAGE_CODEC))
+        if compilerStderr != '':
+            with open(self.cachedCompilerStderrName(key), 'wb') as f:
+                f.write(compilerStderr.encode(CACHE_COMPILER_OUTPUT_STORAGE_CODEC))
+
+
 class ObjectCache(object):
     def __init__(self, cacheDirectory=None):
         self.dir = cacheDirectory
@@ -249,6 +296,15 @@ class ObjectCache(object):
     def cacheDirectory(self):
         return self.dir
 
+    def cacheSection(self, key):
+        return CacheSection(os.path.join(self.objectsDir, key[:2]))
+
+    def cacheSections(self):
+        for entry in os.listdir(self.objectsDir):
+            path = os.path.join(self.objectsDir, entry)
+            if os.path.isdir(path):
+                yield CacheSection(path)
+
     def clean(self, stats, maximumSize):
         currentSize = stats.currentCacheSize()
         if currentSize < maximumSize:
@@ -266,16 +322,14 @@ class ObjectCache(object):
         currentSizeManifests = self.manifestsManager.clean(effectiveMaximumSizeManifests)
 
         # Clean objects
-        objects = [os.path.join(root, "object")
-                   for root, _, files in WALK(self.objectsDir)
-                   if "object" in files]
-
         objectInfos = []
-        for o in objects:
-            try:
-                objectInfos.append((os.stat(o), o))
-            except OSError:
-                pass
+        for section in self.cacheSections():
+            objects = (section.cachedObjectName(key) for key in section.cacheEntries())
+            for o in objects:
+                try:
+                    objectInfos.append((os.stat(o), o))
+                except OSError:
+                    pass
 
         objectInfos.sort(key=lambda t: t[0].st_atime)
 
@@ -295,7 +349,7 @@ class ObjectCache(object):
 
     def removeObjects(self, stats, removedObjects):
         for o in removedObjects:
-            dirPath = self._cacheEntryDir(o)
+            dirPath = self.cacheSection(o).cacheEntryDir(o)
             if not os.path.exists(dirPath):
                 continue  # May be if object already evicted.
             objectPath = os.path.join(dirPath, "object")
@@ -339,42 +393,6 @@ class ObjectCache(object):
         # collisions when different source files use the same
         # set of includes.
         return ObjectCache.getHash(manifestHash + includesContentHash)
-
-    def hasEntry(self, key):
-        return os.path.exists(self.cachedObjectName(key)) or os.path.exists(self._cachedCompilerOutputName(key))
-
-    def setEntry(self, key, objectFileName, compilerOutput, compilerStderr):
-        ensureDirectoryExists(self._cacheEntryDir(key))
-        if objectFileName is not None:
-            copyOrLink(objectFileName, self.cachedObjectName(key))
-        with open(self._cachedCompilerOutputName(key), 'wb') as f:
-            f.write(compilerOutput.encode(CACHE_COMPILER_OUTPUT_STORAGE_CODEC))
-        if compilerStderr != '':
-            with open(self._cachedCompilerStderrName(key), 'wb') as f:
-                f.write(compilerStderr.encode(CACHE_COMPILER_OUTPUT_STORAGE_CODEC))
-
-    def cachedObjectName(self, key):
-        return os.path.join(self._cacheEntryDir(key), "object")
-
-    def cachedCompilerOutput(self, key):
-        with open(self._cachedCompilerOutputName(key), 'rb') as f:
-            return f.read().decode(CACHE_COMPILER_OUTPUT_STORAGE_CODEC)
-
-    def cachedCompilerStderr(self, key):
-        fileName = self._cachedCompilerStderrName(key)
-        if os.path.exists(fileName):
-            with open(fileName, 'rb') as f:
-                return f.read().decode(CACHE_COMPILER_OUTPUT_STORAGE_CODEC)
-        return ''
-
-    def _cacheEntryDir(self, key):
-        return os.path.join(self.objectsDir, key[:2], key)
-
-    def _cachedCompilerOutputName(self, key):
-        return os.path.join(self._cacheEntryDir(key), "output.txt")
-
-    def _cachedCompilerStderrName(self, key):
-        return os.path.join(self._cacheEntryDir(key), "stderr.txt")
 
     @staticmethod
     def _normalizedCommandLine(cmdline):
@@ -1227,7 +1245,7 @@ def parseIncludesList(compilerOutput, sourceFile, strip):
 
 def addObjectToCache(stats, cache, objectFile, compilerStdout, compilerStderr, cachekey):
     printTraceStatement("Adding file {} to cache using key {}".format(objectFile, cachekey))
-    cache.setEntry(cachekey, objectFile, compilerStdout, compilerStderr)
+    cache.cacheSection(cachekey).setEntry(cachekey, objectFile, compilerStdout, compilerStderr)
     stats.registerCacheEntry(os.path.getsize(objectFile))
     cfg = Configuration(cache)
     cache.clean(stats, cfg.maximumCacheSize())
@@ -1239,9 +1257,10 @@ def processCacheHit(cache, objectFile, cachekey):
     printTraceStatement("Reusing cached object for key {} for object file {}".format(cachekey, objectFile))
     if os.path.exists(objectFile):
         os.remove(objectFile)
-    copyOrLink(cache.cachedObjectName(cachekey), objectFile)
-    compilerOutput = cache.cachedCompilerOutput(cachekey)
-    compilerStderr = cache.cachedCompilerStderr(cachekey)
+    section = cache.cacheSection(cachekey)
+    copyOrLink(section.cachedObjectName(cachekey), objectFile)
+    compilerOutput = section.cachedCompilerOutput(cachekey)
+    compilerStderr = section.cachedCompilerStderr(cachekey)
     printTraceStatement("Finished. Exit code 0")
     return 0, compilerOutput, compilerStderr
 
@@ -1440,7 +1459,7 @@ def processDirect(cache, objectFile, compiler, cmdLine, sourceFile):
                 [expandBasedirPlaceholder(include, baseDir) for include in manifest.includeFiles])
             cachekey = manifest.includesContentToObjectMap.get(includesContentHash)
             if cachekey is not None:
-                if cache.hasEntry(cachekey):
+                if cache.cacheSection(cachekey).hasEntry(cachekey):
                     return processCacheHit(cache, objectFile, cachekey)
                 else:
                     postProcessing = lambda compilerResult: postprocessObjectEvicted(
@@ -1466,7 +1485,7 @@ def processDirect(cache, objectFile, compiler, cmdLine, sourceFile):
 def processNoDirect(cache, objectFile, compiler, cmdLine):
     cachekey = ObjectCache.computeKey(compiler, cmdLine)
     with cache.lock:
-        if cache.hasEntry(cachekey):
+        if cache.cacheSection(cachekey).hasEntry(cachekey):
             return processCacheHit(cache, objectFile, cachekey)
 
     returnCode, compilerStdout, compilerStderr = invokeRealCompiler(compiler, cmdLine, captureOutput=True)
