@@ -384,21 +384,6 @@ class ObjectCache(object):
         # set of includes.
         return ObjectCache.getHash(manifestHash + includesContentHash)
 
-    def hasEntry(self, key):
-        return self.cacheSection(key).hasEntry(key)
-
-    def setEntry(self, key, objectFileName, compilerOutput, compilerStderr):
-        return self.cacheSection(key).setEntry(key, objectFileName, compilerOutput, compilerStderr)
-
-    def cachedObjectName(self, key):
-        return self.cacheSection(key).cachedObjectName(key)
-
-    def cachedCompilerOutput(self, key):
-        return self.cacheSection(key).cachedCompilerOutput(key)
-
-    def cachedCompilerStderr(self, key):
-        return self.cacheSection(key).cachedCompilerStderr(key)
-
     def _cacheEntryDir(self, key):
         return self.cacheSection(key).cacheEntryDir(key)
 
@@ -1259,7 +1244,7 @@ def parseIncludesList(compilerOutput, sourceFile, strip):
 
 def addObjectToCache(stats, cache, objectFile, compilerStdout, compilerStderr, cachekey):
     printTraceStatement("Adding file {} to cache using key {}".format(objectFile, cachekey))
-    cache.setEntry(cachekey, objectFile, compilerStdout, compilerStderr)
+    cache.cacheSection(cachekey).setEntry(cachekey, objectFile, compilerStdout, compilerStderr)
     stats.registerCacheEntry(os.path.getsize(objectFile))
     cfg = Configuration(cache)
     cache.clean(stats, cfg.maximumCacheSize())
@@ -1271,9 +1256,10 @@ def processCacheHit(cache, objectFile, cachekey):
     printTraceStatement("Reusing cached object for key {} for object file {}".format(cachekey, objectFile))
     if os.path.exists(objectFile):
         os.remove(objectFile)
-    copyOrLink(cache.cachedObjectName(cachekey), objectFile)
-    compilerOutput = cache.cachedCompilerOutput(cachekey)
-    compilerStderr = cache.cachedCompilerStderr(cachekey)
+    section = cache.cacheSection(cachekey)
+    copyOrLink(section.cachedObjectName(cachekey), objectFile)
+    compilerOutput = section.cachedCompilerOutput(cachekey)
+    compilerStderr = section.cachedCompilerStderr(cachekey)
     printTraceStatement("Finished. Exit code 0")
     return 0, compilerOutput, compilerStderr
 
@@ -1472,7 +1458,7 @@ def processDirect(cache, objectFile, compiler, cmdLine, sourceFile):
                 [expandBasedirPlaceholder(include, baseDir) for include in manifest.includeFiles])
             cachekey = manifest.includesContentToObjectMap.get(includesContentHash)
             if cachekey is not None:
-                if cache.hasEntry(cachekey):
+                if cache.cacheSection(cachekey).hasEntry(cachekey):
                     return processCacheHit(cache, objectFile, cachekey)
                 else:
                     postProcessing = lambda compilerResult: postprocessObjectEvicted(
@@ -1498,7 +1484,7 @@ def processDirect(cache, objectFile, compiler, cmdLine, sourceFile):
 def processNoDirect(cache, objectFile, compiler, cmdLine):
     cachekey = ObjectCache.computeKey(compiler, cmdLine)
     with cache.lock:
-        if cache.hasEntry(cachekey):
+        if cache.cacheSection(cachekey).hasEntry(cachekey):
             return processCacheHit(cache, objectFile, cachekey)
 
     returnCode, compilerStdout, compilerStderr = invokeRealCompiler(compiler, cmdLine, captureOutput=True)
