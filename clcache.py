@@ -84,7 +84,7 @@ def normalizeBaseDir(baseDir):
         return None
 
 
-class ObjectCacheLockException(Exception):
+class CacheLockException(Exception):
     pass
 
 
@@ -185,7 +185,7 @@ class ManifestsManager(object):
         return HashAlgorithm(','.join(listOfIncludesHashes).encode()).hexdigest()
 
 
-class ObjectCacheLock(object):
+class CacheLock(object):
     """ Implements a lock for the object cache which
     can be used in 'with' statements. """
     INFINITE = 0xFFFFFFFF
@@ -219,7 +219,7 @@ class ObjectCacheLock(object):
             errorString = 'Error! WaitForSingleObject returns {result}, last error {error}'.format(
                 result=result,
                 error=windll.kernel32.GetLastError())
-            raise ObjectCacheLockException(errorString)
+            raise CacheLockException(errorString)
         self._acquired = True
 
     def release(self):
@@ -291,7 +291,7 @@ class ObjectCache(object):
         ensureDirectoryExists(self.objectsDir)
         lockName = self.cacheDirectory().replace(':', '-').replace('\\', '-')
         timeoutMs = int(os.environ.get('CLCACHE_OBJECT_CACHE_TIMEOUT_MS', 10 * 1000))
-        self.lock = ObjectCacheLock(lockName, timeoutMs)
+        self.lock = CacheLock(lockName, timeoutMs)
 
     def cacheDirectory(self):
         return self.dir
