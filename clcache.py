@@ -412,17 +412,11 @@ class Cache(object):
         stats.setNumCacheEntries(currentCompilerArtifactsCount)
 
     @staticmethod
-    def getHash(dataString):
-        hasher = HashAlgorithm()
-        hasher.update(dataString.encode("UTF-8"))
-        return hasher.hexdigest()
-
-    @staticmethod
     def getDirectCacheKey(manifestHash, includesContentHash):
         # We must take into account manifestHash to avoid
         # collisions when different source files use the same
         # set of includes.
-        return Cache.getHash(manifestHash + includesContentHash)
+        return getStringHash(manifestHash + includesContentHash)
 
 
 class PersistentJSONDict(object):
@@ -686,6 +680,12 @@ def getFileHash(filePath, additionalData=None):
         # as long as we keep it fixed, otherwise hashes change.
         # The string should fit into ASCII, so UTF8 should not change anything
         hasher.update(additionalData.encode("UTF-8"))
+    return hasher.hexdigest()
+
+
+def getStringHash(dataString):
+    hasher = HashAlgorithm()
+    hasher.update(dataString.encode("UTF-8"))
     return hasher.hexdigest()
 
 
