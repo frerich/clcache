@@ -17,6 +17,7 @@ import unittest
 import clcache
 from clcache import (
     CommandLineAnalyzer,
+    CompilerArtifactsRepository,
     Configuration,
     Manifest,
     ManifestsManager,
@@ -289,6 +290,20 @@ class TestManifestManager(unittest.TestCase):
         # All manifest are gone
         self.assertEqual(cleaningResultSize, 0)
         self.assertEqual(self._getDirectorySize(manifestsRootDir), 0)
+
+
+class TestCompilerArtifactsRepository(unittest.TestCase):
+    def testPaths(self):
+        compilerArtifactsRepositoryRootDir = os.path.join(ASSETS_DIR, "compiler-artifacts-repository")
+        car = CompilerArtifactsRepository(compilerArtifactsRepositoryRootDir)
+        cas = car.section("fdde59862785f9f0ad6e661b9b5746b7")
+
+        # section path
+        self.assertEqual(cas.cacheSectionDir, os.path.join(compilerArtifactsRepositoryRootDir, "fd"))
+
+        # entry path
+        self.assertEqual(cas.cachedObjectName("fdde59862785f9f0ad6e661b9b5746b7"), os.path.join(
+            compilerArtifactsRepositoryRootDir, "fd", "fdde59862785f9f0ad6e661b9b5746b7", "object"))
 
 
 class TestArgumentClasses(unittest.TestCase):
