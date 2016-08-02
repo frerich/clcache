@@ -274,56 +274,32 @@ class CacheSection(object):
                 f.write(compilerStderr.encode(CACHE_COMPILER_OUTPUT_STORAGE_CODEC))
 
 
-class Cache(object):
-    def __init__(self, cacheDirectory=None):
-        self.dir = cacheDirectory
-        if not self.dir:
-            try:
-                self.dir = os.environ["CLCACHE_DIR"]
-            except KeyError:
-                self.dir = os.path.join(os.path.expanduser("~"), "clcache")
+class CompilerArtifactsRepository(object):
+    def __init__(self, compilerArtifactsRootDir):
+        self._compilerArtifactsRootDir = compilerArtifactsRootDir
 
-        manifestsRootDir = os.path.join(self.dir, "manifests")
-        ensureDirectoryExists(manifestsRootDir)
-        self.manifestsManager = ManifestsManager(manifestsRootDir)
+    def section(self, key):
+        return CacheSection(os.path.join(self._compilerArtifactsRootDir, key[:2]))
 
-        self.objectsDir = os.path.join(self.dir, "objects")
-        ensureDirectoryExists(self.objectsDir)
-        lockName = self.cacheDirectory().replace(':', '-').replace('\\', '-')
-        timeoutMs = int(os.environ.get('CLCACHE_OBJECT_CACHE_TIMEOUT_MS', 10 * 1000))
-        self.lock = CacheLock(lockName, timeoutMs)
+    def sections(self):
+        return (CacheSection(path) for path in childDirectories(self._compilerArtifactsRootDir))
 
-        self.configuration = Configuration(os.path.join(self.dir, "config.txt"))
-        self.statistics = Statistics(os.path.join(self.dir, "stats.txt"))
+    def removeObjects(self, stats, removedObjects):
+        for o in removedObjects:
+            dirPath = self.section(o).cacheEntryDir(o)
+            if not os.path.exists(dirPath):
+                continue  # May be if object already evicted.
+            objectPath = os.path.join(dirPath, "object")
+            if os.path.exists(objectPath):
+                # May be absent if this if cached compiler
+                # output (for preprocess-only).
+                fileStat = os.stat(objectPath)
+                stats.unregisterCacheEntry(fileStat.st_size)
+            rmtree(dirPath, ignore_errors=True)
 
-    def cacheDirectory(self):
-        return self.dir
-
-    def cacheSection(self, key):
-        return CacheSection(os.path.join(self.objectsDir, key[:2]))
-
-    def cacheSections(self):
-        return (CacheSection(path) for path in childDirectories(self.objectsDir))
-
-    def clean(self, stats, maximumSize):
-        currentSize = stats.currentCacheSize()
-        if currentSize < maximumSize:
-            return
-
-        # Free at least 10% to avoid cleaning up too often which
-        # is a big performance hit with large caches.
-        effectiveMaximumSizeOverall = maximumSize * 0.9
-
-        # Split limit in manifests (10 %) and objects (90 %)
-        effectiveMaximumSizeManifests = effectiveMaximumSizeOverall * 0.1
-        effectiveMaximumSizeObjects = effectiveMaximumSizeOverall - effectiveMaximumSizeManifests
-
-        # Clean manifests
-        currentSizeManifests = self.manifestsManager.clean(effectiveMaximumSizeManifests)
-
-        # Clean objects
+    def clean(self, maxCompilerArtifactsSize):
         objectInfos = []
-        for section in self.cacheSections():
+        for section in self.sections():
             objects = (section.cachedObjectName(key) for key in section.cacheEntries())
             for o in objects:
                 try:
@@ -341,27 +317,13 @@ class Cache(object):
             rmtree(os.path.split(fn)[0], ignore_errors=True)
             removedItems += 1
             currentSizeObjects -= stat.st_size
-            if currentSizeObjects < effectiveMaximumSizeObjects:
+            if currentSizeObjects < maxCompilerArtifactsSize:
                 break
 
-        stats.setCacheSize(currentSizeObjects + currentSizeManifests)
-        stats.setNumCacheEntries(len(objectInfos) - removedItems)
-
-    def removeObjects(self, stats, removedObjects):
-        for o in removedObjects:
-            dirPath = self.cacheSection(o).cacheEntryDir(o)
-            if not os.path.exists(dirPath):
-                continue  # May be if object already evicted.
-            objectPath = os.path.join(dirPath, "object")
-            if os.path.exists(objectPath):
-                # May be absent if this if cached compiler
-                # output (for preprocess-only).
-                fileStat = os.stat(objectPath)
-                stats.unregisterCacheEntry(fileStat.st_size)
-            rmtree(dirPath, ignore_errors=True)
+        return len(objectInfos)-removedItems, currentSizeObjects
 
     @staticmethod
-    def computeKey(compilerBinary, commandLine):
+    def computeCompilerArtifactsKey(compilerBinary, commandLine):
         ppcmd = [compilerBinary, "/EP"]
         ppcmd += [arg for arg in commandLine if arg not in ("-c", "/c")]
         preprocessor = Popen(ppcmd, stdout=PIPE, stderr=PIPE)
@@ -373,26 +335,13 @@ class Cache(object):
             sys.exit(preprocessor.returncode)
 
         compilerHash = getCompilerHash(compilerBinary)
-        normalizedCmdLine = Cache._normalizedCommandLine(commandLine)
+        normalizedCmdLine = CompilerArtifactsRepository._normalizedCommandLine(commandLine)
 
         h = HashAlgorithm()
         h.update(compilerHash.encode("UTF-8"))
         h.update(' '.join(normalizedCmdLine).encode("UTF-8"))
         h.update(preprocessedSourceCode)
         return h.hexdigest()
-
-    @staticmethod
-    def getHash(dataString):
-        hasher = HashAlgorithm()
-        hasher.update(dataString.encode("UTF-8"))
-        return hasher.hexdigest()
-
-    @staticmethod
-    def getDirectCacheKey(manifestHash, includesContentHash):
-        # We must take into account manifestHash to avoid
-        # collisions when different source files use the same
-        # set of includes.
-        return Cache.getHash(manifestHash + includesContentHash)
 
     @staticmethod
     def _normalizedCommandLine(cmdline):
@@ -410,6 +359,64 @@ class Cache(object):
 
         return [arg for arg in cmdline
                 if not (arg[0] in "/-" and arg[1:].startswith(argsToStrip))]
+
+
+class Cache(object):
+    def __init__(self, cacheDirectory=None):
+        self.dir = cacheDirectory
+        if not self.dir:
+            try:
+                self.dir = os.environ["CLCACHE_DIR"]
+            except KeyError:
+                self.dir = os.path.join(os.path.expanduser("~"), "clcache")
+
+        manifestsRootDir = os.path.join(self.dir, "manifests")
+        ensureDirectoryExists(manifestsRootDir)
+        self.manifestsManager = ManifestsManager(manifestsRootDir)
+
+        compilerArtifactsRootDir = os.path.join(self.dir, "objects")
+        ensureDirectoryExists(compilerArtifactsRootDir)
+        self.compilerArtifactsRepository = CompilerArtifactsRepository(compilerArtifactsRootDir)
+
+        lockName = self.cacheDirectory().replace(':', '-').replace('\\', '-')
+        timeoutMs = int(os.environ.get('CLCACHE_OBJECT_CACHE_TIMEOUT_MS', 10 * 1000))
+        self.lock = CacheLock(lockName, timeoutMs)
+
+        self.configuration = Configuration(os.path.join(self.dir, "config.txt"))
+        self.statistics = Statistics(os.path.join(self.dir, "stats.txt"))
+
+    def cacheDirectory(self):
+        return self.dir
+
+    def clean(self, stats, maximumSize):
+        currentSize = stats.currentCacheSize()
+        if currentSize < maximumSize:
+            return
+
+        # Free at least 10% to avoid cleaning up too often which
+        # is a big performance hit with large caches.
+        effectiveMaximumSizeOverall = maximumSize * 0.9
+
+        # Split limit in manifests (10 %) and objects (90 %)
+        effectiveMaximumSizeManifests = effectiveMaximumSizeOverall * 0.1
+        effectiveMaximumSizeObjects = effectiveMaximumSizeOverall - effectiveMaximumSizeManifests
+
+        # Clean manifests
+        currentSizeManifests = self.manifestsManager.clean(effectiveMaximumSizeManifests)
+
+        # Clean artifacts
+        currentCompilerArtifactsCount, currentCompilerArtifactsSize = self.compilerArtifactsRepository.clean(
+            effectiveMaximumSizeObjects)
+
+        stats.setCacheSize(currentCompilerArtifactsSize + currentSizeManifests)
+        stats.setNumCacheEntries(currentCompilerArtifactsCount)
+
+    @staticmethod
+    def getDirectCacheKey(manifestHash, includesContentHash):
+        # We must take into account manifestHash to avoid
+        # collisions when different source files use the same
+        # set of includes.
+        return getStringHash(manifestHash + includesContentHash)
 
 
 class PersistentJSONDict(object):
@@ -673,6 +680,12 @@ def getFileHash(filePath, additionalData=None):
         # as long as we keep it fixed, otherwise hashes change.
         # The string should fit into ASCII, so UTF8 should not change anything
         hasher.update(additionalData.encode("UTF-8"))
+    return hasher.hexdigest()
+
+
+def getStringHash(dataString):
+    hasher = HashAlgorithm()
+    hasher.update(dataString.encode("UTF-8"))
     return hasher.hexdigest()
 
 
@@ -1248,7 +1261,7 @@ def parseIncludesList(compilerOutput, sourceFile, strip):
 
 def addObjectToCache(stats, cache, objectFile, compilerStdout, compilerStderr, cachekey):
     printTraceStatement("Adding file {} to cache using key {}".format(objectFile, cachekey))
-    cache.cacheSection(cachekey).setEntry(cachekey, objectFile, compilerStdout, compilerStderr)
+    cache.compilerArtifactsRepository.section(cachekey).setEntry(cachekey, objectFile, compilerStdout, compilerStderr)
     stats.registerCacheEntry(os.path.getsize(objectFile))
     with cache.configuration as cfg:
         cache.clean(stats, cfg.maximumCacheSize())
@@ -1260,7 +1273,7 @@ def processCacheHit(cache, objectFile, cachekey):
     printTraceStatement("Reusing cached object for key {} for object file {}".format(cachekey, objectFile))
     if os.path.exists(objectFile):
         os.remove(objectFile)
-    section = cache.cacheSection(cachekey)
+    section = cache.compilerArtifactsRepository.section(cachekey)
     copyOrLink(section.cachedObjectName(cachekey), objectFile)
     compilerOutput = section.cachedCompilerOutput(cachekey)
     compilerStderr = section.cachedCompilerStderr(cachekey)
@@ -1296,7 +1309,7 @@ def postprocessHeaderChangedMiss(
         stats.registerHeaderChangedMiss()
         if returnCode == 0 and os.path.exists(objectFile):
             addObjectToCache(stats, cache, objectFile, compilerOutput, compilerStderr, cachekey)
-            cache.removeObjects(stats, removedItems)
+            cache.compilerArtifactsRepository.removeObjects(stats, removedItems)
             manifestSection.setManifest(manifestHash, manifest)
 
     return compilerResult
@@ -1462,7 +1475,7 @@ def processDirect(cache, objectFile, compiler, cmdLine, sourceFile):
                 [expandBasedirPlaceholder(include, baseDir) for include in manifest.includeFiles])
             cachekey = manifest.includesContentToObjectMap.get(includesContentHash)
             if cachekey is not None:
-                if cache.cacheSection(cachekey).hasEntry(cachekey):
+                if cache.compilerArtifactsRepository.section(cachekey).hasEntry(cachekey):
                     return processCacheHit(cache, objectFile, cachekey)
                 else:
                     postProcessing = lambda compilerResult: postprocessObjectEvicted(
@@ -1486,9 +1499,9 @@ def processDirect(cache, objectFile, compiler, cmdLine, sourceFile):
 
 
 def processNoDirect(cache, objectFile, compiler, cmdLine):
-    cachekey = Cache.computeKey(compiler, cmdLine)
+    cachekey = CompilerArtifactsRepository.computeCompilerArtifactsKey(compiler, cmdLine)
     with cache.lock:
-        if cache.cacheSection(cachekey).hasEntry(cachekey):
+        if cache.compilerArtifactsRepository.section(cachekey).hasEntry(cachekey):
             return processCacheHit(cache, objectFile, cachekey)
 
     returnCode, compilerStdout, compilerStderr = invokeRealCompiler(compiler, cmdLine, captureOutput=True)
