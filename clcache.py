@@ -9,7 +9,6 @@
 from ctypes import windll, wintypes
 import codecs
 from collections import defaultdict, namedtuple
-from contextlib import closing
 import errno
 import hashlib
 import json
@@ -294,6 +293,7 @@ class Cache(object):
         timeoutMs = int(os.environ.get('CLCACHE_OBJECT_CACHE_TIMEOUT_MS', 10 * 1000))
         self.lock = CacheLock(lockName, timeoutMs)
 
+        self.configuration = Configuration(os.path.join(self.dir, "config.txt"))
         self.statistics = Statistics(os.path.join(self.dir, "stats.txt"))
 
     def cacheDirectory(self):
@@ -445,24 +445,26 @@ class PersistentJSONDict(object):
 class Configuration(object):
     _defaultValues = {"MaximumCacheSize": 1073741824} # 1 GiB
 
-    def __init__(self, objectCache):
-        self._cfg = PersistentJSONDict(os.path.join(objectCache.cacheDirectory(),
-                                                    "config.txt"))
+    def __init__(self, configurationFile):
+        self._configurationFile = configurationFile
+        self._cfg = None
+
+    def __enter__(self):
+        self._cfg = PersistentJSONDict(self._configurationFile)
         for setting, defaultValue in self._defaultValues.items():
             if setting not in self._cfg:
                 self._cfg[setting] = defaultValue
+        return self
+
+    def __exit__(self, typ, value, traceback):
+        # Does not write to disc when unchanged
+        self._cfg.save()
 
     def maximumCacheSize(self):
         return self._cfg["MaximumCacheSize"]
 
     def setMaximumCacheSize(self, size):
         self._cfg["MaximumCacheSize"] = size
-
-    def save(self):
-        self._cfg.save()
-
-    def close(self):
-        self.save()
 
 
 class Statistics(object):
@@ -1171,8 +1173,7 @@ clcache statistics:
     called w/ multiple sources : {}
     called w/ PCH              : {}""".strip()
 
-    cfg = Configuration(cache)
-    with cache.statistics as stats:
+    with cache.statistics as stats, cache.configuration as cfg:
         print(template.format(
             cache.cacheDirectory(),
             stats.currentCacheSize(),
@@ -1198,8 +1199,7 @@ def resetStatistics(cache):
     print('Statistics reset')
 
 def cleanCache(cache):
-    cfg = Configuration(cache)
-    with cache.statistics as stats:
+    with cache.statistics as stats, cache.configuration as cfg:
         cache.clean(stats, cfg.maximumCacheSize())
     print('Cache cleaned')
 
@@ -1250,8 +1250,8 @@ def addObjectToCache(stats, cache, objectFile, compilerStdout, compilerStderr, c
     printTraceStatement("Adding file {} to cache using key {}".format(objectFile, cachekey))
     cache.cacheSection(cachekey).setEntry(cachekey, objectFile, compilerStdout, compilerStderr)
     stats.registerCacheEntry(os.path.getsize(objectFile))
-    cfg = Configuration(cache)
-    cache.clean(stats, cfg.maximumCacheSize())
+    with cache.configuration as cfg:
+        cache.clean(stats, cfg.maximumCacheSize())
 
 
 def processCacheHit(cache, objectFile, cachekey):
@@ -1377,7 +1377,7 @@ clcache.py v{}
             print("Max size argument must be greater than 0.", file=sys.stderr)
             return 1
 
-        with cache.lock, closing(Configuration(cache)) as cfg:
+        with cache.lock, cache.configuration as cfg:
             cfg.setMaximumCacheSize(maxSizeValue)
         return 0
 

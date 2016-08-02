@@ -17,6 +17,7 @@ import unittest
 import clcache
 from clcache import (
     CommandLineAnalyzer,
+    Configuration,
     Manifest,
     ManifestsManager,
     Statistics,
@@ -96,6 +97,18 @@ class TestHelperFunctions(unittest.TestCase):
             self.assertIn(r".\b\c\3.txt", files)
             self.assertIn(r".\d\4.txt", files)
             self.assertIn(r".\d\e\5.txt", files)
+
+
+class TestConfiguration(unittest.TestCase):
+    def testOpenClose(self):
+        configuration = Configuration(os.path.join(ASSETS_DIR, "configuration", "testOpenClose.json"))
+        with configuration:
+            pass
+
+    def testDefaults(self):
+        configuration = Configuration(os.path.join(ASSETS_DIR, "configuration", "testDefaults.json"))
+        with configuration as cfg:
+            self.assertGreaterEqual(cfg.maximumCacheSize(), 1024) # 1KiB
 
 
 class TestStatistics(unittest.TestCase):
