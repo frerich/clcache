@@ -299,7 +299,7 @@ class TestCompilerArtifactsRepository(unittest.TestCase):
         cas = car.section("fdde59862785f9f0ad6e661b9b5746b7")
 
         # section path
-        self.assertEqual(cas.cacheSectionDir, os.path.join(compilerArtifactsRepositoryRootDir, "fd"))
+        self.assertEqual(cas.compilerArtifactsSectionDir, os.path.join(compilerArtifactsRepositoryRootDir, "fd"))
 
         # entry path
         self.assertEqual(cas.cachedObjectName("fdde59862785f9f0ad6e661b9b5746b7"), os.path.join(

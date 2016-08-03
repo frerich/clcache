@@ -230,15 +230,15 @@ class CacheLock(object):
         self._acquired = False
 
 
-class CacheSection(object):
-    def __init__(self, cacheSectionDir):
-        self.cacheSectionDir = cacheSectionDir
+class CompilerArtifactsSection(object):
+    def __init__(self, compilerArtifactsSectionDir):
+        self.compilerArtifactsSectionDir = compilerArtifactsSectionDir
 
     def cacheEntryDir(self, key):
-        return os.path.join(self.cacheSectionDir, key)
+        return os.path.join(self.compilerArtifactsSectionDir, key)
 
     def cacheEntries(self):
-        return childDirectories(self.cacheSectionDir, absolute=False)
+        return childDirectories(self.compilerArtifactsSectionDir, absolute=False)
 
     def cachedObjectName(self, key):
         return os.path.join(self.cacheEntryDir(key), "object")
@@ -279,10 +279,10 @@ class CompilerArtifactsRepository(object):
         self._compilerArtifactsRootDir = compilerArtifactsRootDir
 
     def section(self, key):
-        return CacheSection(os.path.join(self._compilerArtifactsRootDir, key[:2]))
+        return CompilerArtifactsSection(os.path.join(self._compilerArtifactsRootDir, key[:2]))
 
     def sections(self):
-        return (CacheSection(path) for path in childDirectories(self._compilerArtifactsRootDir))
+        return (CompilerArtifactsSection(path) for path in childDirectories(self._compilerArtifactsRootDir))
 
     def removeObjects(self, stats, removedObjects):
         for o in removedObjects:
