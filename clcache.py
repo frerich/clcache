@@ -131,7 +131,7 @@ class ManifestSection(object):
             return None
 
 
-class ManifestsManager(object):
+class ManifestRepository(object):
     # Bump this counter whenever the current manifest file format changes.
     # E.g. changing the file format from {'oldkey': ...} to {'newkey': ...} requires
     # invalidation, such that a manifest that was stored using the old format is not
@@ -175,13 +175,13 @@ class ManifestsManager(object):
         # preprocessor options. In direct mode we do not perform
         # preprocessing before cache lookup, so all parameters are important
         additionalData = "{}|{}|{}".format(
-            compilerHash, commandLine, ManifestsManager.MANIFEST_FILE_FORMAT_VERSION)
+            compilerHash, commandLine, ManifestRepository.MANIFEST_FILE_FORMAT_VERSION)
         return getFileHash(sourceFile, additionalData)
 
     @staticmethod
     def getIncludesContentHashForFiles(listOfIncludesAbsolute):
         listOfIncludesHashes = [getFileHash(filepath) for filepath in listOfIncludesAbsolute]
-        return ManifestsManager.getIncludesContentHashForHashes(listOfIncludesHashes)
+        return ManifestRepository.getIncludesContentHashForHashes(listOfIncludesHashes)
 
     @staticmethod
     def getIncludesContentHashForHashes(listOfIncludesHashes):
@@ -372,7 +372,7 @@ class Cache(object):
 
         manifestsRootDir = os.path.join(self.dir, "manifests")
         ensureDirectoryExists(manifestsRootDir)
-        self.manifestsManager = ManifestsManager(manifestsRootDir)
+        self.manifestRepository = ManifestRepository(manifestsRootDir)
 
         compilerArtifactsRootDir = os.path.join(self.dir, "objects")
         ensureDirectoryExists(compilerArtifactsRootDir)
@@ -402,7 +402,7 @@ class Cache(object):
         effectiveMaximumSizeObjects = effectiveMaximumSizeOverall - effectiveMaximumSizeManifests
 
         # Clean manifests
-        currentSizeManifests = self.manifestsManager.clean(effectiveMaximumSizeManifests)
+        currentSizeManifests = self.manifestRepository.clean(effectiveMaximumSizeManifests)
 
         # Clean artifacts
         currentCompilerArtifactsCount, currentCompilerArtifactsSize = self.compilerArtifactsRepository.clean(
@@ -1330,7 +1330,7 @@ def postprocessNoManifestMiss(
             manifest = Manifest(relocatableIncludePaths, {})
         else:
             manifest = Manifest(listOfIncludes, {})
-        includesContentHash = ManifestsManager.getIncludesContentHashForFiles(listOfIncludes)
+        includesContentHash = ManifestRepository.getIncludesContentHashForFiles(listOfIncludes)
         cachekey = Cache.getDirectCacheKey(manifestHash, includesContentHash)
         manifest.includesContentToObjectMap[includesContentHash] = cachekey
 
@@ -1465,13 +1465,13 @@ def processCompileRequest(cache, compiler, args):
 
 def processDirect(cache, objectFile, compiler, cmdLine, sourceFile):
     baseDir = normalizeBaseDir(os.environ.get('CLCACHE_BASEDIR'))
-    manifestHash = ManifestsManager.getManifestHash(compiler, cmdLine, sourceFile)
-    manifestSection = cache.manifestsManager.manifestSection(manifestHash)
+    manifestHash = ManifestRepository.getManifestHash(compiler, cmdLine, sourceFile)
+    manifestSection = cache.manifestRepository.manifestSection(manifestHash)
     with cache.lock:
         manifest = manifestSection.getManifest(manifestHash)
         if manifest is not None:
             # NOTE: command line options already included in hash for manifest name
-            includesContentHash = ManifestsManager.getIncludesContentHashForFiles(
+            includesContentHash = ManifestRepository.getIncludesContentHashForFiles(
                 [expandBasedirPlaceholder(include, baseDir) for include in manifest.includeFiles])
             cachekey = manifest.includesContentToObjectMap.get(includesContentHash)
             if cachekey is not None:

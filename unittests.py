@@ -20,7 +20,7 @@ from clcache import (
     CompilerArtifactsRepository,
     Configuration,
     Manifest,
-    ManifestsManager,
+    ManifestRepository,
     Statistics,
 )
 from clcache import (
@@ -164,7 +164,7 @@ class TestStatistics(unittest.TestCase):
             self.assertEqual(s.numCacheMisses(), 4)
 
 
-class TestManifestManager(unittest.TestCase):
+class TestManifestRepository(unittest.TestCase):
     def _getDirectorySize(self, dirPath):
         def filesize(path, filename):
             return os.stat(os.path.join(path, filename)).st_size
@@ -177,7 +177,7 @@ class TestManifestManager(unittest.TestCase):
 
     def testPaths(self):
         manifestsRootDir = os.path.join(ASSETS_DIR, "manifests")
-        mm = ManifestsManager(manifestsRootDir)
+        mm = ManifestRepository(manifestsRootDir)
         ms = mm.manifestSection("fdde59862785f9f0ad6e661b9b5746b7")
 
         self.assertEqual(ms.manifestSectionDir, os.path.join(manifestsRootDir, "fd"))
@@ -186,45 +186,45 @@ class TestManifestManager(unittest.TestCase):
 
     def testIncludesContentHash(self):
         self.assertEqual(
-            ManifestsManager.getIncludesContentHashForHashes([]),
-            ManifestsManager.getIncludesContentHashForHashes([])
+            ManifestRepository.getIncludesContentHashForHashes([]),
+            ManifestRepository.getIncludesContentHashForHashes([])
         )
 
         self.assertEqual(
-            ManifestsManager.getIncludesContentHashForHashes(["d88be7edbf"]),
-            ManifestsManager.getIncludesContentHashForHashes(["d88be7edbf"])
+            ManifestRepository.getIncludesContentHashForHashes(["d88be7edbf"]),
+            ManifestRepository.getIncludesContentHashForHashes(["d88be7edbf"])
         )
 
         self.assertEqual(
-            ManifestsManager.getIncludesContentHashForHashes(["d88be7edbf", "f6c8bd5733"]),
-            ManifestsManager.getIncludesContentHashForHashes(["d88be7edbf", "f6c8bd5733"])
+            ManifestRepository.getIncludesContentHashForHashes(["d88be7edbf", "f6c8bd5733"]),
+            ManifestRepository.getIncludesContentHashForHashes(["d88be7edbf", "f6c8bd5733"])
         )
 
         # Wrong number of elements
         self.assertNotEqual(
-            ManifestsManager.getIncludesContentHashForHashes([]),
-            ManifestsManager.getIncludesContentHashForHashes(["d88be7edbf"])
+            ManifestRepository.getIncludesContentHashForHashes([]),
+            ManifestRepository.getIncludesContentHashForHashes(["d88be7edbf"])
         )
 
         # Wrong order
         self.assertNotEqual(
-            ManifestsManager.getIncludesContentHashForHashes(["d88be7edbf", "f6c8bd5733"]),
-            ManifestsManager.getIncludesContentHashForHashes(["f6c8bd5733", "d88be7edbf"])
+            ManifestRepository.getIncludesContentHashForHashes(["d88be7edbf", "f6c8bd5733"]),
+            ManifestRepository.getIncludesContentHashForHashes(["f6c8bd5733", "d88be7edbf"])
         )
 
         # Content in different elements
         self.assertNotEqual(
-            ManifestsManager.getIncludesContentHashForHashes(["", "d88be7edbf"]),
-            ManifestsManager.getIncludesContentHashForHashes(["d88be7edbf", ""])
+            ManifestRepository.getIncludesContentHashForHashes(["", "d88be7edbf"]),
+            ManifestRepository.getIncludesContentHashForHashes(["d88be7edbf", ""])
         )
         self.assertNotEqual(
-            ManifestsManager.getIncludesContentHashForHashes(["d88be", "7edbf"]),
-            ManifestsManager.getIncludesContentHashForHashes(["d88b", "e7edbf"])
+            ManifestRepository.getIncludesContentHashForHashes(["d88be", "7edbf"]),
+            ManifestRepository.getIncludesContentHashForHashes(["d88b", "e7edbf"])
         )
 
     def testStoreAndGetManifest(self):
         manifestsRootDir = os.path.join(ASSETS_DIR, "manifests")
-        mm = ManifestsManager(manifestsRootDir)
+        mm = ManifestRepository(manifestsRootDir)
 
         manifest1 = Manifest([r'somepath\myinclude.h'], {
             "fdde59862785f9f0ad6e661b9b5746b7": "a649723940dc975ebd17167d29a532f8"
@@ -251,7 +251,7 @@ class TestManifestManager(unittest.TestCase):
 
     def testNonExistingManifest(self):
         manifestsRootDir = os.path.join(ASSETS_DIR, "manifests")
-        mm = ManifestsManager(manifestsRootDir)
+        mm = ManifestRepository(manifestsRootDir)
 
         retrieved = mm.manifestSection("ffffffffffffffffffffffffffffffff") \
                       .getManifest("ffffffffffffffffffffffffffffffff")
@@ -259,7 +259,7 @@ class TestManifestManager(unittest.TestCase):
 
     def testClean(self):
         manifestsRootDir = os.path.join(ASSETS_DIR, "manifests")
-        mm = ManifestsManager(manifestsRootDir)
+        mm = ManifestRepository(manifestsRootDir)
 
         # Size in (120, 240] bytes
         manifest1 = Manifest([r'somepath\myinclude.h'], {
