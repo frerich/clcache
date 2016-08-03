@@ -142,15 +142,15 @@ class ManifestRepository(object):
     def __init__(self, manifestsRootDir):
         self._manifestsRootDir = manifestsRootDir
 
-    def manifestSection(self, manifestHash):
+    def section(self, manifestHash):
         return ManifestSection(os.path.join(self._manifestsRootDir, manifestHash[:2]))
 
-    def manifestSections(self):
+    def sections(self):
         return (ManifestSection(path) for path in childDirectories(self._manifestsRootDir))
 
     def clean(self, maxManifestsSize):
         manifestFileInfos = []
-        for section in self.manifestSections():
+        for section in self.sections():
             for filePath in section.manifestFiles():
                 try:
                     manifestFileInfos.append((os.stat(filePath), filePath))
@@ -1466,7 +1466,7 @@ def processCompileRequest(cache, compiler, args):
 def processDirect(cache, objectFile, compiler, cmdLine, sourceFile):
     baseDir = normalizeBaseDir(os.environ.get('CLCACHE_BASEDIR'))
     manifestHash = ManifestRepository.getManifestHash(compiler, cmdLine, sourceFile)
-    manifestSection = cache.manifestRepository.manifestSection(manifestHash)
+    manifestSection = cache.manifestRepository.section(manifestHash)
     with cache.lock:
         manifest = manifestSection.getManifest(manifestHash)
         if manifest is not None:

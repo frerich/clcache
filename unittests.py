@@ -178,7 +178,7 @@ class TestManifestRepository(unittest.TestCase):
     def testPaths(self):
         manifestsRootDir = os.path.join(ASSETS_DIR, "manifests")
         mm = ManifestRepository(manifestsRootDir)
-        ms = mm.manifestSection("fdde59862785f9f0ad6e661b9b5746b7")
+        ms = mm.section("fdde59862785f9f0ad6e661b9b5746b7")
 
         self.assertEqual(ms.manifestSectionDir, os.path.join(manifestsRootDir, "fd"))
         self.assertEqual(ms.manifestPath("fdde59862785f9f0ad6e661b9b5746b7"),
@@ -233,8 +233,8 @@ class TestManifestRepository(unittest.TestCase):
             "474e7fc26a592d84dfa7416c10f036c6": "8771d7ebcf6c8bd57a3d6485f63e3a89"
         })
 
-        ms1 = mm.manifestSection("8a33738d88be7edbacef48e262bbb5bc")
-        ms2 = mm.manifestSection("0623305942d216c165970948424ae7d1")
+        ms1 = mm.section("8a33738d88be7edbacef48e262bbb5bc")
+        ms2 = mm.section("0623305942d216c165970948424ae7d1")
 
         ms1.setManifest("8a33738d88be7edbacef48e262bbb5bc", manifest1)
         ms2.setManifest("0623305942d216c165970948424ae7d1", manifest2)
@@ -253,8 +253,7 @@ class TestManifestRepository(unittest.TestCase):
         manifestsRootDir = os.path.join(ASSETS_DIR, "manifests")
         mm = ManifestRepository(manifestsRootDir)
 
-        retrieved = mm.manifestSection("ffffffffffffffffffffffffffffffff") \
-                      .getManifest("ffffffffffffffffffffffffffffffff")
+        retrieved = mm.section("ffffffffffffffffffffffffffffffff").getManifest("ffffffffffffffffffffffffffffffff")
         self.assertIsNone(retrieved)
 
     def testClean(self):
@@ -269,10 +268,8 @@ class TestManifestRepository(unittest.TestCase):
         manifest2 = Manifest([r'somepath\myinclude.h', 'moreincludes.h'], {
             "474e7fc26a592d84dfa7416c10f036c6": "8771d7ebcf6c8bd57a3d6485f63e3a89"
         })
-        mm.manifestSection("8a33738d88be7edbacef48e262bbb5bc") \
-          .setManifest("8a33738d88be7edbacef48e262bbb5bc", manifest1)
-        mm.manifestSection("0623305942d216c165970948424ae7d1") \
-          .setManifest("0623305942d216c165970948424ae7d1", manifest2)
+        mm.section("8a33738d88be7edbacef48e262bbb5bc").setManifest("8a33738d88be7edbacef48e262bbb5bc", manifest1)
+        mm.section("0623305942d216c165970948424ae7d1").setManifest("0623305942d216c165970948424ae7d1", manifest2)
 
         cleaningResultSize = mm.clean(240)
         # Only one of those manifests can be left
