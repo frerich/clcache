@@ -244,12 +244,6 @@ class CompilerArtifactsSection(object):
     def cachedObjectName(self, key):
         return os.path.join(self.cacheEntryDir(key), "object")
 
-    def cachedCompilerOutputName(self, key):
-        return os.path.join(self.cacheEntryDir(key), "output.txt")
-
-    def cachedCompilerStderrName(self, key):
-        return os.path.join(self.cacheEntryDir(key), "stderr.txt")
-
     def hasEntry(self, key):
         return os.path.exists(self.cacheEntryDir(key))
 
@@ -257,11 +251,9 @@ class CompilerArtifactsSection(object):
         ensureDirectoryExists(self.cacheEntryDir(key))
         if objectFileName is not None:
             copyOrLink(objectFileName, self.cachedObjectName(key))
-        with open(self.cachedCompilerOutputName(key), 'wb') as f:
-            f.write(compilerOutput.encode(CACHE_COMPILER_OUTPUT_STORAGE_CODEC))
+        self._setCachedCompilerConsoleOutput(key, 'output.txt', compilerOutput)
         if compilerStderr != '':
-            with open(self.cachedCompilerStderrName(key), 'wb') as f:
-                f.write(compilerStderr.encode(CACHE_COMPILER_OUTPUT_STORAGE_CODEC))
+            self._setCachedCompilerConsoleOutput(key, 'stderr.txt', compilerStderr)
 
     def getEntry(self, key):
         if not os.path.exists(self.cacheEntryDir(key)):
@@ -279,6 +271,11 @@ class CompilerArtifactsSection(object):
                 return f.read().decode(CACHE_COMPILER_OUTPUT_STORAGE_CODEC)
         except IOError:
             return ''
+
+    def _setCachedCompilerConsoleOutput(self, key, fileName, output):
+        outputFilePath = os.path.join(self.cacheEntryDir(key), fileName)
+        with open(outputFilePath, 'wb') as f:
+            f.write(output.encode(CACHE_COMPILER_OUTPUT_STORAGE_CODEC))
 
 
 class CompilerArtifactsRepository(object):
