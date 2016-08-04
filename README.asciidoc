@@ -140,6 +140,12 @@ CLCACHE_OBJECT_CACHE_TIMEOUT_MS::
     getting ObjectCacheLockExceptions with return code 258 (which is the
     WAIT_TIMEOUT return code).
 
+Known limitations
+~~~~~~~~~~~~~~~~~
+
+* https://msdn.microsoft.com/en-us/library/kezkeayy.aspx[CL and +_CL_+] environment
+  variables are not supported.
+
 How clcache works
 ~~~~~~~~~~~~~~~~~
 

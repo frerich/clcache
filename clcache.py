@@ -1088,19 +1088,9 @@ def waitForAnyProcess(procs):
 
 
 # Returns the amount of jobs which should be run in parallel when
-# invoked in batch mode.
-#
-# The '/MP' option determines this, which may be set in cmdLine or
-# in the CL environment variable.
+# invoked in batch mode as determined by the /MP argument
 def jobCount(cmdLine):
-    switches = []
-
-    if 'CL' in os.environ:
-        switches.extend(os.environ['CL'].split(' '))
-
-    switches.extend(cmdLine)
-
-    mpSwitches = [switch for switch in switches if re.search(r'^/MP(\d+)?$', switch) is not None]
+    mpSwitches = [arg for arg in cmdLine if re.match(r'^/MP(\d+)?$', arg)]
     if len(mpSwitches) == 0:
         return 1
 
