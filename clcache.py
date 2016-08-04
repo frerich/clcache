@@ -1280,11 +1280,10 @@ def processCacheHit(cache, objectFile, cachekey):
     if os.path.exists(objectFile):
         os.remove(objectFile)
     section = cache.compilerArtifactsRepository.section(cachekey)
-    copyOrLink(section.cachedObjectName(cachekey), objectFile)
-    compilerOutput = section.cachedCompilerOutput(cachekey)
-    compilerStderr = section.cachedCompilerStderr(cachekey)
+    cachedArtifacts = section.getEntry(cachekey)
+    copyOrLink(cachedArtifacts.objectFilePath, objectFile)
     printTraceStatement("Finished. Exit code 0")
-    return 0, compilerOutput, compilerStderr
+    return 0, cachedArtifacts.compilerStdout, cachedArtifacts.compilerStderr
 
 
 def postprocessObjectEvicted(cache, objectFile, cachekey, compilerResult):
