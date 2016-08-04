@@ -3,7 +3,7 @@ clcache changelog
 
 ## Upcoming release
 
- * Nothing yet.
+ * Bugfix: /MP no longer causes a greatly reduced cache hit rate.
 
 ## clcache 3.2.0 (2016-07-28)
 

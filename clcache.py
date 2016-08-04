@@ -173,7 +173,11 @@ class ManifestRepository(object):
 
         # NOTE: We intentionally do not normalize command line to include
         # preprocessor options. In direct mode we do not perform
-        # preprocessing before cache lookup, so all parameters are important
+        # preprocessing before cache lookup, so all parameters are important.
+        # One of the few exceptions to this rule is the /MP switch, which only
+        # defines how many compiler processes are running simultaneusly.
+        commandLine = [arg for arg in commandLine if not arg.startswith("/MP")]
+
         additionalData = "{}|{}|{}".format(
             compilerHash, commandLine, ManifestRepository.MANIFEST_FILE_FORMAT_VERSION)
         return getFileHash(sourceFile, additionalData)
@@ -356,6 +360,11 @@ class CompilerArtifactsRepository(object):
         # want two invocations which are identical except for the output file
         # name to be treated differently.
         argsToStrip += ("Fo",)
+
+        # Also strip the switch for specifying the number of parallel compiler
+        # processes to use (when specifying multiple source files on the
+        # command line).
+        argsToStrip += ("MP",)
 
         return [arg for arg in cmdline
                 if not (arg[0] in "/-" and arg[1:].startswith(argsToStrip))]
