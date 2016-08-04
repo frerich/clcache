@@ -185,6 +185,11 @@ invocation to the actual compiler. Once the real compiler successfully
 finished its work, the generated object file (as well as the output printed
 by the compiler) is copied to the cache.
 
+Caveats
+~~~~~~~
+For known caveats, please see the
+https://github.com/frerich/clcache/wiki/Caveats[Caveats wiki page].
+
 License Terms
 ~~~~~~~~~~~~~
 The source code of this project is - unless explicitly noted otherwise in the
