@@ -274,6 +274,11 @@ class CompilerArtifactsSection(object):
             with open(self.cachedCompilerStderrName(key), 'wb') as f:
                 f.write(compilerStderr.encode(CACHE_COMPILER_OUTPUT_STORAGE_CODEC))
 
+    def getEntry(self, key):
+        if not os.path.exists(self.cacheEntryDir(key)):
+            return None
+        return CompilerArtifacts(self.cachedObjectName(key), self.cachedCompilerOutput(key), self.cachedCompilerStderr(key))
+
 
 class CompilerArtifactsRepository(object):
     def __init__(self, compilerArtifactsRootDir):
