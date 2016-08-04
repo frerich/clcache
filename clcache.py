@@ -247,13 +247,13 @@ class CompilerArtifactsSection(object):
     def hasEntry(self, key):
         return os.path.exists(self.cacheEntryDir(key))
 
-    def setEntry(self, key, objectFileName, compilerOutput, compilerStderr):
+    def setEntry(self, key, artifacts):
         ensureDirectoryExists(self.cacheEntryDir(key))
-        if objectFileName is not None:
-            copyOrLink(objectFileName, self.cachedObjectName(key))
-        self._setCachedCompilerConsoleOutput(key, 'output.txt', compilerOutput)
-        if compilerStderr != '':
-            self._setCachedCompilerConsoleOutput(key, 'stderr.txt', compilerStderr)
+        if artifacts.objectFilePath is not None:
+            copyOrLink(artifacts.objectFilePath, self.cachedObjectName(key))
+        self._setCachedCompilerConsoleOutput(key, 'output.txt', artifacts.compilerStdout)
+        if artifacts.compilerStderr != '':
+            self._setCachedCompilerConsoleOutput(key, 'stderr.txt', artifacts.compilerStderr)
 
     def getEntry(self, key):
         assert self.hasEntry(key)
@@ -1262,10 +1262,10 @@ def parseIncludesList(compilerOutput, sourceFile, strip):
         return sorted(includesSet), compilerOutput
 
 
-def addObjectToCache(stats, cache, objectFile, compilerStdout, compilerStderr, cachekey):
-    printTraceStatement("Adding file {} to cache using key {}".format(objectFile, cachekey))
-    cache.compilerArtifactsRepository.section(cachekey).setEntry(cachekey, objectFile, compilerStdout, compilerStderr)
-    stats.registerCacheEntry(os.path.getsize(objectFile))
+def addObjectToCache(stats, cache, cachekey, artifacts):
+    printTraceStatement("Adding file {} to cache using key {}".format(artifacts.objectFilePath, cachekey))
+    cache.compilerArtifactsRepository.section(cachekey).setEntry(cachekey, artifacts)
+    stats.registerCacheEntry(os.path.getsize(artifacts.objectFilePath))
     with cache.configuration as cfg:
         cache.clean(stats, cfg.maximumCacheSize())
 
@@ -1290,7 +1290,7 @@ def postprocessObjectEvicted(cache, objectFile, cachekey, compilerResult):
     with cache.lock, cache.statistics as stats:
         stats.registerEvictedMiss()
         if returnCode == 0 and os.path.exists(objectFile):
-            addObjectToCache(stats, cache, objectFile, compilerOutput, compilerStderr, cachekey)
+            addObjectToCache(stats, cache, cachekey, CompilerArtifacts(objectFile, compilerOutput, compilerStderr))
 
     return compilerResult
 
@@ -1310,7 +1310,7 @@ def postprocessHeaderChangedMiss(
     with cache.lock, cache.statistics as stats:
         stats.registerHeaderChangedMiss()
         if returnCode == 0 and os.path.exists(objectFile):
-            addObjectToCache(stats, cache, objectFile, compilerOutput, compilerStderr, cachekey)
+            addObjectToCache(stats, cache, cachekey, CompilerArtifacts(objectFile, compilerOutput, compilerStderr))
             cache.compilerArtifactsRepository.removeObjects(stats, removedItems)
             manifestSection.setManifest(manifestHash, manifest)
 
@@ -1340,7 +1340,7 @@ def postprocessNoManifestMiss(
         stats.registerSourceChangedMiss()
         if returnCode == 0 and os.path.exists(objectFile):
             # Store compile output and manifest
-            addObjectToCache(stats, cache, objectFile, compilerOutput, compilerStderr, cachekey)
+            addObjectToCache(stats, cache, cachekey, CompilerArtifacts(objectFile, compilerOutput, compilerStderr))
             manifestSection.setManifest(manifestHash, manifest)
 
     return returnCode, compilerOutput, compilerStderr
@@ -1510,7 +1510,7 @@ def processNoDirect(cache, objectFile, compiler, cmdLine):
     with cache.lock, cache.statistics as stats:
         stats.registerCacheMiss()
         if returnCode == 0 and os.path.exists(objectFile):
-            addObjectToCache(stats, cache, objectFile, compilerStdout, compilerStderr, cachekey)
+            addObjectToCache(stats, cache, cachekey, CompilerArtifacts(objectFile, compilerStdout, compilerStderr))
 
     printTraceStatement("Finished. Exit code {0:d}".format(returnCode))
     return returnCode, compilerStdout, compilerStderr
