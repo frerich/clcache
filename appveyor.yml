@@ -48,6 +48,7 @@ build_script:
   - pylint --rcfile=.pylintrc clcache.py
   - pylint --rcfile=.pylintrc unittests.py
   - pylint --rcfile=.pylintrc integrationtests.py
+  - pylint --rcfile=.pylintrc performancetests.py
 
 test_script:
   # Run test files via py.test and generate JUnit XML. Then push test results
