@@ -56,7 +56,7 @@ BASEDIR_REPLACEMENT = '?'
 #   value: key in the cache, under which the object file is stored
 Manifest = namedtuple('Manifest', ['includeFiles', 'includesContentToObjectMap'])
 
-CompilerArtifacts = namedtuple('CompilerArtifacts', ['objectFilePath', 'compilerStdout', 'compilerStderr'])
+CompilerArtifacts = namedtuple('CompilerArtifacts', ['objectFilePath', 'stdout', 'stderr'])
 
 def printBinary(stream, rawData):
     stream.buffer.write(rawData)
@@ -251,9 +251,9 @@ class CompilerArtifactsSection(object):
         ensureDirectoryExists(self.cacheEntryDir(key))
         if artifacts.objectFilePath is not None:
             copyOrLink(artifacts.objectFilePath, self.cachedObjectName(key))
-        self._setCachedCompilerConsoleOutput(key, 'output.txt', artifacts.compilerStdout)
-        if artifacts.compilerStderr != '':
-            self._setCachedCompilerConsoleOutput(key, 'stderr.txt', artifacts.compilerStderr)
+        self._setCachedCompilerConsoleOutput(key, 'output.txt', artifacts.stdout)
+        if artifacts.stderr != '':
+            self._setCachedCompilerConsoleOutput(key, 'stderr.txt', artifacts.stderr)
 
     def getEntry(self, key):
         assert self.hasEntry(key)
@@ -1280,7 +1280,7 @@ def processCacheHit(cache, objectFile, cachekey):
     cachedArtifacts = section.getEntry(cachekey)
     copyOrLink(cachedArtifacts.objectFilePath, objectFile)
     printTraceStatement("Finished. Exit code 0")
-    return 0, cachedArtifacts.compilerStdout, cachedArtifacts.compilerStderr
+    return 0, cachedArtifacts.stdout, cachedArtifacts.stderr
 
 
 def postprocessObjectEvicted(cache, objectFile, cachekey, compilerResult):
