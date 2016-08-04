@@ -251,7 +251,7 @@ class CompilerArtifactsSection(object):
         return os.path.join(self.cacheEntryDir(key), "stderr.txt")
 
     def hasEntry(self, key):
-        return os.path.exists(self.cachedObjectName(key)) or os.path.exists(self.cachedCompilerOutputName(key))
+        return os.path.exists(self.cacheEntryDir(key))
 
     def setEntry(self, key, objectFileName, compilerOutput, compilerStderr):
         ensureDirectoryExists(self.cacheEntryDir(key))
