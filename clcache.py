@@ -244,17 +244,6 @@ class CompilerArtifactsSection(object):
     def cachedObjectName(self, key):
         return os.path.join(self.cacheEntryDir(key), "object")
 
-    def cachedCompilerOutput(self, key):
-        with open(self.cachedCompilerOutputName(key), 'rb') as f:
-            return f.read().decode(CACHE_COMPILER_OUTPUT_STORAGE_CODEC)
-
-    def cachedCompilerStderr(self, key):
-        fileName = self.cachedCompilerStderrName(key)
-        if os.path.exists(fileName):
-            with open(fileName, 'rb') as f:
-                return f.read().decode(CACHE_COMPILER_OUTPUT_STORAGE_CODEC)
-        return ''
-
     def cachedCompilerOutputName(self, key):
         return os.path.join(self.cacheEntryDir(key), "output.txt")
 
@@ -277,7 +266,19 @@ class CompilerArtifactsSection(object):
     def getEntry(self, key):
         if not os.path.exists(self.cacheEntryDir(key)):
             return None
-        return CompilerArtifacts(self.cachedObjectName(key), self.cachedCompilerOutput(key), self.cachedCompilerStderr(key))
+        return CompilerArtifacts(
+            self.cachedObjectName(key),
+            self._getCachedCompilerConsoleOutput(key, 'output.txt'),
+            self._getCachedCompilerConsoleOutput(key, 'stderr.txt')
+            )
+
+    def _getCachedCompilerConsoleOutput(self, key, fileName):
+        try:
+            outputFilePath = os.path.join(self.cacheEntryDir(key), fileName)
+            with open(outputFilePath, 'rb') as f:
+                return f.read().decode(CACHE_COMPILER_OUTPUT_STORAGE_CODEC)
+        except IOError:
+            return ''
 
 
 class CompilerArtifactsRepository(object):
