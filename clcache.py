@@ -91,6 +91,10 @@ def normalizeBaseDir(baseDir):
         return None
 
 
+class IncludeNotFoundException(Exception):
+    pass
+
+
 class CacheLockException(Exception):
     pass
 
@@ -185,7 +189,10 @@ class ManifestRepository(object):
 
     @staticmethod
     def getIncludesContentHashForFiles(listOfIncludesAbsolute):
-        listOfIncludesHashes = [getFileHash(filepath) for filepath in listOfIncludesAbsolute]
+        try:
+            listOfIncludesHashes = [getFileHash(filepath) for filepath in listOfIncludesAbsolute]
+        except FileNotFoundError as e:
+            raise IncludeNotFoundException(e.filename)
         return ManifestRepository.getIncludesContentHashForHashes(listOfIncludesHashes)
 
     @staticmethod
