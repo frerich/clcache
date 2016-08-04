@@ -56,6 +56,7 @@ BASEDIR_REPLACEMENT = '?'
 #   value: key in the cache, under which the object file is stored
 Manifest = namedtuple('Manifest', ['includeFiles', 'includesContentToObjectMap'])
 
+CompilerArtifacts = namedtuple('CompilerArtifacts', ['objectFilePath', 'compilerStdout', 'compilerStderr'])
 
 def printBinary(stream, rawData):
     stream.buffer.write(rawData)
