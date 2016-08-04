@@ -56,6 +56,7 @@ BASEDIR_REPLACEMENT = '?'
 #   value: key in the cache, under which the object file is stored
 Manifest = namedtuple('Manifest', ['includeFiles', 'includesContentToObjectMap'])
 
+CompilerArtifacts = namedtuple('CompilerArtifacts', ['objectFilePath', 'stdout', 'stderr'])
 
 def printBinary(stream, rawData):
     stream.buffer.write(rawData)
@@ -243,35 +244,37 @@ class CompilerArtifactsSection(object):
     def cachedObjectName(self, key):
         return os.path.join(self.cacheEntryDir(key), "object")
 
-    def cachedCompilerOutput(self, key):
-        with open(self.cachedCompilerOutputName(key), 'rb') as f:
-            return f.read().decode(CACHE_COMPILER_OUTPUT_STORAGE_CODEC)
-
-    def cachedCompilerStderr(self, key):
-        fileName = self.cachedCompilerStderrName(key)
-        if os.path.exists(fileName):
-            with open(fileName, 'rb') as f:
-                return f.read().decode(CACHE_COMPILER_OUTPUT_STORAGE_CODEC)
-        return ''
-
-    def cachedCompilerOutputName(self, key):
-        return os.path.join(self.cacheEntryDir(key), "output.txt")
-
-    def cachedCompilerStderrName(self, key):
-        return os.path.join(self.cacheEntryDir(key), "stderr.txt")
-
     def hasEntry(self, key):
-        return os.path.exists(self.cachedObjectName(key)) or os.path.exists(self.cachedCompilerOutputName(key))
+        return os.path.exists(self.cacheEntryDir(key))
 
-    def setEntry(self, key, objectFileName, compilerOutput, compilerStderr):
+    def setEntry(self, key, artifacts):
         ensureDirectoryExists(self.cacheEntryDir(key))
-        if objectFileName is not None:
-            copyOrLink(objectFileName, self.cachedObjectName(key))
-        with open(self.cachedCompilerOutputName(key), 'wb') as f:
-            f.write(compilerOutput.encode(CACHE_COMPILER_OUTPUT_STORAGE_CODEC))
-        if compilerStderr != '':
-            with open(self.cachedCompilerStderrName(key), 'wb') as f:
-                f.write(compilerStderr.encode(CACHE_COMPILER_OUTPUT_STORAGE_CODEC))
+        if artifacts.objectFilePath is not None:
+            copyOrLink(artifacts.objectFilePath, self.cachedObjectName(key))
+        self._setCachedCompilerConsoleOutput(key, 'output.txt', artifacts.stdout)
+        if artifacts.stderr != '':
+            self._setCachedCompilerConsoleOutput(key, 'stderr.txt', artifacts.stderr)
+
+    def getEntry(self, key):
+        assert self.hasEntry(key)
+        return CompilerArtifacts(
+            self.cachedObjectName(key),
+            self._getCachedCompilerConsoleOutput(key, 'output.txt'),
+            self._getCachedCompilerConsoleOutput(key, 'stderr.txt')
+            )
+
+    def _getCachedCompilerConsoleOutput(self, key, fileName):
+        try:
+            outputFilePath = os.path.join(self.cacheEntryDir(key), fileName)
+            with open(outputFilePath, 'rb') as f:
+                return f.read().decode(CACHE_COMPILER_OUTPUT_STORAGE_CODEC)
+        except IOError:
+            return ''
+
+    def _setCachedCompilerConsoleOutput(self, key, fileName, output):
+        outputFilePath = os.path.join(self.cacheEntryDir(key), fileName)
+        with open(outputFilePath, 'wb') as f:
+            f.write(output.encode(CACHE_COMPILER_OUTPUT_STORAGE_CODEC))
 
 
 class CompilerArtifactsRepository(object):
@@ -1259,10 +1262,10 @@ def parseIncludesList(compilerOutput, sourceFile, strip):
         return sorted(includesSet), compilerOutput
 
 
-def addObjectToCache(stats, cache, objectFile, compilerStdout, compilerStderr, cachekey):
-    printTraceStatement("Adding file {} to cache using key {}".format(objectFile, cachekey))
-    cache.compilerArtifactsRepository.section(cachekey).setEntry(cachekey, objectFile, compilerStdout, compilerStderr)
-    stats.registerCacheEntry(os.path.getsize(objectFile))
+def addObjectToCache(stats, cache, cachekey, artifacts):
+    printTraceStatement("Adding file {} to cache using key {}".format(artifacts.objectFilePath, cachekey))
+    cache.compilerArtifactsRepository.section(cachekey).setEntry(cachekey, artifacts)
+    stats.registerCacheEntry(os.path.getsize(artifacts.objectFilePath))
     with cache.configuration as cfg:
         cache.clean(stats, cfg.maximumCacheSize())
 
@@ -1274,11 +1277,10 @@ def processCacheHit(cache, objectFile, cachekey):
     if os.path.exists(objectFile):
         os.remove(objectFile)
     section = cache.compilerArtifactsRepository.section(cachekey)
-    copyOrLink(section.cachedObjectName(cachekey), objectFile)
-    compilerOutput = section.cachedCompilerOutput(cachekey)
-    compilerStderr = section.cachedCompilerStderr(cachekey)
+    cachedArtifacts = section.getEntry(cachekey)
+    copyOrLink(cachedArtifacts.objectFilePath, objectFile)
     printTraceStatement("Finished. Exit code 0")
-    return 0, compilerOutput, compilerStderr
+    return 0, cachedArtifacts.stdout, cachedArtifacts.stderr
 
 
 def postprocessObjectEvicted(cache, objectFile, cachekey, compilerResult):
@@ -1288,7 +1290,7 @@ def postprocessObjectEvicted(cache, objectFile, cachekey, compilerResult):
     with cache.lock, cache.statistics as stats:
         stats.registerEvictedMiss()
         if returnCode == 0 and os.path.exists(objectFile):
-            addObjectToCache(stats, cache, objectFile, compilerOutput, compilerStderr, cachekey)
+            addObjectToCache(stats, cache, cachekey, CompilerArtifacts(objectFile, compilerOutput, compilerStderr))
 
     return compilerResult
 
@@ -1308,7 +1310,7 @@ def postprocessHeaderChangedMiss(
     with cache.lock, cache.statistics as stats:
         stats.registerHeaderChangedMiss()
         if returnCode == 0 and os.path.exists(objectFile):
-            addObjectToCache(stats, cache, objectFile, compilerOutput, compilerStderr, cachekey)
+            addObjectToCache(stats, cache, cachekey, CompilerArtifacts(objectFile, compilerOutput, compilerStderr))
             cache.compilerArtifactsRepository.removeObjects(stats, removedItems)
             manifestSection.setManifest(manifestHash, manifest)
 
@@ -1338,7 +1340,7 @@ def postprocessNoManifestMiss(
         stats.registerSourceChangedMiss()
         if returnCode == 0 and os.path.exists(objectFile):
             # Store compile output and manifest
-            addObjectToCache(stats, cache, objectFile, compilerOutput, compilerStderr, cachekey)
+            addObjectToCache(stats, cache, cachekey, CompilerArtifacts(objectFile, compilerOutput, compilerStderr))
             manifestSection.setManifest(manifestHash, manifest)
 
     return returnCode, compilerOutput, compilerStderr
@@ -1508,7 +1510,7 @@ def processNoDirect(cache, objectFile, compiler, cmdLine):
     with cache.lock, cache.statistics as stats:
         stats.registerCacheMiss()
         if returnCode == 0 and os.path.exists(objectFile):
-            addObjectToCache(stats, cache, objectFile, compilerStdout, compilerStderr, cachekey)
+            addObjectToCache(stats, cache, cachekey, CompilerArtifacts(objectFile, compilerStdout, compilerStderr))
 
     printTraceStatement("Finished. Exit code {0:d}".format(returnCode))
     return returnCode, compilerStdout, compilerStderr
