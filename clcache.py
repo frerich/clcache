@@ -256,8 +256,7 @@ class CompilerArtifactsSection(object):
             self._setCachedCompilerConsoleOutput(key, 'stderr.txt', compilerStderr)
 
     def getEntry(self, key):
-        if not os.path.exists(self.cacheEntryDir(key)):
-            return None
+        assert self.hasEntry(key)
         return CompilerArtifacts(
             self.cachedObjectName(key),
             self._getCachedCompilerConsoleOutput(key, 'output.txt'),
