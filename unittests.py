@@ -30,6 +30,7 @@ from clcache import (
     InvalidArgumentError,
     MultipleSourceFilesComplexError,
     NoSourceFileError,
+    PersistentJSONDict,
 )
 
 
@@ -861,6 +862,16 @@ class TestParseIncludes(unittest.TestCase):
         self.assertTrue(
             r'c:\program files (x86)\microsoft visual studio 12.0\vc\include\concurrencysal.h' in includesSet)
         self.assertTrue(r'' not in includesSet)
+
+
+class TestPersistentJSONDict(unittest.TestCase):
+    def testEmptyFile(self):
+        emptyFile = os.path.join(ASSETS_DIR, "empty_file.txt")
+        clcache.PersistentJSONDict(emptyFile)
+
+    def testBrokenJson(self):
+        emptyFile = os.path.join(ASSETS_DIR, "broken_json.txt")
+        clcache.PersistentJSONDict(emptyFile)
 
 
 if __name__ == '__main__':
