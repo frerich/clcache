@@ -438,7 +438,9 @@ class PersistentJSONDict(object):
         self._fileName = fileName
         try:
             with open(self._fileName, 'r') as f:
-                self._dict = json.load(f)
+                data = f.read()
+                if len(data) != 0:
+                    self._dict = json.loads(data)
         except IOError:
             pass
 

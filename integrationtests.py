@@ -232,6 +232,15 @@ class TestHits(unittest.TestCase):
             self.assertEqual(newHits, oldHits + 1)
 
 
+class TestPersistentJSONDict(unittest.TestCase):
+    def testEmptyFile(self):
+        emptyFile = os.path.join(ASSETS_DIR, "temporary_file.txt")
+        with open(emptyFile, "w") as f:
+            f.write("")
+
+        clcache.PersistentJSONDict(emptyFile)
+
+
 class TestPrecompiledHeaders(unittest.TestCase):
     def testSampleproject(self):
         with cd(os.path.join(ASSETS_DIR, "precompiled-headers")):
