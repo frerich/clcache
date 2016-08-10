@@ -870,8 +870,8 @@ class TestPersistentJSONDict(unittest.TestCase):
         clcache.PersistentJSONDict(emptyFile)
 
     def testBrokenJson(self):
-        emptyFile = os.path.join(ASSETS_DIR, "broken_json.txt")
-        clcache.PersistentJSONDict(emptyFile)
+        brokenJson = os.path.join(ASSETS_DIR, "broken_json.txt")
+        clcache.PersistentJSONDict(brokenJson)
 
 
 if __name__ == '__main__':
