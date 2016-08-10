@@ -12,6 +12,7 @@ from collections import defaultdict, namedtuple
 import errno
 import hashlib
 import json
+from json.decoder import JSONDecodeError
 import os
 from shutil import copyfile, rmtree
 import subprocess
@@ -439,7 +440,7 @@ class PersistentJSONDict(object):
         try:
             with open(self._fileName, 'r') as f:
                 self._dict = json.load(f)
-        except (IOError, json.decoder.JSONDecodeError):
+        except (IOError, JSONDecodeError):
             pass
 
     def save(self):
