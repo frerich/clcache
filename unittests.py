@@ -867,11 +867,11 @@ class TestParseIncludes(unittest.TestCase):
 class TestPersistentJSONDict(unittest.TestCase):
     def testEmptyFile(self):
         emptyFile = os.path.join(ASSETS_DIR, "empty_file.txt")
-        clcache.PersistentJSONDict(emptyFile)
+        PersistentJSONDict(emptyFile)
 
     def testBrokenJson(self):
         brokenJson = os.path.join(ASSETS_DIR, "broken_json.txt")
-        clcache.PersistentJSONDict(brokenJson)
+        PersistentJSONDict(brokenJson)
 
 
 if __name__ == '__main__':
