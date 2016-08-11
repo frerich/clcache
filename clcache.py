@@ -130,6 +130,9 @@ class ManifestSection(object):
                 return Manifest(doc['includeFiles'], doc['includesContentToObjectMap'])
         except IOError:
             return None
+        except ValueError:
+            print("clcache: manifest file %s was broken" % fileName, file=sys.stderr)
+            return None
 
 
 class ManifestRepository(object):
@@ -439,8 +442,10 @@ class PersistentJSONDict(object):
         try:
             with open(self._fileName, 'r') as f:
                 self._dict = json.load(f)
-        except (IOError, ValueError):
+        except IOError:
             pass
+        except ValueError:
+            print("clcache: persistent json file %s was broken" % fileName, file=sys.stderr)
 
     def save(self):
         if self._dirty:

@@ -257,6 +257,13 @@ class TestManifestRepository(unittest.TestCase):
         retrieved = mm.section("ffffffffffffffffffffffffffffffff").getManifest("ffffffffffffffffffffffffffffffff")
         self.assertIsNone(retrieved)
 
+    def testBrokenManifest(self):
+        manifestsRootDir = os.path.join(ASSETS_DIR, "manifests")
+        mm = ManifestRepository(manifestsRootDir)
+
+        retrieved = mm.section("brokenmanifest").getManifest("brokenmanifest")
+        self.assertIsNone(retrieved)
+
     def testClean(self):
         manifestsRootDir = os.path.join(ASSETS_DIR, "manifests")
         mm = ManifestRepository(manifestsRootDir)
