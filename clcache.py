@@ -95,6 +95,10 @@ class IncludeNotFoundException(Exception):
     pass
 
 
+class IncludeChangedException(Exception):
+    pass
+
+
 class CacheLockException(Exception):
     pass
 
@@ -122,7 +126,7 @@ class ManifestSection(object):
         ensureDirectoryExists(self.manifestSectionDir)
         with open(self.manifestPath(manifestHash), 'w') as outFile:
             # Converting namedtuple to JSON via OrderedDict preserves key names and keys order
-            json.dump(manifest._asdict(), outFile, indent=2)
+            json.dump(manifest._asdict(), outFile, sort_keys=True, indent=2)
 
     def getManifest(self, manifestHash):
         fileName = self.manifestPath(manifestHash)
@@ -142,7 +146,7 @@ class ManifestRepository(object):
     # invalidation, such that a manifest that was stored using the old format is not
     # interpreted using the new format. Instead the old file will not be touched
     # again due to a new manifest hash and is cleaned away after some time.
-    MANIFEST_FILE_FORMAT_VERSION = 3
+    MANIFEST_FILE_FORMAT_VERSION = 4
 
     def __init__(self, manifestsRootDir):
         self._manifestsRootDir = manifestsRootDir
@@ -188,11 +192,22 @@ class ManifestRepository(object):
         return getFileHash(sourceFile, additionalData)
 
     @staticmethod
-    def getIncludesContentHashForFiles(listOfIncludesAbsolute):
-        try:
-            listOfIncludesHashes = [getFileHash(filepath) for filepath in listOfIncludesAbsolute]
-        except FileNotFoundError as e:
-            raise IncludeNotFoundException(e.filename)
+    def getIncludesContentHashForFiles(includes):
+        listOfIncludesHashes = []
+        includeMissing = False
+
+        for path in sorted(includes.keys()):
+            try:
+                fileHash = getFileHash(path)
+                if fileHash != includes[path]:
+                    raise IncludeChangedException()
+                listOfIncludesHashes.append(fileHash)
+            except FileNotFoundError:
+                includeMissing = True
+
+        if includeMissing:
+            raise IncludeNotFoundException()
+
         return ManifestRepository.getIncludesContentHashForHashes(listOfIncludesHashes)
 
     @staticmethod
@@ -1334,15 +1349,19 @@ def postprocessNoManifestMiss(
     cachekey = None
 
     if returnCode == 0 and os.path.exists(objectFile):
-        listOfIncludes = sorted(includePaths)
-        # Store compile output and manifest
+        includes = {path:getFileHash(path) for path in includePaths}
+        includesContentHash = ManifestRepository.getIncludesContentHashForFiles(includes)
+        cachekey = Cache.getDirectCacheKey(manifestHash, includesContentHash)
+
+        # Create new manifest
         if baseDir:
-            relocatableIncludePaths = [collapseBasedirToPlaceholder(path, baseDir) for path in listOfIncludes]
+            relocatableIncludePaths = {
+                collapseBasedirToPlaceholder(path, baseDir):contentHash
+                for path, contentHash in includes.items()
+            }
             manifest = Manifest(relocatableIncludePaths, {})
         else:
-            manifest = Manifest(listOfIncludes, {})
-        includesContentHash = ManifestRepository.getIncludesContentHashForFiles(listOfIncludes)
-        cachekey = Cache.getDirectCacheKey(manifestHash, includesContentHash)
+            manifest = Manifest(includes, {})
         manifest.includesContentToObjectMap[includesContentHash] = cachekey
 
     with cache.lock, cache.statistics as stats:
@@ -1470,6 +1489,11 @@ def processCompileRequest(cache, compiler, args):
     except CalledForPreprocessingError:
         printTraceStatement("Cannot cache invocation as {}: called for preprocessing".format(cmdLine))
         updateCacheStatistics(cache, Statistics.registerCallForPreprocessing)
+    except IncludeChangedException:
+        updateCacheStatistics(cache, Statistics.registerHeaderChangedMiss)
+    except IncludeNotFoundException:
+        # register nothing. This is probably just a compile error
+        pass
 
     return invokeRealCompiler(compiler, args[1:])
 
@@ -1482,8 +1506,10 @@ def processDirect(cache, objectFile, compiler, cmdLine, sourceFile):
         manifest = manifestSection.getManifest(manifestHash)
         if manifest is not None:
             # NOTE: command line options already included in hash for manifest name
-            includesContentHash = ManifestRepository.getIncludesContentHashForFiles(
-                [expandBasedirPlaceholder(include, baseDir) for include in manifest.includeFiles])
+            includesContentHash = ManifestRepository.getIncludesContentHashForFiles({
+                expandBasedirPlaceholder(path, baseDir):contentHash
+                for path, contentHash in manifest.includeFiles.items()
+            })
             cachekey = manifest.includesContentToObjectMap.get(includesContentHash)
             if cachekey is not None:
                 if cache.compilerArtifactsRepository.section(cachekey).hasEntry(cachekey):
