@@ -1231,12 +1231,14 @@ def clearCache(cache):
     print('Cache cleared')
 
 
-# Returns pair - list of includes and new compiler output.
+# Returns pair:
+#   1. set of include filepaths
+#   2. new compiler output
 # Output changes if strip is True in that case all lines with include
 # directives are stripped from it
-def parseIncludesList(compilerOutput, sourceFile, strip):
+def parseIncludesSet(compilerOutput, sourceFile, strip):
     newOutput = []
-    includesSet = set([])
+    includesSet = set()
 
     # Example lines
     # Note: including file:         C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\INCLUDE\limits.h
@@ -1263,9 +1265,9 @@ def parseIncludesList(compilerOutput, sourceFile, strip):
         elif strip:
             newOutput.append(line)
     if strip:
-        return sorted(includesSet), ''.join(newOutput)
+        return includesSet, ''.join(newOutput)
     else:
-        return sorted(includesSet), compilerOutput
+        return includesSet, compilerOutput
 
 
 def addObjectToCache(stats, cache, cachekey, artifacts):
@@ -1326,12 +1328,13 @@ def postprocessHeaderChangedMiss(
 def postprocessNoManifestMiss(
         cache, objectFile, manifestSection, manifestHash, baseDir, sourceFile, compilerResult, stripIncludes):
     returnCode, compilerOutput, compilerStderr = compilerResult
-    listOfIncludes, compilerOutput = parseIncludesList(compilerOutput, sourceFile, stripIncludes)
+    includePaths, compilerOutput = parseIncludesSet(compilerOutput, sourceFile, stripIncludes)
 
     manifest = None
     cachekey = None
 
     if returnCode == 0 and os.path.exists(objectFile):
+        listOfIncludes = sorted(includePaths)
         # Store compile output and manifest
         if baseDir:
             relocatableIncludePaths = [collapseBasedirToPlaceholder(path, baseDir) for path in listOfIncludes]
