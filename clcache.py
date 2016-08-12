@@ -1318,17 +1318,34 @@ def postprocessObjectEvicted(cache, objectFile, cachekey, compilerResult):
     return compilerResult
 
 
-def postprocessHeaderChangedMiss(
-        cache, objectFile, manifestSection, manifest, manifestHash, includesContentHash, compilerResult):
+def createManifest(manifestHash, includePaths):
+    baseDir = normalizeBaseDir(os.environ.get('CLCACHE_BASEDIR'))
+
+    includes = {path:getFileHash(path) for path in includePaths}
+    includesContentHash = ManifestRepository.getIncludesContentHashForFiles(includes)
     cachekey = Cache.getDirectCacheKey(manifestHash, includesContentHash)
+
+    # Create new manifest
+    if baseDir:
+        relocatableIncludePaths = {
+            collapseBasedirToPlaceholder(path, baseDir):contentHash
+            for path, contentHash in includes.items()
+        }
+        manifest = Manifest(relocatableIncludePaths, {})
+    else:
+        manifest = Manifest(includes, {})
+    manifest.includesContentToObjectMap[includesContentHash] = cachekey
+    return manifest, cachekey
+
+
+def postprocessHeaderChangedMiss(
+        cache, objectFile, manifestSection, manifestHash, sourceFile, compilerResult, stripIncludes):
     returnCode, compilerOutput, compilerStderr = compilerResult
+    includePaths, compilerOutput = parseIncludesSet(compilerOutput, sourceFile, stripIncludes)
 
     removedItems = []
     if returnCode == 0 and os.path.exists(objectFile):
-        while len(manifest.includesContentToObjectMap) >= MAX_MANIFEST_HASHES:
-            _, objectHash = manifest.includesContentToObjectMap.popitem()
-            removedItems.append(objectHash)
-        manifest.includesContentToObjectMap[includesContentHash] = cachekey
+        manifest, cachekey = createManifest(manifestHash, includePaths)
 
     with cache.lock, cache.statistics as stats:
         stats.registerHeaderChangedMiss()
@@ -1341,7 +1358,7 @@ def postprocessHeaderChangedMiss(
 
 
 def postprocessNoManifestMiss(
-        cache, objectFile, manifestSection, manifestHash, baseDir, sourceFile, compilerResult, stripIncludes):
+        cache, objectFile, manifestSection, manifestHash, sourceFile, compilerResult, stripIncludes):
     returnCode, compilerOutput, compilerStderr = compilerResult
     includePaths, compilerOutput = parseIncludesSet(compilerOutput, sourceFile, stripIncludes)
 
@@ -1349,20 +1366,7 @@ def postprocessNoManifestMiss(
     cachekey = None
 
     if returnCode == 0 and os.path.exists(objectFile):
-        includes = {path:getFileHash(path) for path in includePaths}
-        includesContentHash = ManifestRepository.getIncludesContentHashForFiles(includes)
-        cachekey = Cache.getDirectCacheKey(manifestHash, includesContentHash)
-
-        # Create new manifest
-        if baseDir:
-            relocatableIncludePaths = {
-                collapseBasedirToPlaceholder(path, baseDir):contentHash
-                for path, contentHash in includes.items()
-            }
-            manifest = Manifest(relocatableIncludePaths, {})
-        else:
-            manifest = Manifest(includes, {})
-        manifest.includesContentToObjectMap[includesContentHash] = cachekey
+        manifest, cachekey = createManifest(manifestHash, includePaths)
 
     with cache.lock, cache.statistics as stats:
         stats.registerSourceChangedMiss()
@@ -1498,6 +1502,7 @@ def processDirect(cache, objectFile, compiler, cmdLine, sourceFile):
     manifestHash = ManifestRepository.getManifestHash(compiler, cmdLine, sourceFile)
     manifestSection = cache.manifestRepository.section(manifestHash)
     with cache.lock:
+        createNewManifest = False
         manifest = manifestSection.getManifest(manifestHash)
         if manifest is not None:
             # NOTE: command line options already included in hash for manifest name
@@ -1515,19 +1520,22 @@ def processDirect(cache, objectFile, compiler, cmdLine, sourceFile):
                     postProcessing = lambda compilerResult: postprocessObjectEvicted(
                         cache, objectFile, cachekey, compilerResult)
             except IncludeChangedException:
+                createNewManifest = True
                 postProcessing = lambda compilerResult: postprocessHeaderChangedMiss(
-                    cache, objectFile, manifestSection, manifest, manifestHash, includesContentHash, compilerResult)
+                    cache, objectFile, manifestSection, manifestHash, sourceFile, compilerResult, stripIncludes)
             except IncludeNotFoundException:
                 # register nothing. This is probably just a compile error
                 postProcessing = None
         else:
-            origCmdLine = cmdLine
-            stripIncludes = False
-            if '/showIncludes' not in cmdLine:
-                cmdLine = ['/showIncludes'] + origCmdLine
-                stripIncludes = True
+            createNewManifest = True
             postProcessing = lambda compilerResult: postprocessNoManifestMiss(
-                cache, objectFile, manifestSection, manifestHash, baseDir, sourceFile, compilerResult, stripIncludes)
+                cache, objectFile, manifestSection, manifestHash, sourceFile, compilerResult, stripIncludes)
+
+    if createNewManifest:
+        stripIncludes = False
+        if '/showIncludes' not in cmdLine:
+            cmdLine.insert(0, '/showIncludes')
+            stripIncludes = True
 
     compilerResult = invokeRealCompiler(compiler, cmdLine, captureOutput=True)
     if postProcessing:
