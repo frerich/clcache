@@ -337,6 +337,7 @@ class TestHeaderMiss(unittest.TestCase):
         # A includes B
         with cd(os.path.join(ASSETS_DIR, "header-miss-obsolete")):
             compileCmd = CLCACHE_CMD + ["/I.", "/nologo", "/EHsc", "/c", "main.cpp"]
+            cache = clcache.Cache()
 
             with open("A.h", "w") as header:
                 header.write('#define INFO 1337\n')
@@ -346,12 +347,39 @@ class TestHeaderMiss(unittest.TestCase):
 
             subprocess.check_call(compileCmd)
 
+            with cache.statistics as stats:
+                headerChangedMisses1 = stats.numHeaderChangedMisses()
+                hits1 = stats.numCacheHits()
+                misses1 = stats.numCacheMisses()
+
+            # Make include B.h obsolete
             with open("A.h", "w") as header:
                 header.write('#define INFO 1337\n')
                 header.write('\n')
             os.remove("B.h")
 
             subprocess.check_call(compileCmd)
+
+            with cache.statistics as stats:
+                headerChangedMisses2 = stats.numHeaderChangedMisses()
+                hits2 = stats.numCacheHits()
+                misses2 = stats.numCacheMisses()
+
+            self.assertEqual(headerChangedMisses2, headerChangedMisses1+1)
+            self.assertEqual(misses2, misses1+1)
+            self.assertEqual(hits2, hits1)
+
+            # Ensure the new manifest was stored
+            subprocess.check_call(compileCmd)
+
+            with cache.statistics as stats:
+                headerChangedMisses3 = stats.numHeaderChangedMisses()
+                hits3 = stats.numCacheHits()
+                misses3 = stats.numCacheMisses()
+
+            self.assertEqual(headerChangedMisses3, headerChangedMisses2)
+            self.assertEqual(misses3, misses2)
+            self.assertEqual(hits3, hits2+1)
 
 
 class TestRunParallel(unittest.TestCase):
