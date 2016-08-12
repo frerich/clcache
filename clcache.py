@@ -1489,11 +1489,6 @@ def processCompileRequest(cache, compiler, args):
     except CalledForPreprocessingError:
         printTraceStatement("Cannot cache invocation as {}: called for preprocessing".format(cmdLine))
         updateCacheStatistics(cache, Statistics.registerCallForPreprocessing)
-    except IncludeChangedException:
-        updateCacheStatistics(cache, Statistics.registerHeaderChangedMiss)
-    except IncludeNotFoundException:
-        # register nothing. This is probably just a compile error
-        pass
 
     return invokeRealCompiler(compiler, args[1:])
 
@@ -1506,20 +1501,25 @@ def processDirect(cache, objectFile, compiler, cmdLine, sourceFile):
         manifest = manifestSection.getManifest(manifestHash)
         if manifest is not None:
             # NOTE: command line options already included in hash for manifest name
-            includesContentHash = ManifestRepository.getIncludesContentHashForFiles({
-                expandBasedirPlaceholder(path, baseDir):contentHash
-                for path, contentHash in manifest.includeFiles.items()
-            })
-            cachekey = manifest.includesContentToObjectMap.get(includesContentHash)
-            if cachekey is not None:
+            try:
+                includesContentHash = ManifestRepository.getIncludesContentHashForFiles({
+                    expandBasedirPlaceholder(path, baseDir):contentHash
+                    for path, contentHash in manifest.includeFiles.items()
+                })
+
+                cachekey = manifest.includesContentToObjectMap.get(includesContentHash)
+                assert cachekey is not None
                 if cache.compilerArtifactsRepository.section(cachekey).hasEntry(cachekey):
                     return processCacheHit(cache, objectFile, cachekey)
                 else:
                     postProcessing = lambda compilerResult: postprocessObjectEvicted(
                         cache, objectFile, cachekey, compilerResult)
-            else:
+            except IncludeChangedException:
                 postProcessing = lambda compilerResult: postprocessHeaderChangedMiss(
                     cache, objectFile, manifestSection, manifest, manifestHash, includesContentHash, compilerResult)
+            except IncludeNotFoundException:
+                # register nothing. This is probably just a compile error
+                postProcessing = None
         else:
             origCmdLine = cmdLine
             stripIncludes = False
@@ -1530,7 +1530,8 @@ def processDirect(cache, objectFile, compiler, cmdLine, sourceFile):
                 cache, objectFile, manifestSection, manifestHash, baseDir, sourceFile, compilerResult, stripIncludes)
 
     compilerResult = invokeRealCompiler(compiler, cmdLine, captureOutput=True)
-    compilerResult = postProcessing(compilerResult)
+    if postProcessing:
+        compilerResult = postProcessing(compilerResult)
     printTraceStatement("Finished. Exit code {0:d}".format(compilerResult[0]))
     return compilerResult
 
