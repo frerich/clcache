@@ -411,6 +411,14 @@ class TestRunParallel(unittest.TestCase):
                 self.assertEqual(stats.numCacheEntries(), 2)
 
 
+class TestMultipleSourceWithClEnv(unittest.TestCase):
+    def testAppend(self):
+        with cd(os.path.join(ASSETS_DIR)):
+            customEnv = dict(os.environ, _CL_="minimal.cpp")
+            cmd = CLCACHE_CMD + ["/nologo", "/EHsc", "/c"]
+            subprocess.check_call(cmd + ["fibonacci.cpp"], env=customEnv)
+
+
 class TestClearing(unittest.TestCase):
     def _clearCache(self):
         subprocess.check_call(CLCACHE_CMD + ["-C"])
