@@ -545,7 +545,6 @@ class TestNoDirectCalls(unittest.TestCase):
             with cache.statistics as stats:
                 self.assertEqual(stats.numCacheHits(), oldHits + 1)
 
-
     def testHitViaMpSequential(self):
         with cd(os.path.join(ASSETS_DIR, "parallel")), tempfile.TemporaryDirectory() as tempDir:
             cache = clcache.Cache(tempDir)
@@ -604,6 +603,8 @@ class TestNoDirectCalls(unittest.TestCase):
                 self.assertEqual(stats.numCacheHits(), 2)
                 self.assertEqual(stats.numCacheMisses(), 2)
                 self.assertEqual(stats.numCacheEntries(), 2)
+
+
 class TestBasedir(unittest.TestCase):
     def testBasedir(self):
         with cd(os.path.join(ASSETS_DIR, "basedir")), tempfile.TemporaryDirectory() as tempDir:
