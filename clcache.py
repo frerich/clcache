@@ -330,10 +330,10 @@ class CompilerArtifactsRepository(object):
         return len(objectInfos)-removedItems, currentSizeObjects
 
     @staticmethod
-    def computeCompilerArtifactsKey(compilerBinary, commandLine):
+    def computeCompilerArtifactsKey(compilerBinary, commandLine, environment):
         ppcmd = [compilerBinary, "/EP"]
         ppcmd += [arg for arg in commandLine if arg not in ("-c", "/c")]
-        preprocessor = Popen(ppcmd, stdout=PIPE, stderr=PIPE)
+        preprocessor = Popen(ppcmd, stdout=PIPE, stderr=PIPE, env=environment)
         (preprocessedSourceCode, ppStderrBinary) = preprocessor.communicate()
 
         if preprocessor.returncode != 0:
@@ -894,6 +894,20 @@ def expandCommandLine(cmdline):
     return ret
 
 
+def extentCommandLineFromEnvironment(cmdLine, environment):
+    remainingEnvironment = environment.copy()
+
+    prependCmdLineString = remainingEnvironment.pop('CL', None)
+    if prependCmdLineString is not None:
+        cmdLine = splitCommandsFile(prependCmdLineString.strip()) + cmdLine
+
+    appendCmdLineString = remainingEnvironment.pop('_CL_', None)
+    if appendCmdLineString is not None:
+        cmdLine = cmdLine + splitCommandsFile(appendCmdLineString.strip())
+
+    return cmdLine, remainingEnvironment
+
+
 class Argument(object):
     def __init__(self, name):
         self.name = name
@@ -1055,15 +1069,18 @@ class CommandLineAnalyzer(object):
         return inputFiles, objectFile
 
 
-def invokeRealCompiler(compilerBinary, cmdLine, captureOutput=False):
+def invokeRealCompiler(compilerBinary, cmdLine, captureOutput=False, environment=None):
     realCmdline = [compilerBinary] + cmdLine
     printTraceStatement("Invoking real compiler as {}".format(realCmdline))
+
+    if not environment:
+        environment = os.environ
 
     returnCode = None
     stdout = ''
     stderr = ''
     if captureOutput:
-        compilerProcess = Popen(realCmdline, stdout=PIPE, stderr=PIPE)
+        compilerProcess = Popen(realCmdline, stdout=PIPE, stderr=PIPE, env=environment)
         stdoutBinary, stderrBinary = compilerProcess.communicate()
         stdout = stdoutBinary.decode(CL_DEFAULT_CODEC)
         stderr = stderrBinary.decode(CL_DEFAULT_CODEC)
@@ -1423,7 +1440,8 @@ def updateCacheStatistics(cache, method):
 def processCompileRequest(cache, compiler, args):
     printTraceStatement("Parsing given commandline '{0!s}'".format(args[1:]))
 
-    cmdLine = expandCommandLine(args[1:])
+    cmdLine, environment = extentCommandLineFromEnvironment(args[1:], os.environ)
+    cmdLine = expandCommandLine(cmdLine)
     printTraceStatement("Expanded commandline '{0!s}'".format(cmdLine))
 
     try:
@@ -1434,7 +1452,7 @@ def processCompileRequest(cache, compiler, args):
         else:
             assert objectFile is not None
             if 'CLCACHE_NODIRECT' in os.environ:
-                return processNoDirect(cache, objectFile, compiler, cmdLine)
+                return processNoDirect(cache, objectFile, compiler, cmdLine, environment)
             else:
                 return processDirect(cache, objectFile, compiler, cmdLine, sourceFiles[0])
     except InvalidArgumentError:
@@ -1499,13 +1517,14 @@ def processDirect(cache, objectFile, compiler, cmdLine, sourceFile):
     return compilerResult
 
 
-def processNoDirect(cache, objectFile, compiler, cmdLine):
-    cachekey = CompilerArtifactsRepository.computeCompilerArtifactsKey(compiler, cmdLine)
+def processNoDirect(cache, objectFile, compiler, cmdLine, environment):
+    cachekey = CompilerArtifactsRepository.computeCompilerArtifactsKey(compiler, cmdLine, environment)
     with cache.lock:
         if cache.compilerArtifactsRepository.section(cachekey).hasEntry(cachekey):
             return processCacheHit(cache, objectFile, cachekey)
 
-    returnCode, compilerStdout, compilerStderr = invokeRealCompiler(compiler, cmdLine, captureOutput=True)
+    compilerResult = invokeRealCompiler(compiler, cmdLine, captureOutput=True, environment=environment)
+    returnCode, compilerStdout, compilerStderr = compilerResult
     with cache.lock, cache.statistics as stats:
         stats.registerCacheMiss()
         if returnCode == 0 and os.path.exists(objectFile):
