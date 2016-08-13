@@ -1137,7 +1137,7 @@ def jobCount(cmdLine):
 
 # Run commands, up to j concurrently.
 # Aborts on first failure and returns the first non-zero exit code.
-def runJobs(commands, j=1):
+def runJobs(commands, environment, j=1):
     running = []
 
     while len(commands):
@@ -1148,7 +1148,7 @@ def runJobs(commands, j=1):
                 return thiscode
 
         thiscmd = commands.pop(0)
-        running.append(Popen(thiscmd))
+        running.append(Popen(thiscmd, env=environment))
 
     while len(running) > 0:
         thiscode = waitForAnyProcess(running).returncode
@@ -1161,7 +1161,7 @@ def runJobs(commands, j=1):
 # re-invoke clcache.py once per source file.
 # Used when called via nmake 'batch mode'.
 # Returns the first non-zero exit code encountered, or 0 if all jobs succeed.
-def reinvokePerSourceFile(cmdLine, sourceFiles):
+def reinvokePerSourceFile(cmdLine, sourceFiles, environment):
     printTraceStatement("Will reinvoke self for: {}".format(sourceFiles))
     commands = []
     for sourceFile in sourceFiles:
@@ -1181,7 +1181,7 @@ def reinvokePerSourceFile(cmdLine, sourceFiles):
         printTraceStatement("Child: {}".format(newCmdLine))
         commands.append(newCmdLine)
 
-    return runJobs(commands, jobCount(cmdLine))
+    return runJobs(commands, environment, jobCount(cmdLine))
 
 def printStatistics(cache):
     template = """
@@ -1448,7 +1448,7 @@ def processCompileRequest(cache, compiler, args):
         sourceFiles, objectFile = CommandLineAnalyzer.analyze(cmdLine)
 
         if len(sourceFiles) > 1:
-            return reinvokePerSourceFile(cmdLine, sourceFiles), '', ''
+            return reinvokePerSourceFile(cmdLine, sourceFiles, environment), '', ''
         else:
             assert objectFile is not None
             if 'CLCACHE_NODIRECT' in os.environ:
