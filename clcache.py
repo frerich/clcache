@@ -1354,7 +1354,7 @@ def postprocessHeaderChangedMiss(
             cache.compilerArtifactsRepository.removeObjects(stats, removedItems)
             manifestSection.setManifest(manifestHash, manifest)
 
-    return compilerResult
+    return returnCode, compilerOutput, compilerStderr
 
 
 def postprocessNoManifestMiss(
