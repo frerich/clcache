@@ -869,16 +869,16 @@ def expandCommandLine(cmdline):
 
             encoding = None
 
-            encodingByBom = {
+            bomToEncoding = {
                 codecs.BOM_UTF32_BE: 'utf-32-be',
                 codecs.BOM_UTF32_LE: 'utf-32-le',
                 codecs.BOM_UTF16_BE: 'utf-16-be',
                 codecs.BOM_UTF16_LE: 'utf-16-le',
             }
 
-            for bom, _ in list(encodingByBom.items()):
+            for bom, enc in bomToEncoding.items():
                 if rawBytes.startswith(bom):
-                    encoding = encodingByBom[bom]
+                    encoding = enc
                     rawBytes = rawBytes[len(bom):]
                     break
 
