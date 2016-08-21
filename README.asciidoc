@@ -143,8 +143,8 @@ CLCACHE_OBJECT_CACHE_TIMEOUT_MS::
 Known limitations
 ~~~~~~~~~~~~~~~~~
 
-* https://msdn.microsoft.com/en-us/library/kezkeayy.aspx[CL and +_CL_+] environment
-  variables are not supported.
+* https://msdn.microsoft.com/en-us/library/kezkeayy.aspx[+INCLUDE+ and +LIBPATH+]
+  environment variables are not supported.
 
 How clcache works
 ~~~~~~~~~~~~~~~~~
