@@ -320,10 +320,10 @@ class CompilerArtifactsRepository(object):
     def clean(self, maxCompilerArtifactsSize):
         objectInfos = []
         for section in self.sections():
-            objectPaths = (section.cachedObjectName(key) for key in section.cacheEntries())
-            for objectPath in objectPaths:
+            for cachekey in section.cacheEntries():
                 try:
-                    objectInfos.append((os.stat(objectPath), objectPath))
+                    objectStat = os.stat(section.cachedObjectName(cachekey))
+                    objectInfos.append((objectStat, cachekey))
                 except OSError:
                     pass
 
@@ -333,8 +333,8 @@ class CompilerArtifactsRepository(object):
         currentSizeObjects = sum(x[0].st_size for x in objectInfos)
 
         removedItems = 0
-        for stat, fn in objectInfos:
-            rmtree(os.path.split(fn)[0], ignore_errors=True)
+        for stat, cachekey in objectInfos:
+            self.removeEntry(cachekey)
             removedItems += 1
             currentSizeObjects -= stat.st_size
             if currentSizeObjects < maxCompilerArtifactsSize:
