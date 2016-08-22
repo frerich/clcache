@@ -329,10 +329,10 @@ class CompilerArtifactsRepository(object):
     def clean(self, maxCompilerArtifactsSize):
         objectInfos = []
         for section in self.sections():
-            objects = (section.cachedObjectName(key) for key in section.cacheEntries())
-            for o in objects:
+            objectPaths = (section.cachedObjectName(key) for key in section.cacheEntries())
+            for objectPath in objectPaths:
                 try:
-                    objectInfos.append((os.stat(o), o))
+                    objectInfos.append((os.stat(objectPath), objectPath))
                 except OSError:
                     pass
 
