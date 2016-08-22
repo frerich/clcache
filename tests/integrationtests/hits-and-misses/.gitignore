@@ -1,0 +1,4 @@
+*.obj
+
+# written by the tests
+stable-source-with-alternating-header.h
