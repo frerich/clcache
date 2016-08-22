@@ -1581,7 +1581,7 @@ def processNoDirect(cache, objectFile, compiler, cmdLine, environment):
 
 if __name__ == '__main__':
     if 'CLCACHE_PROFILE' in os.environ:
-        invocationHash = getStringHash(','.join(sys.argv))
-        cProfile.run('main()', filename='clcache-{}.prof'.format(invocationHash))
+        INVOCATION_HASH = getStringHash(','.join(sys.argv))
+        cProfile.run('main()', filename='clcache-{}.prof'.format(INVOCATION_HASH))
     else:
         sys.exit(main())
