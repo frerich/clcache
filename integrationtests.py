@@ -411,6 +411,71 @@ class TestRunParallel(unittest.TestCase):
                 self.assertEqual(stats.numCacheEntries(), 2)
 
 
+# Compiler calls with multiple sources files at once, e.g.
+# cl file1.c file2.c
+class TestMultipleSources(unittest.TestCase):
+    def testTwo(self):
+        with cd(os.path.join(ASSETS_DIR, "mutiple-sources")), tempfile.TemporaryDirectory() as tempDir:
+            cache = clcache.Cache(tempDir)
+            customEnv = dict(os.environ, CLCACHE_DIR=tempDir)
+            baseCmd = CLCACHE_CMD + ["/nologo", "/EHsc", "/c"]
+
+            with cache.statistics as stats:
+                self.assertEqual(stats.numCacheHits(), 0)
+                self.assertEqual(stats.numCacheMisses(), 0)
+                self.assertEqual(stats.numCacheEntries(), 0)
+
+            subprocess.check_call(baseCmd + ["fibonacci01.cpp", "fibonacci02.cpp"], env=customEnv)
+
+            with cache.statistics as stats:
+                self.assertEqual(stats.numCacheHits(), 0)
+                self.assertEqual(stats.numCacheMisses(), 2)
+                self.assertEqual(stats.numCacheEntries(), 2)
+
+            subprocess.check_call(baseCmd + ["fibonacci01.cpp", "fibonacci02.cpp"], env=customEnv)
+
+            with cache.statistics as stats:
+                self.assertEqual(stats.numCacheHits(), 2)
+                self.assertEqual(stats.numCacheMisses(), 2)
+                self.assertEqual(stats.numCacheEntries(), 2)
+
+    def testFive(self):
+        with cd(os.path.join(ASSETS_DIR, "mutiple-sources")), tempfile.TemporaryDirectory() as tempDir:
+            cache = clcache.Cache(tempDir)
+            customEnv = dict(os.environ, CLCACHE_DIR=tempDir)
+            baseCmd = CLCACHE_CMD + ["/nologo", "/EHsc", "/c"]
+
+            with cache.statistics as stats:
+                self.assertEqual(stats.numCacheHits(), 0)
+                self.assertEqual(stats.numCacheMisses(), 0)
+                self.assertEqual(stats.numCacheEntries(), 0)
+
+            subprocess.check_call(baseCmd + [
+                "fibonacci01.cpp",
+                "fibonacci02.cpp",
+                "fibonacci03.cpp",
+                "fibonacci04.cpp",
+                "fibonacci05.cpp",
+            ], env=customEnv)
+
+            with cache.statistics as stats:
+                self.assertEqual(stats.numCacheHits(), 0)
+                self.assertEqual(stats.numCacheMisses(), 5)
+                self.assertEqual(stats.numCacheEntries(), 5)
+
+            subprocess.check_call(baseCmd + [
+                "fibonacci01.cpp",
+                "fibonacci02.cpp",
+                "fibonacci03.cpp",
+                "fibonacci04.cpp",
+                "fibonacci05.cpp",
+            ], env=customEnv)
+
+            with cache.statistics as stats:
+                self.assertEqual(stats.numCacheHits(), 5)
+                self.assertEqual(stats.numCacheMisses(), 5)
+                self.assertEqual(stats.numCacheEntries(), 5)
+
 class TestMultipleSourceWithClEnv(unittest.TestCase):
     def testAppend(self):
         with cd(os.path.join(ASSETS_DIR)):
