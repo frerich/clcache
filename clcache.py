@@ -313,18 +313,9 @@ class CompilerArtifactsRepository(object):
     def sections(self):
         return (CompilerArtifactsSection(path) for path in childDirectories(self._compilerArtifactsRootDir))
 
-    def removeObjects(self, stats, removedObjects):
-        for o in removedObjects:
-            dirPath = self.section(o).cacheEntryDir(o)
-            if not os.path.exists(dirPath):
-                continue  # May be if object already evicted.
-            objectPath = os.path.join(dirPath, "object")
-            if os.path.exists(objectPath):
-                # May be absent if this if cached compiler
-                # output (for preprocess-only).
-                fileStat = os.stat(objectPath)
-                stats.unregisterCacheEntry(fileStat.st_size)
-            rmtree(dirPath, ignore_errors=True)
+    def removeEntry(self, keyToBeRemoved):
+        compilerArtifactsDir = self.section(keyToBeRemoved).cacheEntryDir(keyToBeRemoved)
+        rmtree(compilerArtifactsDir, ignore_errors=True)
 
     def clean(self, maxCompilerArtifactsSize):
         objectInfos = []
