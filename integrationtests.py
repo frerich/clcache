@@ -312,6 +312,76 @@ class TestHeaderChange(unittest.TestCase):
             self.assertEqual(output, "2")
 
 
+class TestHeaderMiss(unittest.TestCase):
+    # When a required header disappears, we must fall back to real compiler
+    # complaining about the miss
+    def testRequiredHeaderDisappears(self):
+        with cd(os.path.join(ASSETS_DIR, "header-miss")):
+            compileCmd = CLCACHE_CMD + ["/nologo", "/EHsc", "/c", "main.cpp"]
+
+            with open("info.h", "w") as header:
+                header.write("#define INFO 1337\n")
+            subprocess.check_call(compileCmd)
+
+            os.remove("info.h")
+
+            # real compiler fails
+            process = subprocess.Popen(compileCmd, stdout=subprocess.PIPE)
+            stdout, _ = process.communicate()
+            self.assertEqual(process.returncode, 2)
+            self.assertTrue("C1083" in stdout.decode(clcache.CL_DEFAULT_CODEC))
+
+    # When a header included by another header becomes obsolete and disappers,
+    # we must fall back to real compiler.
+    def testObsoleteHeaderDisappears(self):
+        # A includes B
+        with cd(os.path.join(ASSETS_DIR, "header-miss-obsolete")):
+            compileCmd = CLCACHE_CMD + ["/I.", "/nologo", "/EHsc", "/c", "main.cpp"]
+            cache = clcache.Cache()
+
+            with open("A.h", "w") as header:
+                header.write('#define INFO 1337\n')
+                header.write('#include "B.h"\n')
+            with open("B.h", "w") as header:
+                header.write('#define SOMETHING 1\n')
+
+            subprocess.check_call(compileCmd)
+
+            with cache.statistics as stats:
+                headerChangedMisses1 = stats.numHeaderChangedMisses()
+                hits1 = stats.numCacheHits()
+                misses1 = stats.numCacheMisses()
+
+            # Make include B.h obsolete
+            with open("A.h", "w") as header:
+                header.write('#define INFO 1337\n')
+                header.write('\n')
+            os.remove("B.h")
+
+            subprocess.check_call(compileCmd)
+
+            with cache.statistics as stats:
+                headerChangedMisses2 = stats.numHeaderChangedMisses()
+                hits2 = stats.numCacheHits()
+                misses2 = stats.numCacheMisses()
+
+            self.assertEqual(headerChangedMisses2, headerChangedMisses1+1)
+            self.assertEqual(misses2, misses1+1)
+            self.assertEqual(hits2, hits1)
+
+            # Ensure the new manifest was stored
+            subprocess.check_call(compileCmd)
+
+            with cache.statistics as stats:
+                headerChangedMisses3 = stats.numHeaderChangedMisses()
+                hits3 = stats.numCacheHits()
+                misses3 = stats.numCacheMisses()
+
+            self.assertEqual(headerChangedMisses3, headerChangedMisses2)
+            self.assertEqual(misses3, misses2)
+            self.assertEqual(hits3, hits2+1)
+
+
 class TestRunParallel(unittest.TestCase):
     def _zeroStats(self):
         subprocess.check_call(CLCACHE_CMD + ["-z"])
@@ -604,6 +674,8 @@ class TestNoDirectCalls(unittest.TestCase):
                 self.assertEqual(stats.numCacheHits(), 2)
                 self.assertEqual(stats.numCacheMisses(), 2)
                 self.assertEqual(stats.numCacheEntries(), 2)
+
+
 class TestBasedir(unittest.TestCase):
     def testBasedir(self):
         with cd(os.path.join(ASSETS_DIR, "basedir")), tempfile.TemporaryDirectory() as tempDir:

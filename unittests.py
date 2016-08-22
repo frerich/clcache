@@ -812,7 +812,7 @@ class TestParseIncludes(unittest.TestCase):
 
     def testParseIncludesNoStrip(self):
         sample = self._readSampleFileDefault()
-        includesSet, newCompilerOutput = clcache.parseIncludesList(
+        includesSet, newCompilerOutput = clcache.parseIncludesSet(
             sample['CompilerOutput'],
             r'C:\Projects\test\smartsqlite\src\version.cpp',
             strip=False)
@@ -826,7 +826,7 @@ class TestParseIncludes(unittest.TestCase):
 
     def testParseIncludesStrip(self):
         sample = self._readSampleFileDefault()
-        includesSet, newCompilerOutput = clcache.parseIncludesList(
+        includesSet, newCompilerOutput = clcache.parseIncludesSet(
             sample['CompilerOutput'],
             r'C:\Projects\test\smartsqlite\src\version.cpp',
             strip=True)
@@ -841,7 +841,7 @@ class TestParseIncludes(unittest.TestCase):
     def testParseIncludesNoIncludes(self):
         sample = self._readSampleFileNoIncludes()
         for stripIncludes in [True, False]:
-            includesSet, newCompilerOutput = clcache.parseIncludesList(
+            includesSet, newCompilerOutput = clcache.parseIncludesSet(
                 sample['CompilerOutput'],
                 r"C:\Projects\test\myproject\main.cpp",
                 strip=stripIncludes)
@@ -851,7 +851,7 @@ class TestParseIncludes(unittest.TestCase):
 
     def testParseIncludesGerman(self):
         sample = self._readSampleFileDefault(lang="de")
-        includesSet, _ = clcache.parseIncludesList(
+        includesSet, _ = clcache.parseIncludesSet(
             sample['CompilerOutput'],
             r"C:\Projects\test\smartsqlite\src\version.cpp",
             strip=False)
