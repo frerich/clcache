@@ -352,10 +352,10 @@ class CompilerArtifactsRepository(object):
         return len(objectInfos)-removedItems, currentSizeObjects
 
     @staticmethod
-    def computeCompilerArtifactsKey(compilerBinary, commandLine):
+    def computeCompilerArtifactsKey(compilerBinary, commandLine, environment):
         ppcmd = [compilerBinary, "/EP"]
         ppcmd += [arg for arg in commandLine if arg not in ("-c", "/c")]
-        preprocessor = Popen(ppcmd, stdout=PIPE, stderr=PIPE)
+        preprocessor = Popen(ppcmd, stdout=PIPE, stderr=PIPE, env=environment)
         (preprocessedSourceCode, ppStderrBinary) = preprocessor.communicate()
 
         if preprocessor.returncode != 0:
@@ -916,6 +916,20 @@ def expandCommandLine(cmdline):
     return ret
 
 
+def extentCommandLineFromEnvironment(cmdLine, environment):
+    remainingEnvironment = environment.copy()
+
+    prependCmdLineString = remainingEnvironment.pop('CL', None)
+    if prependCmdLineString is not None:
+        cmdLine = splitCommandsFile(prependCmdLineString.strip()) + cmdLine
+
+    appendCmdLineString = remainingEnvironment.pop('_CL_', None)
+    if appendCmdLineString is not None:
+        cmdLine = cmdLine + splitCommandsFile(appendCmdLineString.strip())
+
+    return cmdLine, remainingEnvironment
+
+
 class Argument(object):
     def __init__(self, name):
         self.name = name
@@ -1077,15 +1091,18 @@ class CommandLineAnalyzer(object):
         return inputFiles, objectFile
 
 
-def invokeRealCompiler(compilerBinary, cmdLine, captureOutput=False):
+def invokeRealCompiler(compilerBinary, cmdLine, captureOutput=False, environment=None):
     realCmdline = [compilerBinary] + cmdLine
     printTraceStatement("Invoking real compiler as {}".format(realCmdline))
+
+    if not environment:
+        environment = os.environ
 
     returnCode = None
     stdout = ''
     stderr = ''
     if captureOutput:
-        compilerProcess = Popen(realCmdline, stdout=PIPE, stderr=PIPE)
+        compilerProcess = Popen(realCmdline, stdout=PIPE, stderr=PIPE, env=environment)
         stdoutBinary, stderrBinary = compilerProcess.communicate()
         stdout = stdoutBinary.decode(CL_DEFAULT_CODEC)
         stderr = stderrBinary.decode(CL_DEFAULT_CODEC)
@@ -1142,7 +1159,7 @@ def jobCount(cmdLine):
 
 # Run commands, up to j concurrently.
 # Aborts on first failure and returns the first non-zero exit code.
-def runJobs(commands, j=1):
+def runJobs(commands, environment, j=1):
     running = []
 
     while len(commands):
@@ -1153,7 +1170,7 @@ def runJobs(commands, j=1):
                 return thiscode
 
         thiscmd = commands.pop(0)
-        running.append(Popen(thiscmd))
+        running.append(Popen(thiscmd, env=environment))
 
     while len(running) > 0:
         thiscode = waitForAnyProcess(running).returncode
@@ -1166,7 +1183,7 @@ def runJobs(commands, j=1):
 # re-invoke clcache.py once per source file.
 # Used when called via nmake 'batch mode'.
 # Returns the first non-zero exit code encountered, or 0 if all jobs succeed.
-def reinvokePerSourceFile(cmdLine, sourceFiles):
+def reinvokePerSourceFile(cmdLine, sourceFiles, environment):
     printTraceStatement("Will reinvoke self for: {}".format(sourceFiles))
     commands = []
     for sourceFile in sourceFiles:
@@ -1186,7 +1203,7 @@ def reinvokePerSourceFile(cmdLine, sourceFiles):
         printTraceStatement("Child: {}".format(newCmdLine))
         commands.append(newCmdLine)
 
-    return runJobs(commands, jobCount(cmdLine))
+    return runJobs(commands, environment, jobCount(cmdLine))
 
 def printStatistics(cache):
     template = """
@@ -1456,18 +1473,19 @@ def updateCacheStatistics(cache, method):
 def processCompileRequest(cache, compiler, args):
     printTraceStatement("Parsing given commandline '{0!s}'".format(args[1:]))
 
-    cmdLine = expandCommandLine(args[1:])
+    cmdLine, environment = extentCommandLineFromEnvironment(args[1:], os.environ)
+    cmdLine = expandCommandLine(cmdLine)
     printTraceStatement("Expanded commandline '{0!s}'".format(cmdLine))
 
     try:
         sourceFiles, objectFile = CommandLineAnalyzer.analyze(cmdLine)
 
         if len(sourceFiles) > 1:
-            return reinvokePerSourceFile(cmdLine, sourceFiles), '', ''
+            return reinvokePerSourceFile(cmdLine, sourceFiles, environment), '', ''
         else:
             assert objectFile is not None
             if 'CLCACHE_NODIRECT' in os.environ:
-                return processNoDirect(cache, objectFile, compiler, cmdLine)
+                return processNoDirect(cache, objectFile, compiler, cmdLine, environment)
             else:
                 return processDirect(cache, objectFile, compiler, cmdLine, sourceFiles[0])
     except InvalidArgumentError:
@@ -1544,13 +1562,14 @@ def processDirect(cache, objectFile, compiler, cmdLine, sourceFile):
     return compilerResult
 
 
-def processNoDirect(cache, objectFile, compiler, cmdLine):
-    cachekey = CompilerArtifactsRepository.computeCompilerArtifactsKey(compiler, cmdLine)
+def processNoDirect(cache, objectFile, compiler, cmdLine, environment):
+    cachekey = CompilerArtifactsRepository.computeCompilerArtifactsKey(compiler, cmdLine, environment)
     with cache.lock:
         if cache.compilerArtifactsRepository.section(cachekey).hasEntry(cachekey):
             return processCacheHit(cache, objectFile, cachekey)
 
-    returnCode, compilerStdout, compilerStderr = invokeRealCompiler(compiler, cmdLine, captureOutput=True)
+    compilerResult = invokeRealCompiler(compiler, cmdLine, captureOutput=True, environment=environment)
+    returnCode, compilerStdout, compilerStderr = compilerResult
     with cache.lock, cache.statistics as stats:
         stats.registerCacheMiss()
         if returnCode == 0 and os.path.exists(objectFile):

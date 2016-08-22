@@ -4,6 +4,7 @@ clcache changelog
 ## Upcoming release
 
  * Bugfix: /MP no longer causes a greatly reduced cache hit rate.
+ * Add support for the `CL` and `_CL_` environment variables (GH #196).
 
 ## clcache 3.2.0 (2016-07-28)
 
