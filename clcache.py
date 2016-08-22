@@ -1360,7 +1360,6 @@ def postprocessHeaderChangedMiss(
     returnCode, compilerOutput, compilerStderr = compilerResult
     includePaths, compilerOutput = parseIncludesSet(compilerOutput, sourceFile, stripIncludes)
 
-    removedItems = []
     if returnCode == 0 and os.path.exists(objectFile):
         manifest, cachekey = createManifest(manifestHash, includePaths)
 
@@ -1368,7 +1367,6 @@ def postprocessHeaderChangedMiss(
         stats.registerHeaderChangedMiss()
         if returnCode == 0 and os.path.exists(objectFile):
             addObjectToCache(stats, cache, cachekey, CompilerArtifacts(objectFile, compilerOutput, compilerStderr))
-            cache.compilerArtifactsRepository.removeObjects(stats, removedItems)
             manifestSection.setManifest(manifestHash, manifest)
 
     return returnCode, compilerOutput, compilerStderr
