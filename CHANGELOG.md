@@ -4,6 +4,8 @@ clcache changelog
 ## Upcoming release
 
  * Bugfix: /MP no longer causes a greatly reduced cache hit rate.
+ * Bugfix: In direct mode, clcache will no longer try to access non-existant
+   header files (GH #200, GH #209).
  * Add support for the `CL` and `_CL_` environment variables (GH #196).
 
 ## clcache 3.2.0 (2016-07-28)
