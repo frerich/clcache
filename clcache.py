@@ -352,7 +352,7 @@ class CompilerArtifactsRepository(object):
         return len(objectInfos)-removedItems, currentSizeObjects
 
     @staticmethod
-    def computeCompilerArtifactsKey(compilerBinary, commandLine, environment):
+    def computeKeyNodirect(compilerBinary, commandLine, environment):
         ppcmd = [compilerBinary, "/EP"]
         ppcmd += [arg for arg in commandLine if arg not in ("-c", "/c")]
         preprocessor = Popen(ppcmd, stdout=PIPE, stderr=PIPE, env=environment)
@@ -1563,7 +1563,7 @@ def processDirect(cache, objectFile, compiler, cmdLine, sourceFile):
 
 
 def processNoDirect(cache, objectFile, compiler, cmdLine, environment):
-    cachekey = CompilerArtifactsRepository.computeCompilerArtifactsKey(compiler, cmdLine, environment)
+    cachekey = CompilerArtifactsRepository.computeKeyNodirect(compiler, cmdLine, environment)
     with cache.lock:
         if cache.compilerArtifactsRepository.section(cachekey).hasEntry(cachekey):
             return processCacheHit(cache, objectFile, cachekey)
