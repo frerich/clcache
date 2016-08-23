@@ -352,6 +352,13 @@ class CompilerArtifactsRepository(object):
         return len(objectInfos)-removedItems, currentSizeObjects
 
     @staticmethod
+    def computeKeyDirect(manifestHash, includesContentHash):
+        # We must take into account manifestHash to avoid
+        # collisions when different source files use the same
+        # set of includes.
+        return getStringHash(manifestHash + includesContentHash)
+
+    @staticmethod
     def computeKeyNodirect(compilerBinary, commandLine, environment):
         ppcmd = [compilerBinary, "/EP"]
         ppcmd += [arg for arg in commandLine if arg not in ("-c", "/c")]
@@ -444,13 +451,6 @@ class Cache(object):
 
         stats.setCacheSize(currentCompilerArtifactsSize + currentSizeManifests)
         stats.setNumCacheEntries(currentCompilerArtifactsCount)
-
-    @staticmethod
-    def getDirectCacheKey(manifestHash, includesContentHash):
-        # We must take into account manifestHash to avoid
-        # collisions when different source files use the same
-        # set of includes.
-        return getStringHash(manifestHash + includesContentHash)
 
 
 class PersistentJSONDict(object):
@@ -1340,7 +1340,7 @@ def createManifest(manifestHash, includePaths):
 
     includes = {path:getFileHash(path) for path in includePaths}
     includesContentHash = ManifestRepository.getIncludesContentHashForFiles(includes)
-    cachekey = Cache.getDirectCacheKey(manifestHash, includesContentHash)
+    cachekey = CompilerArtifactsRepository.computeKeyDirect(manifestHash, includesContentHash)
 
     # Create new manifest
     if baseDir:
