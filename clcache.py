@@ -1606,17 +1606,6 @@ def processDirect(cache, objectFile, compiler, cmdLine, sourceFile):
                 expandBasedirPlaceholder(path, baseDir):contentHash
                 for path, contentHash in manifest.includeFiles.items()
             })
-
-            cachekey = manifest.includesContentToObjectMap.get(includesContentHash)
-            assert cachekey is not None
-
-            artifactSection = cache.compilerArtifactsRepository.section(cachekey)
-            with artifactSection.lock:
-                if artifactSection.hasEntry(cachekey):
-                    return processCacheHit(cache, objectFile, cachekey)
-                compilerResult = invokeRealCompiler(compiler, cmdLine, captureOutput=True)
-                return postprocessObjectEvicted(cache, objectFile, cachekey, compilerResult)
-
         except IncludeChangedException:
             stripIncludes = False
             if '/showIncludes' not in cmdLine:
@@ -1625,6 +1614,17 @@ def processDirect(cache, objectFile, compiler, cmdLine, sourceFile):
             compilerResult = invokeRealCompiler(compiler, cmdLine, captureOutput=True)
             return postprocessHeaderChangedMiss(
                 cache, objectFile, manifestSection, manifestHash, sourceFile, compilerResult, stripIncludes)
+
+        cachekey = manifest.includesContentToObjectMap.get(includesContentHash)
+        assert cachekey is not None
+
+        artifactSection = cache.compilerArtifactsRepository.section(cachekey)
+        with artifactSection.lock:
+            if artifactSection.hasEntry(cachekey):
+                return processCacheHit(cache, objectFile, cachekey)
+            compilerResult = invokeRealCompiler(compiler, cmdLine, captureOutput=True)
+            return postprocessObjectEvicted(cache, objectFile, cachekey, compilerResult)
+
 
 def processNoDirect(cache, objectFile, compiler, cmdLine, environment):
     cachekey = CompilerArtifactsRepository.computeKeyNodirect(compiler, cmdLine, environment)
