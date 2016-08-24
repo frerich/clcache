@@ -1589,36 +1589,7 @@ def processDirect(cache, objectFile, compiler, cmdLine, sourceFile):
     manifestSection = cache.manifestRepository.section(manifestHash)
     with manifestSection.lock:
         manifest = manifestSection.getManifest(manifestHash)
-        if manifest is not None:
-            # NOTE: command line options already included in hash for manifest name
-            try:
-                includesContentHash = ManifestRepository.getIncludesContentHashForFiles({
-                    expandBasedirPlaceholder(path, baseDir):contentHash
-                    for path, contentHash in manifest.includeFiles.items()
-                })
-
-                cachekey = manifest.includesContentToObjectMap.get(includesContentHash)
-                assert cachekey is not None
-
-                artifactSection = cache.compilerArtifactsRepository.section(cachekey)
-                with artifactSection.lock:
-                    if artifactSection.hasEntry(cachekey):
-                        return processCacheHit(cache, objectFile, cachekey)
-                    compilerResult = invokeRealCompiler(compiler, cmdLine, captureOutput=True)
-                    return postprocessObjectEvicted(cache, objectFile, cachekey, compilerResult)
-
-            except IncludeChangedException:
-                stripIncludes = False
-                if '/showIncludes' not in cmdLine:
-                    cmdLine.insert(0, '/showIncludes')
-                    stripIncludes = True
-                compilerResult = invokeRealCompiler(compiler, cmdLine, captureOutput=True)
-                return postprocessHeaderChangedMiss(
-                    cache, objectFile, manifestSection, manifestHash, sourceFile, compilerResult, stripIncludes)
-            except IncludeNotFoundException:
-                # register nothing. This is probably just a compile error
-                return invokeRealCompiler(compiler, cmdLine, captureOutput=True)
-        else:
+        if manifest is None:
             stripIncludes = False
             if '/showIncludes' not in cmdLine:
                 cmdLine.insert(0, '/showIncludes')
@@ -1626,6 +1597,35 @@ def processDirect(cache, objectFile, compiler, cmdLine, sourceFile):
             compilerResult = invokeRealCompiler(compiler, cmdLine, captureOutput=True)
             return postprocessNoManifestMiss(
                 cache, objectFile, manifestSection, manifestHash, sourceFile, compilerResult, stripIncludes)
+
+        # NOTE: command line options already included in hash for manifest name
+        try:
+            includesContentHash = ManifestRepository.getIncludesContentHashForFiles({
+                expandBasedirPlaceholder(path, baseDir):contentHash
+                for path, contentHash in manifest.includeFiles.items()
+            })
+
+            cachekey = manifest.includesContentToObjectMap.get(includesContentHash)
+            assert cachekey is not None
+
+            artifactSection = cache.compilerArtifactsRepository.section(cachekey)
+            with artifactSection.lock:
+                if artifactSection.hasEntry(cachekey):
+                    return processCacheHit(cache, objectFile, cachekey)
+                compilerResult = invokeRealCompiler(compiler, cmdLine, captureOutput=True)
+                return postprocessObjectEvicted(cache, objectFile, cachekey, compilerResult)
+
+        except IncludeChangedException:
+            stripIncludes = False
+            if '/showIncludes' not in cmdLine:
+                cmdLine.insert(0, '/showIncludes')
+                stripIncludes = True
+            compilerResult = invokeRealCompiler(compiler, cmdLine, captureOutput=True)
+            return postprocessHeaderChangedMiss(
+                cache, objectFile, manifestSection, manifestHash, sourceFile, compilerResult, stripIncludes)
+        except IncludeNotFoundException:
+            # register nothing. This is probably just a compile error
+            return invokeRealCompiler(compiler, cmdLine, captureOutput=True)
 
 
 def processNoDirect(cache, objectFile, compiler, cmdLine, environment):
