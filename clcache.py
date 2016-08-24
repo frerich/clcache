@@ -58,11 +58,11 @@ MAX_MANIFEST_HASHES = 100
 # to use it as mark for relative path.
 BASEDIR_REPLACEMENT = '?'
 
+# ManifestEntry: an entry in a manifest file
 # `includeFiles`: list of paths to include files, which this source file uses
-# `includesContentToObjectMap`: dictionary
-#   key: cumulative hash of all include files' content in includeFiles
-#   value: key in the cache, under which the object file is stored
-Manifest = namedtuple('Manifest', ['includeFiles', 'includesContentToObjectMap'])
+# `includesContentsHash`: hash of the contents of the includeFiles
+# `objectHash`: hash of the object in cache
+ManifestEntry = namedtuple('ManifestEntry', ['includeFiles', 'includesContentHash', 'objectHash'])
 
 CompilerArtifacts = namedtuple('CompilerArtifacts', ['objectFilePath', 'stdout', 'stderr'])
 
@@ -108,10 +108,6 @@ class IncludeNotFoundException(Exception):
     pass
 
 
-class IncludeChangedException(Exception):
-    pass
-
-
 class CacheLockException(Exception):
     pass
 
@@ -123,6 +119,17 @@ class LogicException(Exception):
 
     def __str__(self):
         return repr(self.message)
+
+
+class Manifest(object):
+    def __init__(self, entries):
+        self._entries = entries
+
+    def entries(self):
+        return self._entries
+
+    def addEntry(self, entry):
+        self._entries.append(entry)
 
 
 class ManifestSection(object):
@@ -140,7 +147,9 @@ class ManifestSection(object):
         ensureDirectoryExists(self.manifestSectionDir)
         with open(self.manifestPath(manifestHash), 'w') as outFile:
             # Converting namedtuple to JSON via OrderedDict preserves key names and keys order
-            json.dump(manifest._asdict(), outFile, sort_keys=True, indent=2)
+            entries = [e._asdict() for e in manifest.entries()]
+            jsonobject = {'entries': entries}
+            json.dump(jsonobject, outFile, sort_keys=True, indent=2)
 
     def getManifest(self, manifestHash):
         fileName = self.manifestPath(manifestHash)
@@ -149,7 +158,8 @@ class ManifestSection(object):
         try:
             with open(fileName, 'r') as inFile:
                 doc = json.load(inFile)
-                return Manifest(doc['includeFiles'], doc['includesContentToObjectMap'])
+                return Manifest([ManifestEntry(e['includeFiles'], e['includesContentHash'], e['objectHash'])
+                                 for e in doc['entries']])
         except IOError:
             return None
 
@@ -172,7 +182,7 @@ class ManifestRepository(object):
     # invalidation, such that a manifest that was stored using the old format is not
     # interpreted using the new format. Instead the old file will not be touched
     # again due to a new manifest hash and is cleaned away after some time.
-    MANIFEST_FILE_FORMAT_VERSION = 4
+    MANIFEST_FILE_FORMAT_VERSION = 5
 
     def __init__(self, manifestsRootDir):
         self._manifestsRootDir = manifestsRootDir
@@ -219,26 +229,19 @@ class ManifestRepository(object):
 
     @staticmethod
     def getIncludesContentHashForFiles(includes):
-        listOfIncludesHashes = []
-        includeMissing = False
+        listOfHashes = []
 
-        for path in sorted(includes.keys()):
+        for path in includes:
             try:
-                fileHash = getFileHash(path)
-                if fileHash != includes[path]:
-                    raise IncludeChangedException()
-                listOfIncludesHashes.append(fileHash)
+                listOfHashes.append(getFileHash(path))
             except FileNotFoundError:
-                includeMissing = True
+                raise IncludeNotFoundException
 
-        if includeMissing:
-            raise IncludeNotFoundException()
-
-        return ManifestRepository.getIncludesContentHashForHashes(listOfIncludesHashes)
+        return ManifestRepository.getIncludesContentHashForHashes(listOfHashes)
 
     @staticmethod
-    def getIncludesContentHashForHashes(listOfIncludesHashes):
-        return HashAlgorithm(','.join(listOfIncludesHashes).encode()).hexdigest()
+    def getIncludesContentHashForHashes(listOfHashes):
+        return HashAlgorithm(','.join(listOfHashes).encode()).hexdigest()
 
 
 class CacheLock(object):
@@ -754,7 +757,8 @@ def getStringHash(dataString):
     return hasher.hexdigest()
 
 
-def expandBasedirPlaceholder(path, baseDir):
+def expandBasedirPlaceholder(path):
+    baseDir = normalizeBaseDir(os.environ.get('CLCACHE_BASEDIR'))
     if path.startswith(BASEDIR_REPLACEMENT):
         if not baseDir:
             raise LogicException('No CLCACHE_BASEDIR set, but found relative path ' + path)
@@ -763,13 +767,17 @@ def expandBasedirPlaceholder(path, baseDir):
         return path
 
 
-def collapseBasedirToPlaceholder(path, baseDir):
-    assert path == os.path.normcase(path)
-    assert baseDir == os.path.normcase(baseDir)
-    if path.startswith(baseDir):
-        return path.replace(baseDir, BASEDIR_REPLACEMENT, 1)
-    else:
+def collapseBasedirToPlaceholder(path):
+    baseDir = normalizeBaseDir(os.environ.get('CLCACHE_BASEDIR'))
+    if baseDir is None:
         return path
+    else:
+        assert path == os.path.normcase(path)
+        assert baseDir == os.path.normcase(baseDir)
+        if path.startswith(baseDir):
+            return path.replace(baseDir, BASEDIR_REPLACEMENT, 1)
+        else:
+            return path
 
 
 def ensureDirectoryExists(path):
@@ -1371,24 +1379,24 @@ def processCacheHit(cache, objectFile, cachekey):
         return 0, cachedArtifacts.stdout, cachedArtifacts.stderr, False
 
 
-def createManifest(manifestHash, includePaths):
-    baseDir = normalizeBaseDir(os.environ.get('CLCACHE_BASEDIR'))
-
-    includes = {path:getFileHash(path) for path in includePaths}
-    includesContentHash = ManifestRepository.getIncludesContentHashForFiles(includes)
+def createManifestEntry(manifestHash, includePaths):
+    includesWithHash = [[path, getFileHash(path)] for path in includePaths]
+    includesContentHash = ManifestRepository.getIncludesContentHashForHashes(
+        [hash for include, hash in includesWithHash])
     cachekey = CompilerArtifactsRepository.computeKeyDirect(manifestHash, includesContentHash)
 
-    # Create new manifest
-    if baseDir:
-        relocatableIncludePaths = {
-            collapseBasedirToPlaceholder(path, baseDir):contentHash
-            for path, contentHash in includes.items()
-        }
-        manifest = Manifest(relocatableIncludePaths, {})
-    else:
-        manifest = Manifest(includes, {})
-    manifest.includesContentToObjectMap[includesContentHash] = cachekey
-    return manifest, cachekey
+    safeIncludes = [collapseBasedirToPlaceholder(path) for path, contentHash in includesWithHash]
+    return ManifestEntry(safeIncludes, includesContentHash, cachekey)
+
+
+def createOrUpdateManifest(manifestSection, manifestHash, includePaths):
+    entry = createManifestEntry(manifestHash, includePaths)
+    manifest = manifestSection.getManifest(manifestHash)
+    if manifest is None:
+        manifest = Manifest([])
+    manifest.addEntry(entry)
+    manifestSection.setManifest(manifestHash, manifest)
+    return manifest, entry.objectHash
 
 
 def postprocessUnusableManifestMiss(
@@ -1401,8 +1409,7 @@ def postprocessUnusableManifestMiss(
     returnCode, compilerOutput, compilerStderr = invokeRealCompiler(compiler, cmdLine, captureOutput=True)
     includePaths, compilerOutput = parseIncludesSet(compilerOutput, sourceFile, stripIncludes)
 
-    if returnCode == 0 and os.path.exists(objectFile):
-        manifest, cachekey = createManifest(manifestHash, includePaths)
+    manifest, cachekey = createOrUpdateManifest(manifestSection, manifestHash, includePaths)
 
     cleanupRequired = False
     section = cache.compilerArtifactsRepository.section(cachekey)
@@ -1551,7 +1558,6 @@ def processCompileRequest(cache, compiler, args):
 
 
 def processDirect(cache, objectFile, compiler, cmdLine, sourceFile):
-    baseDir = normalizeBaseDir(os.environ.get('CLCACHE_BASEDIR'))
     manifestHash = ManifestRepository.getManifestHash(compiler, cmdLine, sourceFile)
     manifestSection = cache.manifestRepository.section(manifestHash)
     with manifestSection.lock:
@@ -1561,21 +1567,24 @@ def processDirect(cache, objectFile, compiler, cmdLine, sourceFile):
                 cache, objectFile, manifestSection, manifestHash, sourceFile, compiler, cmdLine,
                 Statistics.registerSourceChangedMiss)
 
-        # NOTE: command line options already included in hash for manifest name
-        try:
-            includesContentHash = ManifestRepository.getIncludesContentHashForFiles({
-                expandBasedirPlaceholder(path, baseDir):contentHash
-                for path, contentHash in manifest.includeFiles.items()
-            })
-        except IncludeChangedException:
-            return postprocessUnusableManifestMiss(
-                cache, objectFile, manifestSection, manifestHash, sourceFile, compiler, cmdLine,
-                Statistics.registerHeaderChangedMiss)
+        for entry in manifest.entries():
+            # NOTE: command line options already included in hash for manifest name
+            try:
+                includesContentHash = ManifestRepository.getIncludesContentHashForFiles(
+                    [expandBasedirPlaceholder(path) for path in entry.includeFiles])
 
-        cachekey = manifest.includesContentToObjectMap.get(includesContentHash)
-        assert cachekey is not None
+                if entry.includesContentHash == includesContentHash:
+                    cachekey = entry.objectHash
+                    assert cachekey is not None
 
-        return getOrSetArtifacts(cache, cachekey, objectFile, compiler, cmdLine, Statistics.registerEvictedMiss)
+                    return getOrSetArtifacts(
+                        cache, cachekey, objectFile, compiler, cmdLine, Statistics.registerEvictedMiss)
+            except IncludeNotFoundException:
+                pass
+
+        return postprocessUnusableManifestMiss(
+            cache, objectFile, manifestSection, manifestHash, sourceFile, compiler, cmdLine,
+            Statistics.registerHeaderChangedMiss)
 
 
 def processNoDirect(cache, objectFile, compiler, cmdLine, environment):
