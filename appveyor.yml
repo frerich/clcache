@@ -52,7 +52,7 @@ build_script:
 
 test_script:
   # Run test files via py.test and generate JUnit XML. Then push test results
-  # to appveyor. Coverage information is stored in a .coverage file.
+  # to appveyor. The plugin pytest-cov takes care of coverage.
   - ps: |
       & py.test --junitxml .\unittests.xml unittests.py --cov=clcache
       $testsExitCode = $lastexitcode
@@ -66,11 +66,10 @@ test_script:
 
       if ($testsExitCode -ne 0) {exit $testsExitCode}
 
-  - ps: |
-      & coverage erase
+  - coverage erase
+  - del /Q coverage.xml
 
-      $clcachePy = "$((Get-Location).Path)\clcache.py"
-      $env:CLCACHE_CMD = "coverage run -a --branch --include=$clcachePy $clcachePy";
+  - ps: |
       & py.test --junitxml .\integrationtests.xml integrationtests.py --cov=clcache
       $testsExitCode = $lastexitcode
       & coverage report
