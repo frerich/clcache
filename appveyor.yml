@@ -82,8 +82,3 @@ test_script:
       & codecov --no-color -X gcov -F integration -e PYTHON_INSTALL
 
       if ($testsExitCode -ne 0) {exit $testsExitCode}
-
-after_test:
-  # Get a rough overview about what happened in the tests.
-  # This is not part of the actual testing but pure convenience.
-  - python clcache.py -s
