@@ -127,6 +127,7 @@ class LogicException(Exception):
 class ManifestSection(object):
     def __init__(self, manifestSectionDir):
         self.manifestSectionDir = manifestSectionDir
+        self.lock = CacheLock.forPath(self.manifestSectionDir)
 
     def manifestPath(self, manifestHash):
         return os.path.join(self.manifestSectionDir, manifestHash + ".json")
@@ -280,6 +281,7 @@ class CacheLock(object):
 class CompilerArtifactsSection(object):
     def __init__(self, compilerArtifactsSectionDir):
         self.compilerArtifactsSectionDir = compilerArtifactsSectionDir
+        self.lock = CacheLock.forPath(self.compilerArtifactsSectionDir)
 
     def cacheEntryDir(self, key):
         return os.path.join(self.compilerArtifactsSectionDir, key)
