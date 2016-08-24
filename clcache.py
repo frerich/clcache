@@ -313,26 +313,17 @@ class CompilerArtifactsRepository(object):
     def sections(self):
         return (CompilerArtifactsSection(path) for path in childDirectories(self._compilerArtifactsRootDir))
 
-    def removeObjects(self, stats, removedObjects):
-        for o in removedObjects:
-            dirPath = self.section(o).cacheEntryDir(o)
-            if not os.path.exists(dirPath):
-                continue  # May be if object already evicted.
-            objectPath = os.path.join(dirPath, "object")
-            if os.path.exists(objectPath):
-                # May be absent if this if cached compiler
-                # output (for preprocess-only).
-                fileStat = os.stat(objectPath)
-                stats.unregisterCacheEntry(fileStat.st_size)
-            rmtree(dirPath, ignore_errors=True)
+    def removeEntry(self, keyToBeRemoved):
+        compilerArtifactsDir = self.section(keyToBeRemoved).cacheEntryDir(keyToBeRemoved)
+        rmtree(compilerArtifactsDir, ignore_errors=True)
 
     def clean(self, maxCompilerArtifactsSize):
         objectInfos = []
         for section in self.sections():
-            objects = (section.cachedObjectName(key) for key in section.cacheEntries())
-            for o in objects:
+            for cachekey in section.cacheEntries():
                 try:
-                    objectInfos.append((os.stat(o), o))
+                    objectStat = os.stat(section.cachedObjectName(cachekey))
+                    objectInfos.append((objectStat, cachekey))
                 except OSError:
                     pass
 
@@ -342,8 +333,8 @@ class CompilerArtifactsRepository(object):
         currentSizeObjects = sum(x[0].st_size for x in objectInfos)
 
         removedItems = 0
-        for stat, fn in objectInfos:
-            rmtree(os.path.split(fn)[0], ignore_errors=True)
+        for stat, cachekey in objectInfos:
+            self.removeEntry(cachekey)
             removedItems += 1
             currentSizeObjects -= stat.st_size
             if currentSizeObjects < maxCompilerArtifactsSize:
@@ -1360,7 +1351,6 @@ def postprocessHeaderChangedMiss(
     returnCode, compilerOutput, compilerStderr = compilerResult
     includePaths, compilerOutput = parseIncludesSet(compilerOutput, sourceFile, stripIncludes)
 
-    removedItems = []
     if returnCode == 0 and os.path.exists(objectFile):
         manifest, cachekey = createManifest(manifestHash, includePaths)
 
@@ -1368,7 +1358,6 @@ def postprocessHeaderChangedMiss(
         stats.registerHeaderChangedMiss()
         if returnCode == 0 and os.path.exists(objectFile):
             addObjectToCache(stats, cache, cachekey, CompilerArtifacts(objectFile, compilerOutput, compilerStderr))
-            cache.compilerArtifactsRepository.removeObjects(stats, removedItems)
             manifestSection.setManifest(manifestHash, manifest)
 
     return returnCode, compilerOutput, compilerStderr
