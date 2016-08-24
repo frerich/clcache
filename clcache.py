@@ -557,6 +557,7 @@ class Statistics(object):
     def __init__(self, statsFile):
         self._statsFile = statsFile
         self._stats = None
+        self.lock = CacheLock.forPath(self._statsFile)
 
     def __enter__(self):
         self._stats = PersistentJSONDict(self._statsFile)
