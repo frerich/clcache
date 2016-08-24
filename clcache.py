@@ -7,6 +7,7 @@
 # root directory of this project.
 #
 from ctypes import windll, wintypes
+import cProfile
 import codecs
 from collections import defaultdict, namedtuple
 import errno
@@ -1568,4 +1569,8 @@ def processNoDirect(cache, objectFile, compiler, cmdLine, environment):
     return returnCode, compilerStdout, compilerStderr
 
 if __name__ == '__main__':
-    sys.exit(main())
+    if 'CLCACHE_PROFILE' in os.environ:
+        INVOCATION_HASH = getStringHash(','.join(sys.argv))
+        cProfile.run('main()', filename='clcache-{}.prof'.format(INVOCATION_HASH))
+    else:
+        sys.exit(main())
