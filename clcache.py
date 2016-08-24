@@ -1579,6 +1579,8 @@ def processCompileRequest(cache, compiler, args):
     except CalledForPreprocessingError:
         printTraceStatement("Cannot cache invocation as {}: called for preprocessing".format(cmdLine))
         updateCacheStatistics(cache, Statistics.registerCallForPreprocessing)
+    except IncludeNotFoundException:
+        pass
 
     return invokeRealCompiler(compiler, args[1:])
 
@@ -1623,10 +1625,6 @@ def processDirect(cache, objectFile, compiler, cmdLine, sourceFile):
             compilerResult = invokeRealCompiler(compiler, cmdLine, captureOutput=True)
             return postprocessHeaderChangedMiss(
                 cache, objectFile, manifestSection, manifestHash, sourceFile, compilerResult, stripIncludes)
-        except IncludeNotFoundException:
-            # register nothing. This is probably just a compile error
-            return invokeRealCompiler(compiler, cmdLine, captureOutput=True)
-
 
 def processNoDirect(cache, objectFile, compiler, cmdLine, environment):
     cachekey = CompilerArtifactsRepository.computeKeyNodirect(compiler, cmdLine, environment)
