@@ -270,6 +270,12 @@ class CacheLock(object):
     def release(self):
         windll.kernel32.ReleaseMutex(self._mutex)
 
+    @staticmethod
+    def forPath(path):
+        timeoutMs = int(os.environ.get('CLCACHE_OBJECT_CACHE_TIMEOUT_MS', 10 * 1000))
+        lockName = path.replace(':', '-').replace('\\', '-')
+        return CacheLock(lockName, timeoutMs)
+
 
 class CompilerArtifactsSection(object):
     def __init__(self, compilerArtifactsSectionDir):
@@ -424,9 +430,7 @@ class Cache(object):
         ensureDirectoryExists(compilerArtifactsRootDir)
         self.compilerArtifactsRepository = CompilerArtifactsRepository(compilerArtifactsRootDir)
 
-        lockName = self.cacheDirectory().replace(':', '-').replace('\\', '-')
-        timeoutMs = int(os.environ.get('CLCACHE_OBJECT_CACHE_TIMEOUT_MS', 10 * 1000))
-        self.lock = CacheLock(lockName, timeoutMs)
+        self.lock = CacheLock.forPath(self.cacheDirectory())
 
         self.configuration = Configuration(os.path.join(self.dir, "config.txt"))
         self.statistics = Statistics(os.path.join(self.dir, "stats.txt"))
