@@ -10,6 +10,7 @@ from ctypes import windll, wintypes
 import cProfile
 import codecs
 from collections import defaultdict, namedtuple
+import contextlib
 import errno
 import hashlib
 import json
@@ -151,6 +152,18 @@ class ManifestSection(object):
                 return Manifest(doc['includeFiles'], doc['includesContentToObjectMap'])
         except IOError:
             return None
+
+
+@contextlib.contextmanager
+def allSectionsLocked(repository):
+    sections = list(repository.sections())
+    for section in sections:
+        section.lock.acquire()
+    try:
+        yield
+    finally:
+        for section in sections:
+            section.lock.release()
 
 
 class ManifestRepository(object):
@@ -432,10 +445,16 @@ class Cache(object):
         ensureDirectoryExists(compilerArtifactsRootDir)
         self.compilerArtifactsRepository = CompilerArtifactsRepository(compilerArtifactsRootDir)
 
-        self.lock = CacheLock.forPath(self.cacheDirectory())
-
         self.configuration = Configuration(os.path.join(self.dir, "config.txt"))
         self.statistics = Statistics(os.path.join(self.dir, "stats.txt"))
+
+    @property
+    @contextlib.contextmanager
+    def lock(self):
+        with allSectionsLocked(self.manifestRepository), \
+             allSectionsLocked(self.compilerArtifactsRepository), \
+             self.statistics.lock:
+            yield
 
     def cacheDirectory(self):
         return self.dir
