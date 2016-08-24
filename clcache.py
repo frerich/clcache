@@ -1501,9 +1501,11 @@ def processCompileRequest(cache, compiler, args):
         else:
             assert objectFile is not None
             if 'CLCACHE_NODIRECT' in os.environ:
-                return processNoDirect(cache, objectFile, compiler, cmdLine, environment)
+                compilerResult = processNoDirect(cache, objectFile, compiler, cmdLine, environment)
             else:
-                return processDirect(cache, objectFile, compiler, cmdLine, sourceFiles[0])
+                compilerResult = processDirect(cache, objectFile, compiler, cmdLine, sourceFiles[0])
+            printTraceStatement("Finished. Exit code {0:d}".format(compilerResult[0]))
+            return compilerResult
     except InvalidArgumentError:
         printTraceStatement("Cannot cache invocation as {}: invalid argument".format(cmdLine))
         updateCacheStatistics(cache, Statistics.registerCallWithInvalidArgument)
@@ -1574,7 +1576,6 @@ def processDirect(cache, objectFile, compiler, cmdLine, sourceFile):
     compilerResult = invokeRealCompiler(compiler, cmdLine, captureOutput=True)
     if postProcessing:
         compilerResult = postProcessing(compilerResult)
-    printTraceStatement("Finished. Exit code {0:d}".format(compilerResult[0]))
     return compilerResult
 
 
@@ -1591,7 +1592,6 @@ def processNoDirect(cache, objectFile, compiler, cmdLine, environment):
         if returnCode == 0 and os.path.exists(objectFile):
             addObjectToCache(stats, cache, cachekey, CompilerArtifacts(objectFile, compilerStdout, compilerStderr))
 
-    printTraceStatement("Finished. Exit code {0:d}".format(returnCode))
     return returnCode, compilerStdout, compilerStderr
 
 if __name__ == '__main__':
