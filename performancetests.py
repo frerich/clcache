@@ -37,17 +37,19 @@ def takeTime(code):
 class TestConcurrency(unittest.TestCase):
     NUM_SOURCE_FILES = 30
 
-    def testConcurrentHitsScaling(self):
+    @classmethod
+    def setUpClass(cls):
         for i in range(1, TestConcurrency.NUM_SOURCE_FILES):
             shutil.copyfile(
                 os.path.join(ASSETS_DIR, 'concurrency', 'file01.cpp'),
                 os.path.join(ASSETS_DIR, 'concurrency', 'file{:02d}.cpp'.format(i+1))
             )
 
-        sources = []
+        cls.sources = []
         for i in range(1, TestConcurrency.NUM_SOURCE_FILES+1):
-            sources.append(os.path.join(ASSETS_DIR, 'concurrency', 'file{:02d}.cpp'.format(i)))
+            cls.sources.append(os.path.join(ASSETS_DIR, 'concurrency', 'file{:02d}.cpp'.format(i)))
 
+    def testConcurrentHitsScaling(self):
         with tempfile.TemporaryDirectory() as tempDir:
             customEnv = dict(os.environ, CLCACHE_DIR=tempDir)
 
@@ -59,38 +61,38 @@ class TestConcurrency(unittest.TestCase):
                 self.assertEqual(stats.numCacheEntries(), 0)
 
             # Populate cache
-            cmd = CLCACHE_CMD + ['/nologo', '/EHsc', '/c'] + sources
+            cmd = CLCACHE_CMD + ['/nologo', '/EHsc', '/c'] + TestConcurrency.sources
             coldCacheSequential = takeTime(lambda: subprocess.check_call(cmd, env=customEnv))
 
             with cache.statistics as stats:
                 self.assertEqual(stats.numCacheHits(), 0)
-                self.assertEqual(stats.numCacheMisses(), len(sources))
-                self.assertEqual(stats.numCacheEntries(), len(sources))
+                self.assertEqual(stats.numCacheMisses(), len(TestConcurrency.sources))
+                self.assertEqual(stats.numCacheEntries(), len(TestConcurrency.sources))
 
             # Compile one-by-one, measuring the time.
-            cmd = CLCACHE_CMD + ['/nologo', '/EHsc', '/c'] + sources
+            cmd = CLCACHE_CMD + ['/nologo', '/EHsc', '/c'] + TestConcurrency.sources
             hotCacheSequential = takeTime(lambda: subprocess.check_call(cmd, env=customEnv))
 
             with cache.statistics as stats:
-                self.assertEqual(stats.numCacheHits(), len(sources))
-                self.assertEqual(stats.numCacheMisses(), len(sources))
-                self.assertEqual(stats.numCacheEntries(), len(sources))
+                self.assertEqual(stats.numCacheHits(), len(TestConcurrency.sources))
+                self.assertEqual(stats.numCacheMisses(), len(TestConcurrency.sources))
+                self.assertEqual(stats.numCacheEntries(), len(TestConcurrency.sources))
 
             # Recompile with many concurrent processes, measuring time
-            cmd = CLCACHE_CMD + ['/nologo', '/EHsc', '/c', '/MP{}'.format(cpu_count())] + sources
+            cmd = CLCACHE_CMD + ['/nologo', '/EHsc', '/c', '/MP{}'.format(cpu_count())] + TestConcurrency.sources
             hotCacheConcurrent = takeTime(lambda: subprocess.check_call(cmd, env=customEnv))
 
             with cache.statistics as stats:
-                self.assertEqual(stats.numCacheHits(), len(sources) * 2)
-                self.assertEqual(stats.numCacheMisses(), len(sources))
-                self.assertEqual(stats.numCacheEntries(), len(sources))
+                self.assertEqual(stats.numCacheHits(), len(TestConcurrency.sources) * 2)
+                self.assertEqual(stats.numCacheMisses(), len(TestConcurrency.sources))
+                self.assertEqual(stats.numCacheEntries(), len(TestConcurrency.sources))
 
             print("Compiling {} source files sequentially, cold cache: {} seconds"
-                  .format(len(sources), coldCacheSequential))
+                  .format(len(TestConcurrency.sources), coldCacheSequential))
             print("Compiling {} source files sequentially, hot cache: {} seconds"
-                  .format(len(sources), hotCacheSequential))
+                  .format(len(TestConcurrency.sources), hotCacheSequential))
             print("Compiling {} source files concurrently via /MP{}, hot cache: {} seconds"
-                  .format(len(sources), cpu_count(), hotCacheConcurrent))
+                  .format(len(TestConcurrency.sources), cpu_count(), hotCacheConcurrent))
 
 
 if __name__ == '__main__':
