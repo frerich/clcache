@@ -1218,6 +1218,7 @@ def reinvokePerSourceFile(cmdLine, sourceFiles, environment):
 
     return runJobs(commands, environment, jobCount(cmdLine))
 
+
 def printStatistics(cache):
     template = """
 clcache statistics:
@@ -1260,13 +1261,16 @@ clcache statistics:
             stats.numCallsWithPch(),
         ))
 
+
 def resetStatistics(cache):
     with cache.statistics as stats:
         stats.resetCounters()
 
+
 def cleanCache(cache):
     with cache.statistics as stats, cache.configuration as cfg:
         cache.clean(stats, cfg.maximumCacheSize())
+
 
 def clearCache(cache):
     with cache.statistics as stats:
