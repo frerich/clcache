@@ -221,6 +221,7 @@ class CacheLock(object):
     can be used in 'with' statements. """
     INFINITE = 0xFFFFFFFF
     WAIT_ABANDONED_CODE = 0x00000080
+    WAIT_TIMEOUT_CODE = 0x00000102
 
     def __init__(self, mutexName, timeoutMs):
         mutexName = 'Local\\' + mutexName
@@ -247,9 +248,15 @@ class CacheLock(object):
         result = windll.kernel32.WaitForSingleObject(
             self._mutex, wintypes.INT(self._timeoutMs))
         if result not in [0, self.WAIT_ABANDONED_CODE]:
-            errorString = 'Error! WaitForSingleObject returns {result}, last error {error}'.format(
-                result=result,
-                error=windll.kernel32.GetLastError())
+            if result == self.WAIT_TIMEOUT_CODE:
+                errorString = \
+                    'Failed to acquire cache lock after {}ms; ' \
+                    'try setting CLCACHE_OBJECT_CACHE_TIMEOUT_MS environment variable to a larger value.'.format(
+                        self._timeoutMs)
+            else:
+                errorString = 'Error! WaitForSingleObject returns {result}, last error {error}'.format(
+                    result=result,
+                    error=windll.kernel32.GetLastError())
             raise CacheLockException(errorString)
         self._acquired = True
 

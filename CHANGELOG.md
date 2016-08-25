@@ -11,6 +11,9 @@ clcache changelog
    which can be used to make clcache generate profiling information. The
    generated data can be processed into a final report using a new
    `showprofilereport.py` script.
+ * Improvement: Timeout errors when accessing the cache now generate friendlier
+   error messages mentioning the possibility to work around the issue using the
+   `CLCACHE_OBJECT_CACHE_TIMEOUT_MS` environment variable.
 
 ## clcache 3.2.0 (2016-07-28)
 
