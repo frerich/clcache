@@ -29,8 +29,13 @@ HashAlgorithm = hashlib.md5
 try:
     import scandir # pylint: disable=wrong-import-position
     WALK = scandir.walk
+    LIST = scandir.scandir
 except ImportError:
     WALK = os.walk
+    try:
+        LIST = os.scandir
+    except:
+        LIST = os.listdir
 
 # The codec that is used by clcache to store compiler STDOUR and STDERR in
 # output.txt and stderr.txt.
@@ -74,10 +79,15 @@ def filesBeneath(path):
 
 
 def childDirectories(path, absolute=True):
-    for entry in os.listdir(path):
-        absPath = os.path.join(path, entry)
-        if os.path.isdir(absPath):
-            yield absPath if absolute else entry
+    for entry in LIST(path):
+        if type(entry) == str:
+            absPath = os.path.join(path, entry)
+            if os.path.isdir(absPath):
+                yield absPath if absolute else entry
+        else:
+            if entry.is_dir():
+                absPath = os.path.join(path, entry.name)
+                yield absPath if absolute else entry
 
 
 def normalizeBaseDir(baseDir):
