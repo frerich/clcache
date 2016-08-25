@@ -241,16 +241,13 @@ class CacheLock(object):
             wintypes.INT(0),
             mutexName)
         self._timeoutMs = timeoutMs
-        self._acquired = False
         assert self._mutex
 
     def __enter__(self):
-        if not self._acquired:
-            self.acquire()
+        self.acquire()
 
     def __exit__(self, typ, value, traceback):
-        if self._acquired:
-            self.release()
+        self.release()
 
     def __del__(self):
         windll.kernel32.CloseHandle(self._mutex)
@@ -269,11 +266,9 @@ class CacheLock(object):
                     result=result,
                     error=windll.kernel32.GetLastError())
             raise CacheLockException(errorString)
-        self._acquired = True
 
     def release(self):
         windll.kernel32.ReleaseMutex(self._mutex)
-        self._acquired = False
 
 
 class CompilerArtifactsSection(object):
