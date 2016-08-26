@@ -1090,25 +1090,29 @@ class CommandLineAnalyzer(object):
         return inputFiles, objectFile
 
 
-def invokeRealCompiler(compilerBinary, cmdLine, captureOutput=False, environment=None):
+def invokeRealCompiler(compilerBinary, cmdLine, captureOutput=False, outputAsString=True, environment=None):
     realCmdline = [compilerBinary] + cmdLine
     printTraceStatement("Invoking real compiler as {}".format(realCmdline))
 
     environment = environment or os.environ
 
     returnCode = None
-    stdout = ''
-    stderr = ''
+    stdout = b''
+    stderr = b''
     if captureOutput:
         compilerProcess = Popen(realCmdline, stdout=PIPE, stderr=PIPE, env=environment)
-        stdoutBinary, stderrBinary = compilerProcess.communicate()
-        stdout = stdoutBinary.decode(CL_DEFAULT_CODEC)
-        stderr = stderrBinary.decode(CL_DEFAULT_CODEC)
+        stdout, stderr = compilerProcess.communicate()
         returnCode = compilerProcess.returncode
     else:
         returnCode = subprocess.call(realCmdline, env=environment)
 
     printTraceStatement("Real compiler returned code {0:d}".format(returnCode))
+
+    if outputAsString:
+        stdoutString = stdout.decode(CL_DEFAULT_CODEC)
+        stderrString = stderr.decode(CL_DEFAULT_CODEC)
+        return returnCode, stdoutString, stderrString
+
     return returnCode, stdout, stderr
 
 
