@@ -26,12 +26,18 @@ VERSION = "3.2.0-dev"
 HashAlgorithm = hashlib.md5
 
 # try to use os.scandir or scandir.scandir
-# fall back to os.walk if not found
+# fall back to os.listdir if not found
+# same for scandir.walk
 try:
     import scandir # pylint: disable=wrong-import-position
     WALK = scandir.walk
+    LIST = scandir.scandir
 except ImportError:
     WALK = os.walk
+    try:
+        LIST = os.scandir # pylint: disable=no-name-in-module
+    except AttributeError:
+        LIST = os.listdir
 
 # The codec that is used by clcache to store compiler STDOUR and STDERR in
 # output.txt and stderr.txt.
@@ -75,10 +81,15 @@ def filesBeneath(path):
 
 
 def childDirectories(path, absolute=True):
-    for entry in os.listdir(path):
-        absPath = os.path.join(path, entry)
-        if os.path.isdir(absPath):
-            yield absPath if absolute else entry
+    supportsScandir = (LIST != os.listdir)
+    for entry in LIST(path):
+        if supportsScandir:
+            if entry.is_dir():
+                yield entry.path if absolute else entry.name
+        else:
+            absPath = os.path.join(path, entry)
+            if os.path.isdir(absPath):
+                yield absPath if absolute else entry
 
 
 def normalizeBaseDir(baseDir):
