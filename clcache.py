@@ -84,8 +84,7 @@ def childDirectories(path, absolute=True):
     for entry in LIST(path):
         if supportsScandir:
             if entry.is_dir():
-                absPath = os.path.join(path, entry.name)
-                yield absPath if absolute else entry
+                yield entry.path if absolute else entry.name
         else:
             absPath = os.path.join(path, entry)
             if os.path.isdir(absPath):
