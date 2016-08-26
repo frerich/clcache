@@ -6,6 +6,8 @@ clcache changelog
  * Bugfix: /MP no longer causes a greatly reduced cache hit rate.
  * Bugfix: In direct mode, clcache will no longer try to access non-existant
    header files (GH #200, GH #209).
+ * Bugfix: Correctly cache and restore stdout/stderr output of compiler when
+   building via the Visual Studio IDE.
  * Add support for the `CL` and `_CL_` environment variables (GH #196).
  * Feature: A new `CLCACHE_PROFILE` environment variable is now recognised
    which can be used to make clcache generate profiling information. The

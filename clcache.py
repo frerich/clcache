@@ -370,15 +370,15 @@ class CompilerArtifactsRepository(object):
 
     @staticmethod
     def computeKeyNodirect(compilerBinary, commandLine, environment):
-        ppcmd = [compilerBinary, "/EP"]
-        ppcmd += [arg for arg in commandLine if arg not in ("-c", "/c")]
-        preprocessor = Popen(ppcmd, stdout=PIPE, stderr=PIPE, env=environment)
-        (preprocessedSourceCode, ppStderrBinary) = preprocessor.communicate()
+        ppcmd = ["/EP"] + [arg for arg in commandLine if arg not in ("-c", "/c")]
 
-        if preprocessor.returncode != 0:
+        returnCode, preprocessedSourceCode, ppStderrBinary = \
+            invokeRealCompiler(compilerBinary, ppcmd, captureOutput=True, outputAsString=False, environment=environment)
+
+        if returnCode != 0:
             printBinary(sys.stderr, ppStderrBinary)
             print("clcache: preprocessor failed", file=sys.stderr)
-            sys.exit(preprocessor.returncode)
+            sys.exit(returnCode)
 
         compilerHash = getCompilerHash(compilerBinary)
         normalizedCmdLine = CompilerArtifactsRepository._normalizedCommandLine(commandLine)
@@ -1101,26 +1101,34 @@ class CommandLineAnalyzer(object):
         return inputFiles, objectFile
 
 
-def invokeRealCompiler(compilerBinary, cmdLine, captureOutput=False, environment=None):
+def invokeRealCompiler(compilerBinary, cmdLine, captureOutput=False, outputAsString=True, environment=None):
     realCmdline = [compilerBinary] + cmdLine
     printTraceStatement("Invoking real compiler as {}".format(realCmdline))
 
-    if not environment:
-        environment = os.environ
+    environment = environment or os.environ
+
+    # Environment variable set by the Visual Studio IDE to make cl.exe write
+    # Unicode output to named pipes instead of stdout. Unset it to make sure
+    # we can catch stdout output.
+    environment.pop("VS_UNICODE_OUTPUT", None)
 
     returnCode = None
-    stdout = ''
-    stderr = ''
+    stdout = b''
+    stderr = b''
     if captureOutput:
         compilerProcess = Popen(realCmdline, stdout=PIPE, stderr=PIPE, env=environment)
-        stdoutBinary, stderrBinary = compilerProcess.communicate()
-        stdout = stdoutBinary.decode(CL_DEFAULT_CODEC)
-        stderr = stderrBinary.decode(CL_DEFAULT_CODEC)
+        stdout, stderr = compilerProcess.communicate()
         returnCode = compilerProcess.returncode
     else:
-        returnCode = subprocess.call(realCmdline)
+        returnCode = subprocess.call(realCmdline, env=environment)
 
     printTraceStatement("Real compiler returned code {0:d}".format(returnCode))
+
+    if outputAsString:
+        stdoutString = stdout.decode(CL_DEFAULT_CODEC)
+        stderrString = stderr.decode(CL_DEFAULT_CODEC)
+        return returnCode, stdoutString, stderrString
+
     return returnCode, stdout, stderr
 
 
