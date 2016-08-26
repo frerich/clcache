@@ -235,11 +235,11 @@ class CacheLock(object):
     WAIT_TIMEOUT_CODE = 0x00000102
 
     def __init__(self, mutexName, timeoutMs):
-        mutexName = 'Local\\' + mutexName
+        self._mutexName = 'Local\\' + mutexName
         self._mutex = windll.kernel32.CreateMutexW(
             wintypes.INT(0),
             wintypes.INT(0),
-            mutexName)
+            self._mutexName)
         self._timeoutMs = timeoutMs
         assert self._mutex
 
@@ -258,9 +258,9 @@ class CacheLock(object):
         if result not in [0, self.WAIT_ABANDONED_CODE]:
             if result == self.WAIT_TIMEOUT_CODE:
                 errorString = \
-                    'Failed to acquire cache lock after {}ms; ' \
+                    'Failed to acquire lock {} after {}ms; ' \
                     'try setting CLCACHE_OBJECT_CACHE_TIMEOUT_MS environment variable to a larger value.'.format(
-                        self._timeoutMs)
+                        self._mutexName, self._timeoutMs)
             else:
                 errorString = 'Error! WaitForSingleObject returns {result}, last error {error}'.format(
                     result=result,
