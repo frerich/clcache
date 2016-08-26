@@ -359,15 +359,15 @@ class CompilerArtifactsRepository(object):
 
     @staticmethod
     def computeKeyNodirect(compilerBinary, commandLine, environment):
-        ppcmd = [compilerBinary, "/EP"]
-        ppcmd += [arg for arg in commandLine if arg not in ("-c", "/c")]
-        preprocessor = Popen(ppcmd, stdout=PIPE, stderr=PIPE, env=environment)
-        (preprocessedSourceCode, ppStderrBinary) = preprocessor.communicate()
+        ppcmd = ["/EP"] + [arg for arg in commandLine if arg not in ("-c", "/c")]
 
-        if preprocessor.returncode != 0:
+        returnCode, preprocessedSourceCode, ppStderrBinary = \
+            invokeRealCompiler(compilerBinary, ppcmd, captureOutput=True, outputAsString=False, environment=environment)
+
+        if returnCode != 0:
             printBinary(sys.stderr, ppStderrBinary)
             print("clcache: preprocessor failed", file=sys.stderr)
-            sys.exit(preprocessor.returncode)
+            sys.exit(returnCode)
 
         compilerHash = getCompilerHash(compilerBinary)
         normalizedCmdLine = CompilerArtifactsRepository._normalizedCommandLine(commandLine)
