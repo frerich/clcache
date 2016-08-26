@@ -144,8 +144,10 @@ class ManifestSection(object):
         return filesBeneath(self.manifestSectionDir)
 
     def setManifest(self, manifestHash, manifest):
+        manifestPath = self.manifestPath(manifestHash)
+        printTraceStatement("Writing manifest with manifestHash = {} to {}".format(manifestHash, manifestPath))
         ensureDirectoryExists(self.manifestSectionDir)
-        with open(self.manifestPath(manifestHash), 'w') as outFile:
+        with open(manifestPath, 'w') as outFile:
             # Converting namedtuple to JSON via OrderedDict preserves key names and keys order
             entries = [e._asdict() for e in manifest.entries()]
             jsonobject = {'entries': entries}
