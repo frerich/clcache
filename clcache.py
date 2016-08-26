@@ -1107,7 +1107,7 @@ def invokeRealCompiler(compilerBinary, cmdLine, captureOutput=False, environment
         stderr = stderrBinary.decode(CL_DEFAULT_CODEC)
         returnCode = compilerProcess.returncode
     else:
-        returnCode = subprocess.call(realCmdline)
+        returnCode = subprocess.call(realCmdline, env=environment)
 
     printTraceStatement("Real compiler returned code {0:d}".format(returnCode))
     return returnCode, stdout, stderr
