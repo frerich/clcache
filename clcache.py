@@ -1096,6 +1096,11 @@ def invokeRealCompiler(compilerBinary, cmdLine, captureOutput=False, outputAsStr
 
     environment = environment or os.environ
 
+    # Environment variable set by the Visual Studio IDE to make cl.exe write
+    # Unicode output to named pipes instead of stdout. Unset it to make sure
+    # we can catch stdout output.
+    environment.pop("VS_UNICODE_OUTPUT", None)
+
     returnCode = None
     stdout = b''
     stderr = b''
