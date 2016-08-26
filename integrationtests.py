@@ -26,10 +26,12 @@ PYTHON_BINARY = sys.executable
 CLCACHE_SCRIPT = os.path.join(os.path.dirname(os.path.realpath(__file__)), "clcache.py")
 ASSETS_DIR = os.path.join("tests", "integrationtests")
 
-if "CLCACHE_CMD" in os.environ:
-    CLCACHE_CMD = os.environ['CLCACHE_CMD'].split()
-else:
-    CLCACHE_CMD = [PYTHON_BINARY, CLCACHE_SCRIPT]
+# pytest-cov note: subprocesses are coverage tested by default with some limitations
+#   "For subprocess measurement environment variables must make it from the main process to the
+#   subprocess. The python used by the subprocess must have pytest-cov installed. The subprocess
+#   must do normal site initialisation so that the environment variables can be detected and
+#   coverage started."
+CLCACHE_CMD = [PYTHON_BINARY, CLCACHE_SCRIPT]
 
 
 @contextmanager

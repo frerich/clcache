@@ -52,7 +52,7 @@ build_script:
 
 test_script:
   # Run test files via py.test and generate JUnit XML. Then push test results
-  # to appveyor. Coverage information is stored in a .coverage file.
+  # to appveyor. The plugin pytest-cov takes care of coverage.
   - ps: |
       & py.test --junitxml .\unittests.xml unittests.py --cov=clcache
       $testsExitCode = $lastexitcode
@@ -66,11 +66,10 @@ test_script:
 
       if ($testsExitCode -ne 0) {exit $testsExitCode}
 
-  - ps: |
-      & coverage erase
+  - coverage erase
+  - del /Q coverage.xml
 
-      $clcachePy = "$((Get-Location).Path)\clcache.py"
-      $env:CLCACHE_CMD = "coverage run -a --branch --include=$clcachePy $clcachePy";
+  - ps: |
       & py.test --junitxml .\integrationtests.xml integrationtests.py --cov=clcache
       $testsExitCode = $lastexitcode
       & coverage report
@@ -79,11 +78,6 @@ test_script:
       $wc = New-Object 'System.Net.WebClient'
       $wc.UploadFile("https://ci.appveyor.com/api/testresults/junit/$($env:APPVEYOR_JOB_ID)", (Resolve-Path .\integrationtests.xml))
 
-      & codecov --no-color -X gcov -F integration -e PYTHON_INSTALL
+      & codecov --no-color -X gcov -F integrationtests -e PYTHON_INSTALL
 
       if ($testsExitCode -ne 0) {exit $testsExitCode}
-
-after_test:
-  # Get a rough overview about what happened in the tests.
-  # This is not part of the actual testing but pure convenience.
-  - python clcache.py -s

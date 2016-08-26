@@ -1,3 +1,9 @@
 [run]
 branch = True
 include = clcache.py
+
+# pytest-cov:
+#   "Note that this plugin controls some options and setting the option in the
+#   config file will have no effect. These include specifying source to be
+#   measured (source option) and all data file handling (data_file and parallel
+#   options)."
