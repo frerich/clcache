@@ -609,7 +609,7 @@ class TestAnalysisErrorsCalls(unittest.TestCase):
         # This ensures all AnalysisError cases are run once without crashes
 
         with cd(os.path.join(ASSETS_DIR)):
-            baseCmd = [PYTHON_BINARY, CLCACHE_SCRIPT, '/nologo']
+            baseCmd = CLCACHE_CMD + ['/nologo']
 
             # NoSourceFileError
             # This must fail because cl.exe: "cl : Command line error D8003 : missing source filename"
