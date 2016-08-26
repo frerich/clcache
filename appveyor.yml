@@ -79,6 +79,6 @@ test_script:
       $wc = New-Object 'System.Net.WebClient'
       $wc.UploadFile("https://ci.appveyor.com/api/testresults/junit/$($env:APPVEYOR_JOB_ID)", (Resolve-Path .\integrationtests.xml))
 
-      & codecov --no-color -X gcov -F integration -e PYTHON_INSTALL
+      & codecov --no-color -X gcov -F integrationtests -e PYTHON_INSTALL
 
       if ($testsExitCode -ne 0) {exit $testsExitCode}
