@@ -1094,8 +1094,7 @@ def invokeRealCompiler(compilerBinary, cmdLine, captureOutput=False, environment
     realCmdline = [compilerBinary] + cmdLine
     printTraceStatement("Invoking real compiler as {}".format(realCmdline))
 
-    if not environment:
-        environment = os.environ
+    environment = environment or os.environ
 
     returnCode = None
     stdout = ''
