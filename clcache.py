@@ -1417,7 +1417,7 @@ def postprocessHeaderChangedMiss(
 
     cleanupRequired = False
     section = cache.compilerArtifactsRepository.section(cachekey)
-    with manifestSection.lock, section.lock, cache.statistics.lock, cache.statistics as stats:
+    with section.lock, cache.statistics.lock, cache.statistics as stats:
         stats.registerHeaderChangedMiss()
         if returnCode == 0 and os.path.exists(objectFile):
             artifacts = CompilerArtifacts(objectFile, compilerOutput, compilerStderr)
@@ -1440,7 +1440,7 @@ def postprocessNoManifestMiss(
 
     cleanupRequired = False
     section = cache.compilerArtifactsRepository.section(cachekey)
-    with manifestSection.lock, section.lock, cache.statistics.lock, cache.statistics as stats:
+    with section.lock, cache.statistics.lock, cache.statistics as stats:
         stats.registerSourceChangedMiss()
         if returnCode == 0 and os.path.exists(objectFile):
             artifacts = CompilerArtifacts(objectFile, compilerOutput, compilerStderr)
