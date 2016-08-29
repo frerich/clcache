@@ -1268,17 +1268,14 @@ clcache statistics:
 def resetStatistics(cache):
     with cache.statistics as stats:
         stats.resetCounters()
-    print('Statistics reset')
 
 def cleanCache(cache):
     with cache.statistics as stats, cache.configuration as cfg:
         cache.clean(stats, cfg.maximumCacheSize())
-    print('Cache cleaned')
 
 def clearCache(cache):
     with cache.statistics as stats:
         cache.clean(stats, 0)
-    print('Cache cleared')
 
 
 # Returns pair:
@@ -1434,16 +1431,19 @@ clcache.py v{}
     if len(sys.argv) == 2 and sys.argv[1] == "-c":
         with cache.lock:
             cleanCache(cache)
+        print('Cache cleaned')
         return 0
 
     if len(sys.argv) == 2 and sys.argv[1] == "-C":
         with cache.lock:
             clearCache(cache)
+        print('Cache cleared')
         return 0
 
     if len(sys.argv) == 2 and sys.argv[1] == "-z":
         with cache.lock:
             resetStatistics(cache)
+        print('Statistics reset')
         return 0
 
     if len(sys.argv) == 3 and sys.argv[1] == "-M":
