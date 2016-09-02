@@ -1580,10 +1580,10 @@ def processDirect(cache, objectFile, compiler, cmdLine, sourceFile):
         with artifactSection.lock:
             if artifactSection.hasEntry(cachekey):
                 return processCacheHit(cache, objectFile, cachekey)
+
             compilerResult = invokeRealCompiler(compiler, cmdLine, captureOutput=True)
             printTraceStatement("Cached object already evicted for key {} for object {}".format(cachekey, objectFile))
             returnCode, compilerOutput, compilerStderr = compilerResult
-
             with cache.statistics.lock, cache.statistics as stats:
                 stats.registerEvictedMiss()
                 if returnCode == 0 and os.path.exists(objectFile):
