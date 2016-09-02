@@ -1576,14 +1576,13 @@ def processDirect(cache, objectFile, compiler, cmdLine, sourceFile):
         assert cachekey is not None
 
         artifactSection = cache.compilerArtifactsRepository.section(cachekey)
+        cleanupRequired = False
         with artifactSection.lock:
             if artifactSection.hasEntry(cachekey):
                 return processCacheHit(cache, objectFile, cachekey)
             compilerResult = invokeRealCompiler(compiler, cmdLine, captureOutput=True)
             printTraceStatement("Cached object already evicted for key {} for object {}".format(cachekey, objectFile))
             returnCode, compilerOutput, compilerStderr = compilerResult
-
-            cleanupRequired = False
 
             with cache.statistics.lock, cache.statistics as stats:
                 stats.registerEvictedMiss()
@@ -1596,10 +1595,10 @@ def processDirect(cache, objectFile, compiler, cmdLine, sourceFile):
 
 def processNoDirect(cache, objectFile, compiler, cmdLine, environment):
     cachekey = CompilerArtifactsRepository.computeKeyNodirect(compiler, cmdLine, environment)
-    section = cache.compilerArtifactsRepository.section(cachekey)
+    artifactSection = cache.compilerArtifactsRepository.section(cachekey)
     cleanupRequired = False
-    with section.lock:
-        if section.hasEntry(cachekey):
+    with artifactSection.lock:
+        if artifactSection.hasEntry(cachekey):
             return processCacheHit(cache, objectFile, cachekey)
 
         compilerResult = invokeRealCompiler(compiler, cmdLine, captureOutput=True, environment=environment)
@@ -1608,7 +1607,7 @@ def processNoDirect(cache, objectFile, compiler, cmdLine, environment):
             stats.registerCacheMiss()
             if returnCode == 0 and os.path.exists(objectFile):
                 artifacts = CompilerArtifacts(objectFile, compilerStdout, compilerStderr)
-                cleanupRequired = addObjectToCache(stats, cache, section, cachekey, artifacts)
+                cleanupRequired = addObjectToCache(stats, cache, artifactSection, cachekey, artifacts)
 
     return returnCode, compilerStdout, compilerStderr, cleanupRequired
 
