@@ -1585,12 +1585,11 @@ def processDirect(cache, objectFile, compiler, cmdLine, sourceFile):
 
             cleanupRequired = False
 
-            section = cache.compilerArtifactsRepository.section(cachekey)
-            with section.lock, cache.statistics.lock, cache.statistics as stats:
+            with cache.statistics.lock, cache.statistics as stats:
                 stats.registerEvictedMiss()
                 if returnCode == 0 and os.path.exists(objectFile):
                     artifacts = CompilerArtifacts(objectFile, compilerOutput, compilerStderr)
-                    cleanupRequired = addObjectToCache(stats, cache, section, cachekey, artifacts)
+                    cleanupRequired = addObjectToCache(stats, cache, artifactSection, cachekey, artifacts)
 
                 return compilerResult + (cleanupRequired,)
 
