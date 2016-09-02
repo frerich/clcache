@@ -1435,26 +1435,9 @@ def postprocessHeaderChangedMiss
 
 def postprocessNoManifestMiss(
         cache, objectFile, manifestSection, manifestHash, sourceFile, compilerResult, stripIncludes):
-    returnCode, compilerOutput, compilerStderr = compilerResult
-    includePaths, compilerOutput = parseIncludesSet(compilerOutput, sourceFile, stripIncludes)
-
-    manifest = None
-    cachekey = None
-
-    if returnCode == 0 and os.path.exists(objectFile):
-        manifest, cachekey = createManifest(manifestHash, includePaths)
-
-    cleanupRequired = False
-    section = cache.compilerArtifactsRepository.section(cachekey)
-    with section.lock, cache.statistics.lock, cache.statistics as stats:
-        stats.registerSourceChangedMiss()
-        if returnCode == 0 and os.path.exists(objectFile):
-            artifacts = CompilerArtifacts(objectFile, compilerOutput, compilerStderr)
-            # Store compile output and manifest
-            cleanupRequired = addObjectToCache(stats, cache, section, cachekey, artifacts)
-            manifestSection.setManifest(manifestHash, manifest)
-
-    return returnCode, compilerOutput, compilerStderr, cleanupRequired
+    return postprocessUnusableManifestMiss(
+        cache, objectFile, manifestSection, manifestHash, sourceFile, compilerResult, stripIncludes, \
+        Statistics.registerSourceChangedMiss)
 
 
 def main():
