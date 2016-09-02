@@ -1432,19 +1432,6 @@ def postprocessUnusableManifestMiss(
     return returnCode, compilerOutput, compilerStderr, cleanupRequired
 
 
-def postprocessHeaderChangedMiss
-        cache, objectFile, manifestSection, manifestHash, sourceFile, compiler, cmdLine):
-    return postprocessUnusableManifestMiss(
-        cache, objectFile, manifestSection, manifestHash, sourceFile, compiler, cmdLine, \
-        Statistics.registerHeaderChangedMiss)
-
-def postprocessNoManifestMiss(
-        cache, objectFile, manifestSection, manifestHash, sourceFile, compiler, cmdLine):
-    return postprocessUnusableManifestMiss(
-        cache, objectFile, manifestSection, manifestHash, sourceFile, compiler, cmdLine, \
-        Statistics.registerSourceChangedMiss)
-
-
 def main():
     if len(sys.argv) == 2 and sys.argv[1] == "--help":
         print("""
@@ -1586,8 +1573,9 @@ def processDirect(cache, objectFile, compiler, cmdLine, sourceFile):
     with manifestSection.lock:
         manifest = manifestSection.getManifest(manifestHash)
         if manifest is None:
-            return postprocessNoManifestMiss(
-                cache, objectFile, manifestSection, manifestHash, sourceFile, compiler, cmdLine)
+            return postprocessUnusableManifestMiss(
+                cache, objectFile, manifestSection, manifestHash, sourceFile, compiler, cmdLine,
+                Statistics.registerSourceChangedMiss)
 
         # NOTE: command line options already included in hash for manifest name
         try:
@@ -1596,8 +1584,9 @@ def processDirect(cache, objectFile, compiler, cmdLine, sourceFile):
                 for path, contentHash in manifest.includeFiles.items()
             })
         except IncludeChangedException:
-            return postprocessHeaderChangedMiss(
-                cache, objectFile, manifestSection, manifestHash, sourceFile, compiler, cmdLine)
+            return postprocessUnusableManifestMiss(
+                cache, objectFile, manifestSection, manifestHash, sourceFile, compiler, cmdLine,
+                Statistics.registerHeaderChangedMiss)
 
         cachekey = manifest.includesContentToObjectMap.get(includesContentHash)
         assert cachekey is not None
