@@ -16,6 +16,8 @@ clcache changelog
  * Improvement: Timeout errors when accessing the cache now generate friendlier
    error messages mentioning the possibility to work around the issue using the
    `CLCACHE_OBJECT_CACHE_TIMEOUT_MS` environment variable.
+ * Improvement: Greatly improved concurrency of clcache such that concurrent
+   invocations of the tool no longer block each other.
 
 ## clcache 3.2.0 (2016-07-28)
 
