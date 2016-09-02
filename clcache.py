@@ -1371,22 +1371,6 @@ def processCacheHit(cache, objectFile, cachekey):
         return 0, cachedArtifacts.stdout, cachedArtifacts.stderr, False
 
 
-def postprocessObjectEvicted(cache, objectFile, cachekey, compilerResult):
-    printTraceStatement("Cached object already evicted for key {} for object {}".format(cachekey, objectFile))
-    returnCode, compilerOutput, compilerStderr = compilerResult
-
-    cleanupRequired = False
-
-    section = cache.compilerArtifactsRepository.section(cachekey)
-    with section.lock, cache.statistics.lock, cache.statistics as stats:
-        stats.registerEvictedMiss()
-        if returnCode == 0 and os.path.exists(objectFile):
-            artifacts = CompilerArtifacts(objectFile, compilerOutput, compilerStderr)
-            cleanupRequired = addObjectToCache(stats, cache, section, cachekey, artifacts)
-
-    return compilerResult + (cleanupRequired,)
-
-
 def createManifest(manifestHash, includePaths):
     baseDir = normalizeBaseDir(os.environ.get('CLCACHE_BASEDIR'))
 
@@ -1596,7 +1580,19 @@ def processDirect(cache, objectFile, compiler, cmdLine, sourceFile):
             if artifactSection.hasEntry(cachekey):
                 return processCacheHit(cache, objectFile, cachekey)
             compilerResult = invokeRealCompiler(compiler, cmdLine, captureOutput=True)
-            return postprocessObjectEvicted(cache, objectFile, cachekey, compilerResult)
+            printTraceStatement("Cached object already evicted for key {} for object {}".format(cachekey, objectFile))
+            returnCode, compilerOutput, compilerStderr = compilerResult
+
+            cleanupRequired = False
+
+            section = cache.compilerArtifactsRepository.section(cachekey)
+            with section.lock, cache.statistics.lock, cache.statistics as stats:
+                stats.registerEvictedMiss()
+                if returnCode == 0 and os.path.exists(objectFile):
+                    artifacts = CompilerArtifacts(objectFile, compilerOutput, compilerStderr)
+                    cleanupRequired = addObjectToCache(stats, cache, section, cachekey, artifacts)
+
+                return compilerResult + (cleanupRequired,)
 
 
 def processNoDirect(cache, objectFile, compiler, cmdLine, environment):
