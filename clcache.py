@@ -1575,22 +1575,7 @@ def processDirect(cache, objectFile, compiler, cmdLine, sourceFile):
         cachekey = manifest.includesContentToObjectMap.get(includesContentHash)
         assert cachekey is not None
 
-        artifactSection = cache.compilerArtifactsRepository.section(cachekey)
-        cleanupRequired = False
-        with artifactSection.lock:
-            if artifactSection.hasEntry(cachekey):
-                return processCacheHit(cache, objectFile, cachekey)
-
-            compilerResult = invokeRealCompiler(compiler, cmdLine, captureOutput=True)
-            printTraceStatement("Cached object already evicted for key {} for object {}".format(cachekey, objectFile))
-            returnCode, compilerOutput, compilerStderr = compilerResult
-            with cache.statistics.lock, cache.statistics as stats:
-                stats.registerEvictedMiss()
-                if returnCode == 0 and os.path.exists(objectFile):
-                    artifacts = CompilerArtifacts(objectFile, compilerOutput, compilerStderr)
-                    cleanupRequired = addObjectToCache(stats, cache, artifactSection, cachekey, artifacts)
-
-        return compilerResult + (cleanupRequired,)
+        return getOrSetArtifacts(cache, cachekey, objectFile, compiler, cmdLine, Statistics.registerEvictedMiss)
 
 
 def processNoDirect(cache, objectFile, compiler, cmdLine, environment):
