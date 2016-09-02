@@ -1590,7 +1590,7 @@ def processDirect(cache, objectFile, compiler, cmdLine, sourceFile):
                     artifacts = CompilerArtifacts(objectFile, compilerOutput, compilerStderr)
                     cleanupRequired = addObjectToCache(stats, cache, artifactSection, cachekey, artifacts)
 
-                return compilerResult + (cleanupRequired,)
+        return compilerResult + (cleanupRequired,)
 
 
 def processNoDirect(cache, objectFile, compiler, cmdLine, environment):
@@ -1609,7 +1609,7 @@ def processNoDirect(cache, objectFile, compiler, cmdLine, environment):
                 artifacts = CompilerArtifacts(objectFile, compilerStdout, compilerStderr)
                 cleanupRequired = addObjectToCache(stats, cache, artifactSection, cachekey, artifacts)
 
-    return returnCode, compilerStdout, compilerStderr, cleanupRequired
+    return compilerResult + (cleanupRequired,)
 
 if __name__ == '__main__':
     if 'CLCACHE_PROFILE' in os.environ:
