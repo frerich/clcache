@@ -1407,8 +1407,8 @@ def createManifest(manifestHash, includePaths):
     return manifest, cachekey
 
 
-def postprocessHeaderChangedMiss(
-        cache, objectFile, manifestSection, manifestHash, sourceFile, compilerResult, stripIncludes):
+def postprocessUnusableManifestMiss(
+        cache, objectFile, manifestSection, manifestHash, sourceFile, compilerResult, stripIncludes, reason):
     returnCode, compilerOutput, compilerStderr = compilerResult
     includePaths, compilerOutput = parseIncludesSet(compilerOutput, sourceFile, stripIncludes)
 
@@ -1418,7 +1418,7 @@ def postprocessHeaderChangedMiss(
     cleanupRequired = False
     section = cache.compilerArtifactsRepository.section(cachekey)
     with section.lock, cache.statistics.lock, cache.statistics as stats:
-        stats.registerHeaderChangedMiss()
+        reason(stats)
         if returnCode == 0 and os.path.exists(objectFile):
             artifacts = CompilerArtifacts(objectFile, compilerOutput, compilerStderr)
             cleanupRequired = addObjectToCache(stats, cache, section, cachekey, artifacts)
@@ -1426,6 +1426,12 @@ def postprocessHeaderChangedMiss(
 
     return returnCode, compilerOutput, compilerStderr, cleanupRequired
 
+
+def postprocessHeaderChangedMiss
+        cache, objectFile, manifestSection, manifestHash, sourceFile, compilerResult, stripIncludes):
+    return postprocessUnusableManifestMiss(
+        cache, objectFile, manifestSection, manifestHash, sourceFile, compilerResult, stripIncludes, \
+        Statistics.registerHeaderChangedMiss)
 
 def postprocessNoManifestMiss(
         cache, objectFile, manifestSection, manifestHash, sourceFile, compilerResult, stripIncludes):
