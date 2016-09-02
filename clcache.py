@@ -1408,8 +1408,13 @@ def createManifest(manifestHash, includePaths):
 
 
 def postprocessUnusableManifestMiss(
-        cache, objectFile, manifestSection, manifestHash, sourceFile, compilerResult, stripIncludes, reason):
-    returnCode, compilerOutput, compilerStderr = compilerResult
+        cache, objectFile, manifestSection, manifestHash, sourceFile, compiler, cmdLine, reason):
+    stripIncludes = False
+    if '/showIncludes' not in cmdLine:
+        cmdLine = list(cmdLine)
+        cmdLine.insert(0, '/showIncludes')
+        stripIncludes = True
+    returnCode, compilerOutput, compilerStderr = invokeRealCompiler(compiler, cmdLine, captureOutput=True)
     includePaths, compilerOutput = parseIncludesSet(compilerOutput, sourceFile, stripIncludes)
 
     if returnCode == 0 and os.path.exists(objectFile):
@@ -1428,15 +1433,15 @@ def postprocessUnusableManifestMiss(
 
 
 def postprocessHeaderChangedMiss
-        cache, objectFile, manifestSection, manifestHash, sourceFile, compilerResult, stripIncludes):
+        cache, objectFile, manifestSection, manifestHash, sourceFile, compiler, cmdLine):
     return postprocessUnusableManifestMiss(
-        cache, objectFile, manifestSection, manifestHash, sourceFile, compilerResult, stripIncludes, \
+        cache, objectFile, manifestSection, manifestHash, sourceFile, compiler, cmdLine, \
         Statistics.registerHeaderChangedMiss)
 
 def postprocessNoManifestMiss(
-        cache, objectFile, manifestSection, manifestHash, sourceFile, compilerResult, stripIncludes):
+        cache, objectFile, manifestSection, manifestHash, sourceFile, compiler, cmdLine):
     return postprocessUnusableManifestMiss(
-        cache, objectFile, manifestSection, manifestHash, sourceFile, compilerResult, stripIncludes, \
+        cache, objectFile, manifestSection, manifestHash, sourceFile, compiler, cmdLine, \
         Statistics.registerSourceChangedMiss)
 
 
@@ -1581,13 +1586,8 @@ def processDirect(cache, objectFile, compiler, cmdLine, sourceFile):
     with manifestSection.lock:
         manifest = manifestSection.getManifest(manifestHash)
         if manifest is None:
-            stripIncludes = False
-            if '/showIncludes' not in cmdLine:
-                cmdLine.insert(0, '/showIncludes')
-                stripIncludes = True
-            compilerResult = invokeRealCompiler(compiler, cmdLine, captureOutput=True)
             return postprocessNoManifestMiss(
-                cache, objectFile, manifestSection, manifestHash, sourceFile, compilerResult, stripIncludes)
+                cache, objectFile, manifestSection, manifestHash, sourceFile, compiler, cmdLine)
 
         # NOTE: command line options already included in hash for manifest name
         try:
@@ -1596,13 +1596,8 @@ def processDirect(cache, objectFile, compiler, cmdLine, sourceFile):
                 for path, contentHash in manifest.includeFiles.items()
             })
         except IncludeChangedException:
-            stripIncludes = False
-            if '/showIncludes' not in cmdLine:
-                cmdLine.insert(0, '/showIncludes')
-                stripIncludes = True
-            compilerResult = invokeRealCompiler(compiler, cmdLine, captureOutput=True)
             return postprocessHeaderChangedMiss(
-                cache, objectFile, manifestSection, manifestHash, sourceFile, compilerResult, stripIncludes)
+                cache, objectFile, manifestSection, manifestHash, sourceFile, compiler, cmdLine)
 
         cachekey = manifest.includesContentToObjectMap.get(includesContentHash)
         assert cachekey is not None
