@@ -129,7 +129,14 @@ class Manifest(object):
         return self._entries
 
     def addEntry(self, entry):
-        self._entries.append(entry)
+        """Adds entry at the top of the entries"""
+        self._entries.insert(0, entry)
+
+    def touchEntry(self, entryIndex):
+        """Moves entry in entryIndex position to the top of entries()"""
+        entry = self._entries[entryIndex]
+        self._entries.pop(entryIndex)
+        self._entries.insert(0, entry)
 
 
 class ManifestSection(object):
@@ -1569,7 +1576,7 @@ def processDirect(cache, objectFile, compiler, cmdLine, sourceFile):
                 cache, objectFile, manifestSection, manifestHash, sourceFile, compiler, cmdLine,
                 Statistics.registerSourceChangedMiss)
 
-        for entry in manifest.entries():
+        for entryIndex, entry in enumerate(manifest.entries()):
             # NOTE: command line options already included in hash for manifest name
             try:
                 includesContentHash = ManifestRepository.getIncludesContentHashForFiles(
@@ -1578,6 +1585,9 @@ def processDirect(cache, objectFile, compiler, cmdLine, sourceFile):
                 if entry.includesContentHash == includesContentHash:
                     cachekey = entry.objectHash
                     assert cachekey is not None
+                    # Move manifest entry to the top of the entries in the manifest
+                    manifest.touchEntry(entryIndex)
+                    manifestSection.setManifest(manifestHash, manifest)
 
                     return getOrSetArtifacts(
                         cache, cachekey, objectFile, compiler, cmdLine, Statistics.registerEvictedMiss)
