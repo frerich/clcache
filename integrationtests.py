@@ -497,6 +497,64 @@ class TestHits(unittest.TestCase):
                 self.assertEqual(stats.numCacheMisses(), 2)
                 self.assertEqual(stats.numCacheEntries(), 2)
 
+    def testRepeatedIncludes(self):
+        with cd(os.path.join(ASSETS_DIR, "hits-and-misses")), tempfile.TemporaryDirectory() as tempDir:
+            cache = clcache.Cache(tempDir)
+            customEnv = dict(os.environ, CLCACHE_DIR=tempDir)
+            baseCmd = CLCACHE_CMD + ["/nologo", "/EHsc", "/c"]
+
+            with open('A.h', 'w') as header:
+                header.write('#define A 1\n')
+            with open('B.h', 'w') as header:
+                header.write('#define B 1\n')
+
+            with cache.statistics as stats:
+                self.assertEqual(stats.numCacheHits(), 0)
+                self.assertEqual(stats.numCacheMisses(), 0)
+                self.assertEqual(stats.numCacheEntries(), 0)
+
+            # VERSION 1
+            with open('stable-source-with-alternating-header.h', 'w') as f:
+                f.write('#include "A.h"\n')
+                f.write('#include "A.h"\n')
+            subprocess.check_call(baseCmd + ["stable-source-with-alternating-header.cpp"], env=customEnv)
+
+            with cache.statistics as stats:
+                self.assertEqual(stats.numCacheHits(), 0)
+                self.assertEqual(stats.numCacheMisses(), 1)
+                self.assertEqual(stats.numCacheEntries(), 1)
+
+            # VERSION 2
+            with open('stable-source-with-alternating-header.h', 'w') as f:
+                f.write('#include "A.h"\n')
+            subprocess.check_call(baseCmd + ["stable-source-with-alternating-header.cpp"], env=customEnv)
+
+            with cache.statistics as stats:
+                self.assertEqual(stats.numCacheHits(), 0)
+                self.assertEqual(stats.numCacheMisses(), 2)
+                self.assertEqual(stats.numCacheEntries(), 2)
+
+            # VERSION 1 again
+            with open('stable-source-with-alternating-header.h', 'w') as f:
+                f.write('#include "A.h"\n')
+                f.write('#include "A.h"\n')
+            subprocess.check_call(baseCmd + ["stable-source-with-alternating-header.cpp"], env=customEnv)
+
+            with cache.statistics as stats:
+                self.assertEqual(stats.numCacheHits(), 1)
+                self.assertEqual(stats.numCacheMisses(), 2)
+                self.assertEqual(stats.numCacheEntries(), 2)
+
+            # VERSION 2 again
+            with open('stable-source-with-alternating-header.h', 'w') as f:
+                f.write('#include "A.h"\n')
+            subprocess.check_call(baseCmd + ["stable-source-with-alternating-header.cpp"], env=customEnv)
+
+            with cache.statistics as stats:
+                self.assertEqual(stats.numCacheHits(), 2)
+                self.assertEqual(stats.numCacheMisses(), 2)
+                self.assertEqual(stats.numCacheEntries(), 2)
+
 
 class TestPrecompiledHeaders(unittest.TestCase):
     def testSampleproject(self):
