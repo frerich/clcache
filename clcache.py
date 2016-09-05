@@ -1401,9 +1401,7 @@ def createManifestEntry(manifestHash, includePaths):
 
 
 def createOrUpdateManifest(manifestSection, manifestHash, entry):
-    manifest = manifestSection.getManifest(manifestHash)
-    if manifest is None:
-        manifest = Manifest([])
+    manifest = manifestSection.getManifest(manifestHash) or Manifest()
     manifest.addEntry(entry)
     manifestSection.setManifest(manifestHash, manifest)
     return manifest
