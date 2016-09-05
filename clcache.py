@@ -1398,14 +1398,13 @@ def createManifestEntry(manifestHash, includePaths):
     return ManifestEntry(safeIncludes, includesContentHash, cachekey)
 
 
-def createOrUpdateManifest(manifestSection, manifestHash, includePaths):
-    entry = createManifestEntry(manifestHash, includePaths)
+def createOrUpdateManifest(manifestSection, manifestHash, entry):
     manifest = manifestSection.getManifest(manifestHash)
     if manifest is None:
         manifest = Manifest([])
     manifest.addEntry(entry)
     manifestSection.setManifest(manifestHash, manifest)
-    return manifest, entry.objectHash
+    return manifest
 
 
 def postprocessUnusableManifestMiss(
@@ -1418,7 +1417,8 @@ def postprocessUnusableManifestMiss(
     returnCode, compilerOutput, compilerStderr = invokeRealCompiler(compiler, cmdLine, captureOutput=True)
     includePaths, compilerOutput = parseIncludesSet(compilerOutput, sourceFile, stripIncludes)
 
-    manifest, cachekey = createOrUpdateManifest(manifestSection, manifestHash, includePaths)
+    entry = createManifestEntry(manifestHash, includePaths)
+    cachekey = entry.objectHash
 
     cleanupRequired = False
     section = cache.compilerArtifactsRepository.section(cachekey)
@@ -1427,6 +1427,7 @@ def postprocessUnusableManifestMiss(
         if returnCode == 0 and os.path.exists(objectFile):
             artifacts = CompilerArtifacts(objectFile, compilerOutput, compilerStderr)
             cleanupRequired = addObjectToCache(stats, cache, section, cachekey, artifacts)
+            manifest = createOrUpdateManifest(manifestSection, manifestHash, entry)
             manifestSection.setManifest(manifestHash, manifest)
 
     return returnCode, compilerOutput, compilerStderr, cleanupRequired
