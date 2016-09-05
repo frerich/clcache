@@ -904,24 +904,35 @@ class TestParseIncludes(unittest.TestCase):
             r'c:\program files (x86)\microsoft visual studio 12.0\vc\include\concurrencysal.h' in includesSet)
         self.assertTrue(r'' not in includesSet)
 
+
 class TestManifest(unittest.TestCase):
     entry1 = ManifestEntry([r'somepath\myinclude.h'],
-                            "fdde59862785f9f0ad6e661b9b5746b7",
-                            "a649723940dc975ebd17167d29a532f8")
+                           "fdde59862785f9f0ad6e661b9b5746b7",
+                           "a649723940dc975ebd17167d29a532f8")
     entry2 = ManifestEntry([r'somepath\myinclude.h', r'moreincludes.h'],
-                            "474e7fc26a592d84dfa7416c10f036c6",
-                            "8771d7ebcf6c8bd57a3d6485f63e3a89")
+                           "474e7fc26a592d84dfa7416c10f036c6",
+                           "8771d7ebcf6c8bd57a3d6485f63e3a89")
     entries = [entry1, entry2]
 
-    def testCreation(self):
+    def testCreateEmpty(self):
         manifest = Manifest()
         self.assertFalse(manifest.entries())
 
-    def testCreation(self):
+    def testCreateWithEntries(self):
         manifest = Manifest(TestManifest.entries)
         self.assertEqual(TestManifest.entries, manifest.entries())
 
+
     def testAddEntry(self):
+        manifest = Manifest(TestManifest.entries)
+        newEntry = ManifestEntry([r'somepath\myotherinclude.h'],
+                                 "474e7fc26a592d84dfa7416c10f036c6",
+                                 "8771d7ebcf6c8bd57a3d6485f63e3a89")
+        manifest.addEntry(newEntry)
+        self.assertEqual(newEntry, manifest.entries()[0])
+
+
+    def testTouchEntry(self):
         manifest = Manifest(TestManifest.entries)
         self.assertEqual(TestManifest.entry1, manifest.entries()[0])
         manifest.touchEntry(1)

@@ -122,8 +122,10 @@ class LogicException(Exception):
 
 
 class Manifest(object):
-    def __init__(self, entries):
-        self._entries = entries
+    def __init__(self, entries=None):
+        if entries is None:
+            entries = []
+        self._entries = entries.copy()
 
     def entries(self):
         return self._entries
