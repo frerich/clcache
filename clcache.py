@@ -1391,12 +1391,11 @@ def processCacheHit(cache, objectFile, cachekey):
 
 
 def createManifestEntry(manifestHash, includePaths):
-    includesWithHash = [[path, getFileHash(path)] for path in includePaths]
-    includesContentHash = ManifestRepository.getIncludesContentHashForHashes(
-        [hash for include, hash in includesWithHash])
+    includesWithHash = {path:getFileHash(path) for path in includePaths}
+    includesContentHash = ManifestRepository.getIncludesContentHashForHashes(includesWithHash.values())
     cachekey = CompilerArtifactsRepository.computeKeyDirect(manifestHash, includesContentHash)
 
-    safeIncludes = [collapseBasedirToPlaceholder(path) for path, contentHash in includesWithHash]
+    safeIncludes = [collapseBasedirToPlaceholder(path) for path in includesWithHash.keys()]
     return ManifestEntry(safeIncludes, includesContentHash, cachekey)
 
 
