@@ -136,9 +136,7 @@ class Manifest(object):
 
     def touchEntry(self, entryIndex):
         """Moves entry in entryIndex position to the top of entries()"""
-        entry = self._entries[entryIndex]
-        self._entries.pop(entryIndex)
-        self._entries.insert(0, entry)
+        self._entries.insert(0, self._entries.pop(entryIndex))
 
 
 class ManifestSection(object):
