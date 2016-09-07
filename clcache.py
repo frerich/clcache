@@ -238,14 +238,10 @@ class ManifestRepository(object):
 
     @staticmethod
     def getIncludesContentHashForFiles(includes):
-        listOfHashes = []
-
-        for path in includes:
-            try:
-                listOfHashes.append(getFileHash(path))
-            except FileNotFoundError:
-                raise IncludeNotFoundException
-
+        try:
+            listOfHashes = [getFileHash(path) for path in includes]
+        except FileNotFoundError:
+            raise IncludeNotFoundException
         return ManifestRepository.getIncludesContentHashForHashes(listOfHashes)
 
     @staticmethod
