@@ -18,6 +18,10 @@ clcache changelog
    `CLCACHE_OBJECT_CACHE_TIMEOUT_MS` environment variable.
  * Improvement: Greatly improved concurrency of clcache such that concurrent
    invocations of the tool no longer block each other.
+ * Improvement: Improve hit rate when alternating between two identical
+   versions of the same source file that transitively get different contents of
+   the included files (a common case when switching back and forth between
+   branches).
 
 ## clcache 3.2.0 (2016-07-28)
 
