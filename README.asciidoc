@@ -8,9 +8,9 @@ script analyses the command line to decide whether source code is
 to be compiled. If so, a cache will be queried for a previously stored
 object file.
 
-If the script is called in an unsupported way (multiple source files in
-one invocation, compiler called for linking), the script will simply
-relay the invocation to the real 'cl.exe' program.
+If the script is called in an unsupported way (e.g. if the compiler is
+called for linking), the script will simply relay the invocation to the real
+'cl.exe' program.
 
 image:https://ci.appveyor.com/api/projects/status/sf98y2686r00q6ga/branch/master?svg=true[Build status, link="https://ci.appveyor.com/project/frerich/clcache"]
 image:https://codecov.io/gh/frerich/clcache/branch/master/graph/badge.svg[Code coverage, link="https://codecov.io/gh/frerich/clcache"]
