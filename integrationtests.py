@@ -559,7 +559,7 @@ class TestHits(unittest.TestCase):
 class TestPrecompiledHeaders(unittest.TestCase):
     def testSampleproject(self):
         with cd(os.path.join(ASSETS_DIR, "precompiled-headers")):
-            cpp = ' '.join(CLCACHE_CMD)
+            cpp = subprocess.list2cmdline(CLCACHE_CMD)
 
             testEnvironment = dict(os.environ, CPP=cpp)
 

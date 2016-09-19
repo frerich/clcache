@@ -3,7 +3,8 @@ clcache changelog
 
 ## Upcoming release
 
- * Nothing yet!
+ * Internal: Fixed running integration tests when the clcache source code is
+   stored in a path with spaces (GH #206).
 
 ## clcache 3.3.0 (2016-09-07)
 
