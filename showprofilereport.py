@@ -22,4 +22,5 @@ for basedir, _, filenames in os.walk(os.getcwd()):
 stats.strip_dirs()
 stats.sort_stats('cumulative')
 stats.print_stats()
+stats.print_callers()
 
