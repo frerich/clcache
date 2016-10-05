@@ -9,7 +9,6 @@
 from collections import defaultdict, namedtuple
 from ctypes import windll, wintypes
 from shutil import copyfile, rmtree
-from subprocess import Popen, PIPE
 import cProfile
 import codecs
 import contextlib
@@ -1151,7 +1150,7 @@ def invokeRealCompiler(compilerBinary, cmdLine, captureOutput=False, outputAsStr
     stdout = b''
     stderr = b''
     if captureOutput:
-        compilerProcess = Popen(realCmdline, stdout=PIPE, stderr=PIPE, env=environment)
+        compilerProcess = subprocess.Popen(realCmdline, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=environment)
         stdout, stderr = compilerProcess.communicate()
         returnCode = compilerProcess.returncode
     else:
@@ -1223,7 +1222,7 @@ def runJobs(commands, environment, j=1):
                 return thiscode
 
         thiscmd = commands.pop(0)
-        running.append(Popen(thiscmd, env=environment))
+        running.append(subprocess.Popen(thiscmd, env=environment))
 
     while len(running) > 0:
         thiscode = waitForAnyProcess(running).returncode
