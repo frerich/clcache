@@ -6,21 +6,21 @@
 # full text of which is available in the accompanying LICENSE file at the
 # root directory of this project.
 #
+from collections import defaultdict, namedtuple
 from ctypes import windll, wintypes
+from shutil import copyfile, rmtree
+from subprocess import Popen, PIPE
 import cProfile
 import codecs
-from collections import defaultdict, namedtuple
 import contextlib
 import errno
 import hashlib
 import json
-import os
-from shutil import copyfile, rmtree
-import subprocess
-from subprocess import Popen, PIPE
-import sys
 import multiprocessing
+import os
 import re
+import subprocess
+import sys
 
 VERSION = "3.3.0-dev"
 
