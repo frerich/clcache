@@ -19,6 +19,7 @@ import json
 import multiprocessing
 import os
 import re
+import signal
 import subprocess
 import sys
 
@@ -1426,7 +1427,15 @@ def postprocessUnusableManifestMiss(
     return returnCode, compilerOutput, compilerStderr, cleanupRequired
 
 
+def installSignalHandlers():
+    # Ignore Ctrl-C and SIGTERM signals to avoid corrupting the cache
+    signal.signal(signal.SIGINT, signal.SIG_IGN)
+    signal.signal(signal.SIGTERM, signal.SIG_IGN)
+
 def main():
+
+    installSignalHandlers()
+
     if len(sys.argv) == 2 and sys.argv[1] == "--help":
         print("""
 clcache.py v{}
