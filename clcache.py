@@ -6,21 +6,21 @@
 # full text of which is available in the accompanying LICENSE file at the
 # root directory of this project.
 #
+from collections import defaultdict, namedtuple
 from ctypes import windll, wintypes
+from shutil import copyfile, rmtree
 import cProfile
 import codecs
-from collections import defaultdict, namedtuple
 import contextlib
 import errno
 import hashlib
 import json
-import os
-from shutil import copyfile, rmtree
-import subprocess
-from subprocess import Popen, PIPE
-import sys
 import multiprocessing
+import os
 import re
+import signal
+import subprocess
+import sys
 
 VERSION = "3.3.0-dev"
 
@@ -1150,7 +1150,7 @@ def invokeRealCompiler(compilerBinary, cmdLine, captureOutput=False, outputAsStr
     stdout = b''
     stderr = b''
     if captureOutput:
-        compilerProcess = Popen(realCmdline, stdout=PIPE, stderr=PIPE, env=environment)
+        compilerProcess = subprocess.Popen(realCmdline, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=environment)
         stdout, stderr = compilerProcess.communicate()
         returnCode = compilerProcess.returncode
     else:
@@ -1222,7 +1222,7 @@ def runJobs(commands, environment, j=1):
                 return thiscode
 
         thiscmd = commands.pop(0)
-        running.append(Popen(thiscmd, env=environment))
+        running.append(subprocess.Popen(thiscmd, env=environment))
 
     while len(running) > 0:
         thiscode = waitForAnyProcess(running).returncode
@@ -1426,7 +1426,15 @@ def postprocessUnusableManifestMiss(
     return returnCode, compilerOutput, compilerStderr, cleanupRequired
 
 
+def installSignalHandlers():
+    # Ignore Ctrl-C and SIGTERM signals to avoid corrupting the cache
+    signal.signal(signal.SIGINT, signal.SIG_IGN)
+    signal.signal(signal.SIGTERM, signal.SIG_IGN)
+
 def main():
+
+    installSignalHandlers()
+
     if len(sys.argv) == 2 and sys.argv[1] == "--help":
         print("""
 clcache.py v{}
