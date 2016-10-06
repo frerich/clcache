@@ -3,6 +3,8 @@ clcache changelog
 
 ## Upcoming release
 
+ * Bugfix: Aborting clcache via Ctrl+C or SIGTERM will no longer have the risk
+   of leaving the cache in a defective state.
  * Internal: Fixed running integration tests when the clcache source code is
    stored in a path with spaces (GH #206).
 
