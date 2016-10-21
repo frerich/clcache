@@ -258,11 +258,14 @@ class CacheLock(object):
 
     def __init__(self, mutexName, timeoutMs):
         self._mutexName = 'Local\\' + mutexName
-        self._mutex = windll.kernel32.CreateMutexW(
-            wintypes.INT(0),
-            wintypes.INT(0),
-            self._mutexName)
+        self._mutex = None
         self._timeoutMs = timeoutMs
+
+    def createMutex(self):
+        self._mutex = windll.kernel32.CreateMutexW(
+            None,
+            wintypes.BOOL(False),
+            self._mutexName)
         assert self._mutex
 
     def __enter__(self):
@@ -272,9 +275,12 @@ class CacheLock(object):
         self.release()
 
     def __del__(self):
-        windll.kernel32.CloseHandle(self._mutex)
+        if self._mutex:
+            windll.kernel32.CloseHandle(self._mutex)
 
     def acquire(self):
+        if not self._mutex:
+            self.createMutex()
         result = windll.kernel32.WaitForSingleObject(
             self._mutex, wintypes.INT(self._timeoutMs))
         if result not in [0, self.WAIT_ABANDONED_CODE]:
