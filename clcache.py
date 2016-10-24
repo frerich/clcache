@@ -192,7 +192,7 @@ class ManifestRepository(object):
     # invalidation, such that a manifest that was stored using the old format is not
     # interpreted using the new format. Instead the old file will not be touched
     # again due to a new manifest hash and is cleaned away after some time.
-    MANIFEST_FILE_FORMAT_VERSION = 5
+    MANIFEST_FILE_FORMAT_VERSION = 6
 
     def __init__(self, manifestsRootDir):
         self._manifestsRootDir = manifestsRootDir
