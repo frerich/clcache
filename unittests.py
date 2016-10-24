@@ -13,6 +13,7 @@ from contextlib import contextmanager
 import multiprocessing
 import os
 import unittest
+import tempfile
 
 import clcache
 from clcache import (
@@ -937,6 +938,45 @@ class TestManifest(unittest.TestCase):
         self.assertEqual(TestManifest.entry1, manifest.entries()[0])
         manifest.touchEntry(1)
         self.assertEqual(TestManifest.entry2, manifest.entries()[0])
+
+
+class TestCreateManifestEntry(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.tempDir = tempfile.TemporaryDirectory()
+        for i in range(10):
+            sampleName = 'sample{}.h'.format(i)
+            filePath = os.path.join(cls.tempDir.name, '{}.h'.format(sampleName))
+            with open(filePath, 'w') as f:
+                f.write('#define {}'.format(sampleName))
+
+        cls.includePaths = list(sorted(clcache.filesBeneath(cls.tempDir.name)))
+        cls.manifestHash = 'ffffffffffffffffffffffffffffffff'
+        cls.expectedManifestEntry = clcache.createManifestEntry(TestCreateManifestEntry.manifestHash,
+                                                                TestCreateManifestEntry.includePaths)
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.tempDir.cleanup()
+
+    def assertManifestEntryIsCorrect(self, entry):
+        self.assertEqual(entry.includesContentHash, TestCreateManifestEntry.expectedManifestEntry.includesContentHash)
+        self.assertEqual(entry.objectHash, TestCreateManifestEntry.expectedManifestEntry.objectHash)
+        self.assertEqual(entry.includeFiles, TestCreateManifestEntry.expectedManifestEntry.includeFiles)
+
+    def testIsConsistentWithSameInput(self):
+        entry = clcache.createManifestEntry(TestCreateManifestEntry.manifestHash, TestCreateManifestEntry.includePaths)
+        self.assertManifestEntryIsCorrect(entry)
+
+    def testIsConsistentWithReverseList(self):
+        reversedIncludePaths = list(reversed(TestCreateManifestEntry.includePaths))
+        entry = clcache.createManifestEntry(TestCreateManifestEntry.manifestHash, reversedIncludePaths)
+        self.assertManifestEntryIsCorrect(entry)
+
+    def testIsConsistentWithDuplicateEntries(self):
+        includePathsWithDuplicates = TestCreateManifestEntry.includePaths + TestCreateManifestEntry.includePaths
+        entry = clcache.createManifestEntry(TestCreateManifestEntry.manifestHash, includePathsWithDuplicates)
+        self.assertManifestEntryIsCorrect(entry)
 
 
 if __name__ == '__main__':
