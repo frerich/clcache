@@ -21,6 +21,7 @@ import re
 import signal
 import subprocess
 import sys
+from tempfile import TemporaryFile
 
 VERSION = "3.3.0-dev"
 
@@ -1150,9 +1151,15 @@ def invokeRealCompiler(compilerBinary, cmdLine, captureOutput=False, outputAsStr
     stdout = b''
     stderr = b''
     if captureOutput:
-        compilerProcess = subprocess.Popen(realCmdline, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=environment)
-        stdout, stderr = compilerProcess.communicate()
-        returnCode = compilerProcess.returncode
+        # Don't use subprocess.communicate() here, it's slow due to internal
+        # threading.
+        with TemporaryFile() as stdoutFile, TemporaryFile() as stderrFile:
+            compilerProcess = subprocess.Popen(realCmdline, stdout=stdoutFile, stderr=stderrFile, env=environment)
+            returnCode = compilerProcess.wait()
+            stdoutFile.seek(0)
+            stdout = stdoutFile.read()
+            stderrFile.seek(0)
+            stderr = stderrFile.read()
     else:
         returnCode = subprocess.call(realCmdline, env=environment)
 
