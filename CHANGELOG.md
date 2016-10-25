@@ -7,6 +7,7 @@ clcache changelog
    of leaving the cache in a defective state.
  * Internal: Fixed running integration tests when the clcache source code is
    stored in a path with spaces (GH #206).
+ * Improvement: Optimized communicating with real compiler.
 
 ## clcache 3.3.0 (2016-09-07)
 
