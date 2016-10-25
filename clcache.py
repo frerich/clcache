@@ -192,7 +192,7 @@ class ManifestRepository(object):
     # invalidation, such that a manifest that was stored using the old format is not
     # interpreted using the new format. Instead the old file will not be touched
     # again due to a new manifest hash and is cleaned away after some time.
-    MANIFEST_FILE_FORMAT_VERSION = 5
+    MANIFEST_FILE_FORMAT_VERSION = 6
 
     def __init__(self, manifestsRootDir):
         self._manifestsRootDir = manifestsRootDir
@@ -1398,11 +1398,13 @@ def processCacheHit(cache, objectFile, cachekey):
 
 
 def createManifestEntry(manifestHash, includePaths):
-    includesWithHash = {path:getFileHash(path) for path in includePaths}
-    includesContentHash = ManifestRepository.getIncludesContentHashForHashes(includesWithHash.values())
+    sortedIncludePaths = sorted(set(includePaths))
+    includeHashes = [getFileHash(path) for path in sortedIncludePaths]
+
+    safeIncludes = [collapseBasedirToPlaceholder(path) for path in sortedIncludePaths]
+    includesContentHash = ManifestRepository.getIncludesContentHashForHashes(includeHashes)
     cachekey = CompilerArtifactsRepository.computeKeyDirect(manifestHash, includesContentHash)
 
-    safeIncludes = [collapseBasedirToPlaceholder(path) for path in includesWithHash.keys()]
     return ManifestEntry(safeIncludes, includesContentHash, cachekey)
 
 
