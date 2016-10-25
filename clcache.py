@@ -23,7 +23,7 @@ import subprocess
 import sys
 from tempfile import TemporaryFile
 
-VERSION = "3.3.1"
+VERSION = "3.3.1-dev"
 
 HashAlgorithm = hashlib.md5
 

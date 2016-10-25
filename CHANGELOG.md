@@ -1,6 +1,10 @@
 clcache changelog
 =================
 
+## Upcoming release
+
+ * Nothing yet!
+
 ## clcache 3.3.1 (2016-10-25)
 
  * Bugfix: Aborting clcache via Ctrl+C or SIGTERM will no longer have the risk
