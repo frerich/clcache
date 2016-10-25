@@ -8,6 +8,9 @@ clcache changelog
  * Internal: Fixed running integration tests when the clcache source code is
    stored in a path with spaces (GH #206).
  * Improvement: Optimized communicating with real compiler.
+ * Bugfix: Fixed a potential CacheLockException apparently caused by
+   a race condition between calling CreateMutexW() and
+   WaitForSingleObject().
 
 ## clcache 3.3.0 (2016-09-07)
 
