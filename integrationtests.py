@@ -1073,37 +1073,102 @@ class TestNoDirectCalls(unittest.TestCase):
 
 
 class TestBasedir(unittest.TestCase):
-    def testBasedir(self):
-        with cd(os.path.join(ASSETS_DIR, "basedir")), tempfile.TemporaryDirectory() as tempDir:
-            # First, create two separate build directories with the same sources
-            for buildDir in ["builddir_a", "builddir_b"]:
-                shutil.rmtree(buildDir, ignore_errors=True)
-                os.mkdir(buildDir)
+    def setUp(self):
+        self.projectDir = os.path.join(ASSETS_DIR, "basedir")
+        self.tempDir = tempfile.TemporaryDirectory()
+        self.clcacheDir = os.path.join(self.tempDir.name, "clcache")
+        self.savedCwd = os.getcwd()
 
-                shutil.copy("main.cpp", buildDir)
-                shutil.copy("constants.h", buildDir)
+        os.chdir(self.tempDir.name)
 
-            cache = clcache.Cache(tempDir)
+        # First, create two separate build directories with the same sources
+        for buildDir in ["builddir_a", "builddir_b"]:
+            shutil.copytree(self.projectDir, buildDir)
 
-            cmd = CLCACHE_CMD + ["/nologo", "/EHsc", "/c", "main.cpp"]
+        self.cache = clcache.Cache(self.clcacheDir)
 
-            # Build once in one directory
-            with cd("builddir_a"):
-                env = dict(os.environ, CLCACHE_DIR=tempDir, CLCACHE_BASEDIR=os.getcwd())
-                self.assertEqual(subprocess.call(cmd, env=env), 0)
-                with cache.statistics as stats:
-                    self.assertEqual(stats.numCacheMisses(), 1)
-                    self.assertEqual(stats.numCacheHits(), 0)
+    def tearDown(self):
+        os.chdir(self.savedCwd)
+        self.tempDir.cleanup()
 
-            shutil.rmtree("builddir_a", ignore_errors=True)
+    def _runCompiler(self, cppFile, extraArgs=None):
+        cmd = CLCACHE_CMD + ["/nologo", "/EHsc", "/c"]
+        if extraArgs:
+            cmd.extend(extraArgs)
+        cmd = cmd + [cppFile]
+        env = dict(os.environ, CLCACHE_DIR=self.clcacheDir, CLCACHE_BASEDIR=os.getcwd())
+        self.assertEqual(subprocess.call(cmd, env=env), 0)
 
-            # Build again in a different directory, this should hit now because of CLCACHE_BASEDIR
-            with cd("builddir_b"):
-                env = dict(os.environ, CLCACHE_DIR=tempDir, CLCACHE_BASEDIR=os.getcwd())
-                self.assertEqual(subprocess.call(cmd, env=env), 0)
-                with cache.statistics as stats:
-                    self.assertEqual(stats.numCacheMisses(), 1)
-                    self.assertEqual(stats.numCacheHits(), 1)
+    def expectHit(self, runCompiler):
+        # Build once in one directory
+        with cd("builddir_a"):
+            runCompiler[0]()
+            with self.cache.statistics as stats:
+                self.assertEqual(stats.numCacheMisses(), 1)
+                self.assertEqual(stats.numCacheHits(), 0)
+
+        # Build again in a different directory, this should hit now because of CLCACHE_BASEDIR
+        with cd("builddir_b"):
+            runCompiler[1]()
+            with self.cache.statistics as stats:
+                self.assertEqual(stats.numCacheMisses(), 1)
+                self.assertEqual(stats.numCacheHits(), 1)
+
+    def expectMiss(self, runCompiler):
+        # Build once in one directory
+        with cd("builddir_a"):
+            runCompiler[0]()
+            with self.cache.statistics as stats:
+                self.assertEqual(stats.numCacheMisses(), 1)
+                self.assertEqual(stats.numCacheHits(), 0)
+
+        # Build again in a different directory, this should hit now because of CLCACHE_BASEDIR
+        with cd("builddir_b"):
+            runCompiler[1]()
+            with self.cache.statistics as stats:
+                self.assertEqual(stats.numCacheMisses(), 2)
+                self.assertEqual(stats.numCacheHits(), 0)
+
+    def testBasedirRelativePaths(self):
+        def runCompiler():
+            self._runCompiler("main.cpp")
+        self.expectHit([runCompiler, runCompiler])
+
+    def testBasedirAbsolutePaths(self):
+        def runCompiler():
+            self._runCompiler(os.path.join(os.getcwd(), "main.cpp"))
+        self.expectHit([runCompiler, runCompiler])
+
+    def testBasedirIncludeArg(self):
+        def runCompiler():
+            self._runCompiler("main.cpp", ["/I{}".format(os.getcwd())])
+        self.expectHit([runCompiler, runCompiler])
+
+    def testBasedirIncludeSlashes(self):
+        runCompiler1 = lambda: self._runCompiler("main.cpp", ["/I{}/".format(os.getcwd())])
+        runCompiler2 = lambda: self._runCompiler("main.cpp", ["/I{}".format(os.getcwd())])
+        self.expectHit([runCompiler1, runCompiler2])
+
+    def testBasedirIncludeArgDifferentCapitalization(self):
+        def runCompiler():
+            self._runCompiler("main.cpp", ["/I{}".format(os.getcwd().upper())])
+        self.expectHit([runCompiler, runCompiler])
+
+    def testBasedirDefineArg(self):
+        def runCompiler():
+            self._runCompiler("main.cpp", ["/DRESOURCES_DIR={}".format(os.getcwd())])
+        self.expectMiss([runCompiler, runCompiler])
+
+    def testBasedirRelativeIncludeArg(self):
+        basedir = os.getcwd()
+
+        def runCompiler(cppFile="main.cpp"):
+            cmd = CLCACHE_CMD + ["/nologo", "/EHsc", "/c", "/I."]
+            cmd = cmd + [cppFile]
+            env = dict(os.environ, CLCACHE_DIR=self.clcacheDir, CLCACHE_BASEDIR=basedir)
+            self.assertEqual(subprocess.call(cmd, env=env), 0)
+
+        self.expectMiss([runCompiler, runCompiler])
 
 
 class TestCleanCache(unittest.TestCase):
