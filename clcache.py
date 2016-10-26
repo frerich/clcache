@@ -1432,7 +1432,7 @@ def postprocessUnusableManifestMiss(
     section = cache.compilerArtifactsRepository.section(cachekey)
     with section.lock, cache.statistics.lock, cache.statistics as stats:
         reason(stats)
-        if returnCode == 0 and os.path.exists(objectFile):
+        if returnCode == 0 and os.path.exists(objectFile) and not section.hasEntry(cachekey):
             artifacts = CompilerArtifacts(objectFile, compilerOutput, compilerStderr)
             cleanupRequired = addObjectToCache(stats, cache, section, cachekey, artifacts)
             manifest = createOrUpdateManifest(manifestSection, manifestHash, entry)
