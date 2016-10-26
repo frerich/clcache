@@ -1106,6 +1106,36 @@ class TestBasedir(unittest.TestCase):
                     self.assertEqual(stats.numCacheHits(), 1)
 
 
+class TestCleanCache(unittest.TestCase):
+    def testEvictedObject(self):
+        with cd(os.path.join(ASSETS_DIR, "hits-and-misses")), tempfile.TemporaryDirectory() as tempDir:
+            customEnv = dict(os.environ, CLCACHE_DIR=tempDir)
+            cmd = CLCACHE_CMD + ["/nologo", "/EHsc", "/c", 'hit.cpp']
+
+            # Compile once to insert the object in the cache
+            subprocess.check_call(cmd, env=customEnv)
+
+            # Remove object
+            cache = clcache.Cache(tempDir)
+            cache.compilerArtifactsRepository.clean(0)
+
+            self.assertEqual(subprocess.call(cmd, env=customEnv), 0)
+
+    def testEvictedManifest(self):
+        with cd(os.path.join(ASSETS_DIR, "hits-and-misses")), tempfile.TemporaryDirectory() as tempDir:
+            customEnv = dict(os.environ, CLCACHE_DIR=tempDir)
+            cmd = CLCACHE_CMD + ["/nologo", "/EHsc", "/c", 'hit.cpp']
+
+            # Compile once to insert the object in the cache
+            subprocess.check_call(cmd, env=customEnv)
+
+            # Remove manifest
+            cache = clcache.Cache(tempDir)
+            cache.manifestRepository.clean(0)
+
+            self.assertEqual(subprocess.call(cmd, env=customEnv), 0)
+
+
 if __name__ == '__main__':
     unittest.TestCase.longMessage = True
     unittest.main()
