@@ -3,7 +3,8 @@ clcache changelog
 
 ## Upcoming release
 
- * Nothing yet!
+ * Bugfix: Fixed occasional 'Cannot create a file when that file already
+   exists' error when adding new objects to the cache (GH #155).
 
 ## clcache 3.3.1 (2016-10-25)
 
