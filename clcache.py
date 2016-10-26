@@ -232,9 +232,21 @@ class ManifestRepository(object):
         # One of the few exceptions to this rule is the /MP switch, which only
         # defines how many compiler processes are running simultaneusly.
         commandLine = [arg for arg in commandLine if not arg.startswith("/MP")]
+        arguments, inputFiles = CommandLineAnalyzer.parseArgumentsAndInputFiles(commandLine)
+        collapseBasedirInCmdPath = lambda path: collapseBasedirToPlaceholder(os.path.normcase(os.path.abspath(path)))
+
+        commandLineArgs = []
+        projectSpecificArgs = ("AI", "I", "FU")
+        for k in sorted(arguments.keys()):
+            if k in projectSpecificArgs:
+                commandLineArgs.extend(["/" + k + collapseBasedirInCmdPath(arg) for arg in arguments[k]])
+            else:
+                commandLineArgs.extend(["/" + k + arg for arg in arguments[k]])
+
+        commandLineArgs.extend(collapseBasedirInCmdPath(arg) for arg in inputFiles)
 
         additionalData = "{}|{}|{}".format(
-            compilerHash, commandLine, ManifestRepository.MANIFEST_FILE_FORMAT_VERSION)
+            compilerHash, commandLineArgs, ManifestRepository.MANIFEST_FILE_FORMAT_VERSION)
         return getFileHash(sourceFile, additionalData)
 
     @staticmethod
