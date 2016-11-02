@@ -24,7 +24,7 @@ import clcache
 
 PYTHON_BINARY = sys.executable
 CLCACHE_SCRIPT = os.path.join(os.path.dirname(os.path.realpath(__file__)), "clcache.py")
-ASSETS_DIR = os.path.join("tests", "integrationtests")
+ASSETS_DIR = os.path.join(os.path.dirname(os.path.realpath(__file__)), "tests", "integrationtests")
 
 # pytest-cov note: subprocesses are coverage tested by default with some limitations
 #   "For subprocess measurement environment variables must make it from the main process to the
