@@ -97,8 +97,8 @@ def childDirectories(path, absolute=True):
 def normalizeBaseDir(baseDir):
     if baseDir:
         baseDir = os.path.normcase(baseDir)
-        if not baseDir.endswith(os.path.sep):
-            baseDir += os.path.sep
+        if baseDir.endswith(os.path.sep):
+            baseDir = baseDir[0:-1]
         return baseDir
     else:
         # Converts empty string to None
