@@ -227,10 +227,12 @@ class ManifestRepository(object):
         compilerHash = getCompilerHash(compilerBinary)
 
         # NOTE: We intentionally do not normalize command line to include
-        # preprocessor options. In direct mode we do not perform
-        # preprocessing before cache lookup, so all parameters are important.
-        # One of the few exceptions to this rule is the /MP switch, which only
-        # defines how many compiler processes are running simultaneusly.
+        # preprocessor options.  In direct mode we do not perform preprocessing
+        # before cache lookup, so all parameters are important.  One of the few
+        # exceptions to this rule is the /MP switch, which only defines how many
+        # compiler processes are running simultaneusly.  Arguments that specify
+        # the compiler where to find the source files are parsed to replace
+        # ocurrences of CLCACHE_BASEDIR by a placeholder.
         commandLine = [arg for arg in commandLine if not arg.startswith("/MP")]
         arguments, inputFiles = CommandLineAnalyzer.parseArgumentsAndInputFiles(commandLine)
         collapseBasedirInCmdPath = lambda path: collapseBasedirToPlaceholder(os.path.normcase(os.path.abspath(path)))
