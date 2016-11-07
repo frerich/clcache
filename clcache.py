@@ -235,18 +235,18 @@ class ManifestRepository(object):
         arguments, inputFiles = CommandLineAnalyzer.parseArgumentsAndInputFiles(commandLine)
         collapseBasedirInCmdPath = lambda path: collapseBasedirToPlaceholder(os.path.normcase(os.path.abspath(path)))
 
-        commandLineArgs = []
-        projectSpecificArgs = ("AI", "I", "FU")
+        commandLine = []
+        argumentsWithPaths = ("AI", "I", "FU")
         for k in sorted(arguments.keys()):
-            if k in projectSpecificArgs:
-                commandLineArgs.extend(["/" + k + collapseBasedirInCmdPath(arg) for arg in arguments[k]])
+            if k in argumentsWithPaths:
+                commandLine.extend(["/" + k + collapseBasedirInCmdPath(arg) for arg in arguments[k]])
             else:
-                commandLineArgs.extend(["/" + k + arg for arg in arguments[k]])
+                commandLine.extend(["/" + k + arg for arg in arguments[k]])
 
-        commandLineArgs.extend(collapseBasedirInCmdPath(arg) for arg in inputFiles)
+        commandLine.extend(collapseBasedirInCmdPath(arg) for arg in inputFiles)
 
         additionalData = "{}|{}|{}".format(
-            compilerHash, commandLineArgs, ManifestRepository.MANIFEST_FILE_FORMAT_VERSION)
+            compilerHash, commandLine, ManifestRepository.MANIFEST_FILE_FORMAT_VERSION)
         return getFileHash(sourceFile, additionalData)
 
     @staticmethod
