@@ -97,8 +97,8 @@ def childDirectories(path, absolute=True):
 def normalizeBaseDir(baseDir):
     if baseDir:
         baseDir = os.path.normcase(baseDir)
-        if not baseDir.endswith(os.path.sep):
-            baseDir += os.path.sep
+        if baseDir.endswith(os.path.sep):
+            baseDir = baseDir[0:-1]
         return baseDir
     else:
         # Converts empty string to None
@@ -227,11 +227,25 @@ class ManifestRepository(object):
         compilerHash = getCompilerHash(compilerBinary)
 
         # NOTE: We intentionally do not normalize command line to include
-        # preprocessor options. In direct mode we do not perform
-        # preprocessing before cache lookup, so all parameters are important.
-        # One of the few exceptions to this rule is the /MP switch, which only
-        # defines how many compiler processes are running simultaneusly.
+        # preprocessor options.  In direct mode we do not perform preprocessing
+        # before cache lookup, so all parameters are important.  One of the few
+        # exceptions to this rule is the /MP switch, which only defines how many
+        # compiler processes are running simultaneusly.  Arguments that specify
+        # the compiler where to find the source files are parsed to replace
+        # ocurrences of CLCACHE_BASEDIR by a placeholder.
         commandLine = [arg for arg in commandLine if not arg.startswith("/MP")]
+        arguments, inputFiles = CommandLineAnalyzer.parseArgumentsAndInputFiles(commandLine)
+        collapseBasedirInCmdPath = lambda path: collapseBasedirToPlaceholder(os.path.normcase(os.path.abspath(path)))
+
+        commandLine = []
+        argumentsWithPaths = ("AI", "I", "FU")
+        for k in sorted(arguments.keys()):
+            if k in argumentsWithPaths:
+                commandLine.extend(["/" + k + collapseBasedirInCmdPath(arg) for arg in arguments[k]])
+            else:
+                commandLine.extend(["/" + k + arg for arg in arguments[k]])
+
+        commandLine.extend(collapseBasedirInCmdPath(arg) for arg in inputFiles)
 
         additionalData = "{}|{}|{}".format(
             compilerHash, commandLine, ManifestRepository.MANIFEST_FILE_FORMAT_VERSION)
