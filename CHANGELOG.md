@@ -7,6 +7,9 @@ clcache changelog
    exists' error when adding new objects to the cache (GH #155).
  * Improvement: Extended handling of CLCACHE_BASEDIR variable to improve cache
    hit rates when using different build directories.
+ * Improvement: Improved interaction between concurrent clcache invocations
+   when encountering multiple cache misses in parallel; the risk of triggering
+   timeout exceptions is greatly reduced (GH #229).
 
 ## clcache 3.3.1 (2016-10-25)
 
