@@ -1646,10 +1646,6 @@ def processDirect(cache, objectFile, compiler, cmdLine, sourceFile):
 
 def processNoDirect(cache, objectFile, compiler, cmdLine, environment):
     cachekey = CompilerArtifactsRepository.computeKeyNodirect(compiler, cmdLine, environment)
-    return getOrSetArtifacts(cache, cachekey, objectFile, compiler, cmdLine, Statistics.registerCacheMiss, environment)
-
-
-def getOrSetArtifacts(cache, cachekey, objectFile, compiler, cmdLine, statsField, environment=None):
     artifactSection = cache.compilerArtifactsRepository.section(cachekey)
     cleanupRequired = False
     with artifactSection.lock:
@@ -1659,7 +1655,7 @@ def getOrSetArtifacts(cache, cachekey, objectFile, compiler, cmdLine, statsField
         compilerResult = invokeRealCompiler(compiler, cmdLine, captureOutput=True, environment=environment)
         returnCode, compilerStdout, compilerStderr = compilerResult
         with cache.statistics.lock, cache.statistics as stats:
-            statsField(stats)
+            Statistics.registerCacheMiss(stats)
             if returnCode == 0 and os.path.exists(objectFile):
                 artifacts = CompilerArtifacts(objectFile, compilerStdout, compilerStderr)
                 cleanupRequired = addObjectToCache(stats, cache, artifactSection, cachekey, artifacts)
