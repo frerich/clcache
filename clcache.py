@@ -1644,11 +1644,12 @@ def processDirect(cache, objectFile, compiler, cmdLine, sourceFile):
     with manifestSection.lock:
         if artifactSection is not None:
             with artifactSection.lock:
-                with cache.statistics.lock, cache.statistics as stats:
-                    Statistics.registerEvictedMiss(stats)
-                    if returnCode == 0 and os.path.exists(objectFile):
-                        artifacts = CompilerArtifacts(objectFile, compilerOutput, compilerStderr)
-                        cleanupRequired = addObjectToCache(stats, cache, artifactSection, cachekey, artifacts)
+                if not artifactSection.hasEntry(cachekey):
+                    with cache.statistics.lock, cache.statistics as stats:
+                        Statistics.registerEvictedMiss(stats)
+                        if returnCode == 0 and os.path.exists(objectFile):
+                            artifacts = CompilerArtifacts(objectFile, compilerOutput, compilerStderr)
+                            cleanupRequired = addObjectToCache(stats, cache, artifactSection, cachekey, artifacts)
 
             return compilerResult + (cleanupRequired,)
 
@@ -1657,13 +1658,15 @@ def processDirect(cache, objectFile, compiler, cmdLine, sourceFile):
 
         cleanupRequired = False
         section = cache.compilerArtifactsRepository.section(cachekey)
-        with section.lock, cache.statistics.lock, cache.statistics as stats:
-            unusableManifestMissReason(stats)
-            if returnCode == 0 and os.path.exists(objectFile) and not section.hasEntry(cachekey):
-                artifacts = CompilerArtifacts(objectFile, compilerOutput, compilerStderr)
-                cleanupRequired = addObjectToCache(stats, cache, section, cachekey, artifacts)
-                manifest = createOrUpdateManifest(manifestSection, manifestHash, entry)
-                manifestSection.setManifest(manifestHash, manifest)
+        with section.lock:
+            if not section.hasEntry(cachekey):
+                with cache.statistics.lock, cache.statistics as stats:
+                    unusableManifestMissReason(stats)
+                    if returnCode == 0 and os.path.exists(objectFile):
+                        artifacts = CompilerArtifacts(objectFile, compilerOutput, compilerStderr)
+                        cleanupRequired = addObjectToCache(stats, cache, section, cachekey, artifacts)
+                        manifest = createOrUpdateManifest(manifestSection, manifestHash, entry)
+                        manifestSection.setManifest(manifestHash, manifest)
 
         return returnCode, compilerOutput, compilerStderr, cleanupRequired
 
