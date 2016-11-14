@@ -1429,32 +1429,6 @@ def createOrUpdateManifest(manifestSection, manifestHash, entry):
     return manifest
 
 
-def postprocessUnusableManifestMiss(
-        cache, objectFile, manifestSection, manifestHash, sourceFile, compiler, cmdLine, reason):
-    stripIncludes = False
-    if '/showIncludes' not in cmdLine:
-        cmdLine = list(cmdLine)
-        cmdLine.insert(0, '/showIncludes')
-        stripIncludes = True
-    returnCode, compilerOutput, compilerStderr = invokeRealCompiler(compiler, cmdLine, captureOutput=True)
-    includePaths, compilerOutput = parseIncludesSet(compilerOutput, sourceFile, stripIncludes)
-
-    entry = createManifestEntry(manifestHash, includePaths)
-    cachekey = entry.objectHash
-
-    cleanupRequired = False
-    section = cache.compilerArtifactsRepository.section(cachekey)
-    with section.lock, cache.statistics.lock, cache.statistics as stats:
-        reason(stats)
-        if returnCode == 0 and os.path.exists(objectFile) and not section.hasEntry(cachekey):
-            artifacts = CompilerArtifacts(objectFile, compilerOutput, compilerStderr)
-            cleanupRequired = addObjectToCache(stats, cache, section, cachekey, artifacts)
-            manifest = createOrUpdateManifest(manifestSection, manifestHash, entry)
-            manifestSection.setManifest(manifestHash, manifest)
-
-    return returnCode, compilerOutput, compilerStderr, cleanupRequired
-
-
 def installSignalHandlers():
     # Ignore Ctrl-C and SIGTERM signals to avoid corrupting the cache
     signal.signal(signal.SIGINT, signal.SIG_IGN)
