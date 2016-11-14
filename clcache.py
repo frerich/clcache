@@ -1609,8 +1609,7 @@ def processDirect(cache, objectFile, compiler, cmdLine, sourceFile):
             cmdLine = list(cmdLine)
             cmdLine.insert(0, '/showIncludes')
             stripIncludes = True
-    compilerResult = invokeRealCompiler(compiler, cmdLine, captureOutput=True)
-    returnCode, compilerOutput, compilerStderr = compilerResult
+    returnCode, compilerOutput, compilerStderr = invokeRealCompiler(compiler, cmdLine, captureOutput=True)
     if artifactSection is None:
         includePaths, compilerOutput = parseIncludesSet(compilerOutput, sourceFile, stripIncludes)
 
@@ -1636,8 +1635,7 @@ def processNoDirect(cache, objectFile, compiler, cmdLine, environment):
         if artifactSection.hasEntry(cachekey):
             return processCacheHit(cache, objectFile, cachekey)
 
-    compilerResult = invokeRealCompiler(compiler, cmdLine, captureOutput=True, environment=environment)
-    returnCode, compilerOutput, compilerStderr = compilerResult
+    returnCode, compilerOutput, compilerStderr = invokeRealCompiler(compiler, cmdLine, captureOutput=True, environment=environment)
 
     return ensureArtifactsExist(cache, artifactSection, cachekey, Statistics.registerCacheMiss, objectFile, returnCode, compilerOutput, compilerStderr)
 
