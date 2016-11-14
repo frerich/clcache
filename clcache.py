@@ -1634,13 +1634,13 @@ def processDirect(cache, objectFile, compiler, cmdLine, sourceFile):
                 except IncludeNotFoundException:
                     pass
 
-            return postprocessUnusableManifestMiss(
-                cache, objectFile, manifestSection, manifestHash, sourceFile, compiler, cmdLine,
-                Statistics.registerHeaderChangedMiss)
+            unusableManifestMissReason = Statistics.registerHeaderChangedMiss
+        else:
+            unusableManifestMissReason = Statistics.registerSourceChangedMiss
 
         return postprocessUnusableManifestMiss(
             cache, objectFile, manifestSection, manifestHash, sourceFile, compiler, cmdLine,
-            Statistics.registerSourceChangedMiss)
+            unusableManifestMissReason)
 
 def processNoDirect(cache, objectFile, compiler, cmdLine, environment):
     cachekey = CompilerArtifactsRepository.computeKeyNodirect(compiler, cmdLine, environment)
