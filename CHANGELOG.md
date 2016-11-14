@@ -5,6 +5,8 @@ clcache changelog
 
  * Bugfix: Fixed occasional 'Cannot create a file when that file already
    exists' error when adding new objects to the cache (GH #155).
+ * Improvement: Extended handling of CLCACHE_BASEDIR variable to improve cache
+   hit rates when using different build directories.
 
 ## clcache 3.3.1 (2016-10-25)
 
