@@ -1652,13 +1652,16 @@ def processNoDirect(cache, objectFile, compiler, cmdLine, environment):
         if artifactSection.hasEntry(cachekey):
             return processCacheHit(cache, objectFile, cachekey)
 
-        compilerResult = invokeRealCompiler(compiler, cmdLine, captureOutput=True, environment=environment)
-        returnCode, compilerStdout, compilerStderr = compilerResult
-        with cache.statistics.lock, cache.statistics as stats:
-            Statistics.registerCacheMiss(stats)
-            if returnCode == 0 and os.path.exists(objectFile):
-                artifacts = CompilerArtifacts(objectFile, compilerStdout, compilerStderr)
-                cleanupRequired = addObjectToCache(stats, cache, artifactSection, cachekey, artifacts)
+    compilerResult = invokeRealCompiler(compiler, cmdLine, captureOutput=True, environment=environment)
+    returnCode, compilerStdout, compilerStderr = compilerResult
+
+    with artifactSection.lock:
+        if not artifactSection.hasEntry(cachekey):
+            with cache.statistics.lock, cache.statistics as stats:
+                Statistics.registerCacheMiss(stats)
+                if returnCode == 0 and os.path.exists(objectFile):
+                    artifacts = CompilerArtifacts(objectFile, compilerStdout, compilerStderr)
+                    cleanupRequired = addObjectToCache(stats, cache, artifactSection, cachekey, artifacts)
 
     return compilerResult + (cleanupRequired,)
 
