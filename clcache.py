@@ -1624,8 +1624,8 @@ def processDirect(cache, objectFile, compiler, cmdLine, sourceFile):
             manifest = createOrUpdateManifest(manifestSection, manifestHash, entry)
             manifestSection.setManifest(manifestHash, manifest)
 
-        section = cache.compilerArtifactsRepository.section(cachekey)
-        return ensureArtifactsExist(cache, section, cachekey, unusableManifestMissReason, objectFile, returnCode, compilerOutput, compilerStderr, addManifest)
+        artifactSection = cache.compilerArtifactsRepository.section(cachekey)
+        return ensureArtifactsExist(cache, artifactSection, cachekey, unusableManifestMissReason, objectFile, returnCode, compilerOutput, compilerStderr, addManifest)
 
 
 def processNoDirect(cache, objectFile, compiler, cmdLine, environment):
