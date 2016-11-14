@@ -1592,7 +1592,6 @@ def processDirect(cache, objectFile, compiler, cmdLine, sourceFile):
                         manifestSection.setManifest(manifestHash, manifest)
 
                         artifactSection = cache.compilerArtifactsRepository.section(cachekey)
-                        cleanupRequired = False
                         with artifactSection.lock:
                             if artifactSection.hasEntry(cachekey):
                                 return processCacheHit(cache, objectFile, cachekey)
@@ -1617,53 +1616,44 @@ def processDirect(cache, objectFile, compiler, cmdLine, sourceFile):
 
     with manifestSection.lock:
         if artifactSection is not None:
-            with artifactSection.lock:
-                if not artifactSection.hasEntry(cachekey):
-                    with cache.statistics.lock, cache.statistics as stats:
-                        Statistics.registerEvictedMiss(stats)
-                        if returnCode == 0 and os.path.exists(objectFile):
-                            artifacts = CompilerArtifacts(objectFile, compilerOutput, compilerStderr)
-                            cleanupRequired = addObjectToCache(stats, cache, artifactSection, cachekey, artifacts)
-
-            return compilerResult + (cleanupRequired,)
+            return ensureArtifactsExist(cache, artifactSection, cachekey, unusableManifestMissReason, objectFile, returnCode, compilerOutput, compilerStderr)
 
         entry = createManifestEntry(manifestHash, includePaths)
         cachekey = entry.objectHash
 
-        cleanupRequired = False
-        section = cache.compilerArtifactsRepository.section(cachekey)
-        with section.lock:
-            if not section.hasEntry(cachekey):
-                with cache.statistics.lock, cache.statistics as stats:
-                    unusableManifestMissReason(stats)
-                    if returnCode == 0 and os.path.exists(objectFile):
-                        artifacts = CompilerArtifacts(objectFile, compilerOutput, compilerStderr)
-                        cleanupRequired = addObjectToCache(stats, cache, section, cachekey, artifacts)
-                        manifest = createOrUpdateManifest(manifestSection, manifestHash, entry)
-                        manifestSection.setManifest(manifestHash, manifest)
+        def addManifest():
+            manifest = createOrUpdateManifest(manifestSection, manifestHash, entry)
+            manifestSection.setManifest(manifestHash, manifest)
 
-        return returnCode, compilerOutput, compilerStderr, cleanupRequired
+        section = cache.compilerArtifactsRepository.section(cachekey)
+        return ensureArtifactsExist(cache, section, cachekey, unusableManifestMissReason, objectFile, returnCode, compilerOutput, compilerStderr, addManifest)
+
 
 def processNoDirect(cache, objectFile, compiler, cmdLine, environment):
     cachekey = CompilerArtifactsRepository.computeKeyNodirect(compiler, cmdLine, environment)
     artifactSection = cache.compilerArtifactsRepository.section(cachekey)
-    cleanupRequired = False
     with artifactSection.lock:
         if artifactSection.hasEntry(cachekey):
             return processCacheHit(cache, objectFile, cachekey)
 
     compilerResult = invokeRealCompiler(compiler, cmdLine, captureOutput=True, environment=environment)
-    returnCode, compilerStdout, compilerStderr = compilerResult
+    returnCode, compilerOutput, compilerStderr = compilerResult
 
-    with artifactSection.lock:
-        if not artifactSection.hasEntry(cachekey):
+    return ensureArtifactsExist(cache, artifactSection, cachekey, Statistics.registerCacheMiss, objectFile, returnCode, compilerOutput, compilerStderr)
+
+
+def ensureArtifactsExist(cache, section, cachekey, reason, objectFile, returnCode, compilerOutput, compilerStderr, extraCallable=None):
+    cleanupRequired = False
+    with section.lock:
+        if not section.hasEntry(cachekey):
             with cache.statistics.lock, cache.statistics as stats:
-                Statistics.registerCacheMiss(stats)
+                reason(stats)
                 if returnCode == 0 and os.path.exists(objectFile):
-                    artifacts = CompilerArtifacts(objectFile, compilerStdout, compilerStderr)
-                    cleanupRequired = addObjectToCache(stats, cache, artifactSection, cachekey, artifacts)
-
-    return compilerResult + (cleanupRequired,)
+                    artifacts = CompilerArtifacts(objectFile, compilerOutput, compilerStderr)
+                    cleanupRequired = addObjectToCache(stats, cache, section, cachekey, artifacts)
+                    if extraCallable:
+                        extraCallable()
+    return returnCode, compilerOutput, compilerStderr, cleanupRequired
 
 
 if __name__ == '__main__':
