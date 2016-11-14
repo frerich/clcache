@@ -1616,8 +1616,21 @@ def processDirect(cache, objectFile, compiler, cmdLine, sourceFile):
                         manifest.touchEntry(entryIndex)
                         manifestSection.setManifest(manifestHash, manifest)
 
-                        return getOrSetArtifacts(
-                            cache, cachekey, objectFile, compiler, cmdLine, Statistics.registerEvictedMiss)
+                        artifactSection = cache.compilerArtifactsRepository.section(cachekey)
+                        cleanupRequired = False
+                        with artifactSection.lock:
+                            if artifactSection.hasEntry(cachekey):
+                                return processCacheHit(cache, objectFile, cachekey)
+
+                            compilerResult = invokeRealCompiler(compiler, cmdLine, captureOutput=True, environment=None)
+                            returnCode, compilerStdout, compilerStderr = compilerResult
+                            with cache.statistics.lock, cache.statistics as stats:
+                                Statistics.registerEvictedMiss(stats)
+                                if returnCode == 0 and os.path.exists(objectFile):
+                                    artifacts = CompilerArtifacts(objectFile, compilerStdout, compilerStderr)
+                                    cleanupRequired = addObjectToCache(stats, cache, artifactSection, cachekey, artifacts)
+
+                        return compilerResult + (cleanupRequired,)
                 except IncludeNotFoundException:
                     pass
 
