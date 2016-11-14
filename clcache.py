@@ -1600,6 +1600,7 @@ def processCompileRequest(cache, compiler, args):
 def processDirect(cache, objectFile, compiler, cmdLine, sourceFile):
     manifestHash = ManifestRepository.getManifestHash(compiler, cmdLine, sourceFile)
     manifestSection = cache.manifestRepository.section(manifestHash)
+    artifactSection = None
     with manifestSection.lock:
         manifest = manifestSection.getManifest(manifestHash)
         if manifest:
@@ -1622,15 +1623,6 @@ def processDirect(cache, objectFile, compiler, cmdLine, sourceFile):
                             if artifactSection.hasEntry(cachekey):
                                 return processCacheHit(cache, objectFile, cachekey)
 
-                            compilerResult = invokeRealCompiler(compiler, cmdLine, captureOutput=True, environment=None)
-                            returnCode, compilerStdout, compilerStderr = compilerResult
-                            with cache.statistics.lock, cache.statistics as stats:
-                                Statistics.registerEvictedMiss(stats)
-                                if returnCode == 0 and os.path.exists(objectFile):
-                                    artifacts = CompilerArtifacts(objectFile, compilerStdout, compilerStderr)
-                                    cleanupRequired = addObjectToCache(stats, cache, artifactSection, cachekey, artifacts)
-
-                        return compilerResult + (cleanupRequired,)
                 except IncludeNotFoundException:
                     pass
 
@@ -1638,13 +1630,27 @@ def processDirect(cache, objectFile, compiler, cmdLine, sourceFile):
         else:
             unusableManifestMissReason = Statistics.registerSourceChangedMiss
 
+    if artifactSection is None:
         stripIncludes = False
         if '/showIncludes' not in cmdLine:
             cmdLine = list(cmdLine)
             cmdLine.insert(0, '/showIncludes')
             stripIncludes = True
-        returnCode, compilerOutput, compilerStderr = invokeRealCompiler(compiler, cmdLine, captureOutput=True)
+    compilerResult = invokeRealCompiler(compiler, cmdLine, captureOutput=True)
+    returnCode, compilerOutput, compilerStderr = compilerResult
+    if artifactSection is None:
         includePaths, compilerOutput = parseIncludesSet(compilerOutput, sourceFile, stripIncludes)
+
+    with manifestSection.lock:
+        if artifactSection is not None:
+            with artifactSection.lock:
+                with cache.statistics.lock, cache.statistics as stats:
+                    Statistics.registerEvictedMiss(stats)
+                    if returnCode == 0 and os.path.exists(objectFile):
+                        artifacts = CompilerArtifacts(objectFile, compilerOutput, compilerStderr)
+                        cleanupRequired = addObjectToCache(stats, cache, artifactSection, cachekey, artifacts)
+
+            return compilerResult + (cleanupRequired,)
 
         entry = createManifestEntry(manifestHash, includePaths)
         cachekey = entry.objectHash
