@@ -1609,13 +1609,15 @@ def processDirect(cache, objectFile, compiler, cmdLine, sourceFile):
             cmdLine = list(cmdLine)
             cmdLine.insert(0, '/showIncludes')
             stripIncludes = True
-    returnCode, compilerOutput, compilerStderr = invokeRealCompiler(compiler, cmdLine, captureOutput=True)
+    compilerResult = invokeRealCompiler(compiler, cmdLine, captureOutput=True)
     if artifactSection is None:
-        includePaths, compilerOutput = parseIncludesSet(compilerOutput, sourceFile, stripIncludes)
+        includePaths, compilerOutput = parseIncludesSet(compilerResult[1], sourceFile, stripIncludes)
+        compilerResult = (compilerResult[0], compilerOutput, compilerResult[2])
 
     with manifestSection.lock:
         if artifactSection is not None:
-            return ensureArtifactsExist(cache, artifactSection, cachekey, unusableManifestMissReason, objectFile, returnCode, compilerOutput, compilerStderr)
+            return ensureArtifactsExist(cache, artifactSection, cachekey, unusableManifestMissReason,
+                                        objectFile, compilerResult)
 
         entry = createManifestEntry(manifestHash, includePaths)
         cachekey = entry.objectHash
@@ -1625,7 +1627,8 @@ def processDirect(cache, objectFile, compiler, cmdLine, sourceFile):
             manifestSection.setManifest(manifestHash, manifest)
 
         artifactSection = cache.compilerArtifactsRepository.section(cachekey)
-        return ensureArtifactsExist(cache, artifactSection, cachekey, unusableManifestMissReason, objectFile, returnCode, compilerOutput, compilerStderr, addManifest)
+        return ensureArtifactsExist(cache, artifactSection, cachekey, unusableManifestMissReason,
+                                    objectFile, compilerResult, addManifest)
 
 
 def processNoDirect(cache, objectFile, compiler, cmdLine, environment):
@@ -1635,13 +1638,15 @@ def processNoDirect(cache, objectFile, compiler, cmdLine, environment):
         if artifactSection.hasEntry(cachekey):
             return processCacheHit(cache, objectFile, cachekey)
 
-    returnCode, compilerOutput, compilerStderr = invokeRealCompiler(compiler, cmdLine, captureOutput=True, environment=environment)
+    compilerResult = invokeRealCompiler(compiler, cmdLine, captureOutput=True, environment=environment)
 
-    return ensureArtifactsExist(cache, artifactSection, cachekey, Statistics.registerCacheMiss, objectFile, returnCode, compilerOutput, compilerStderr)
+    return ensureArtifactsExist(cache, artifactSection, cachekey, Statistics.registerCacheMiss,
+                                objectFile, compilerResult)
 
 
-def ensureArtifactsExist(cache, section, cachekey, reason, objectFile, returnCode, compilerOutput, compilerStderr, extraCallable=None):
+def ensureArtifactsExist(cache, section, cachekey, reason, objectFile, compilerResult, extraCallable=None):
     cleanupRequired = False
+    returnCode, compilerOutput, compilerStderr = compilerResult
     with section.lock:
         if not section.hasEntry(cachekey):
             with cache.statistics.lock, cache.statistics as stats:
