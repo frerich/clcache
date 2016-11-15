@@ -1145,9 +1145,12 @@ class TestBasedir(unittest.TestCase):
         self.expectHit([runCompiler, runCompiler])
 
     def testBasedirIncludeSlashes(self):
-        runCompiler1 = lambda: self._runCompiler("main.cpp", ["/I{}/".format(os.getcwd())])
-        runCompiler2 = lambda: self._runCompiler("main.cpp", ["/I{}".format(os.getcwd())])
-        self.expectHit([runCompiler1, runCompiler2])
+        def runCompiler(includePath):
+            self._runCompiler("main.cpp", ["/I{}".format(includePath)])
+        self.expectHit([
+            lambda: runCompiler(os.getcwd() + "/"),
+            lambda: runCompiler(os.getcwd())
+        ])
 
     def testBasedirIncludeArgDifferentCapitalization(self):
         def runCompiler():
