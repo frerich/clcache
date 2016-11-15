@@ -640,17 +640,18 @@ class TestHeaderMiss(unittest.TestCase):
     # When a required header disappears, we must fall back to real compiler
     # complaining about the miss
     def testRequiredHeaderDisappears(self):
-        with cd(os.path.join(ASSETS_DIR, "header-miss")):
+        with cd(os.path.join(ASSETS_DIR, "header-miss")), tempfile.TemporaryDirectory() as tempDir:
+            customEnv = dict(os.environ, CLCACHE_DIR=tempDir)
             compileCmd = CLCACHE_CMD + ["/nologo", "/EHsc", "/c", "main.cpp"]
 
             with open("info.h", "w") as header:
                 header.write("#define INFO 1337\n")
-            subprocess.check_call(compileCmd)
+            subprocess.check_call(compileCmd, env=customEnv)
 
             os.remove("info.h")
 
             # real compiler fails
-            process = subprocess.Popen(compileCmd, stdout=subprocess.PIPE)
+            process = subprocess.Popen(compileCmd, stdout=subprocess.PIPE, env=customEnv)
             stdout, _ = process.communicate()
             self.assertEqual(process.returncode, 2)
             self.assertTrue("C1083" in stdout.decode(clcache.CL_DEFAULT_CODEC))
@@ -659,9 +660,10 @@ class TestHeaderMiss(unittest.TestCase):
     # we must fall back to real compiler.
     def testObsoleteHeaderDisappears(self):
         # A includes B
-        with cd(os.path.join(ASSETS_DIR, "header-miss-obsolete")):
+        with cd(os.path.join(ASSETS_DIR, "header-miss-obsolete")), tempfile.TemporaryDirectory() as tempDir:
+            customEnv = dict(os.environ, CLCACHE_DIR=tempDir)
             compileCmd = CLCACHE_CMD + ["/I.", "/nologo", "/EHsc", "/c", "main.cpp"]
-            cache = clcache.Cache()
+            cache = clcache.Cache(tempDir)
 
             with open("A.h", "w") as header:
                 header.write('#define INFO 1337\n')
@@ -669,7 +671,7 @@ class TestHeaderMiss(unittest.TestCase):
             with open("B.h", "w") as header:
                 header.write('#define SOMETHING 1\n')
 
-            subprocess.check_call(compileCmd)
+            subprocess.check_call(compileCmd, env=customEnv)
 
             with cache.statistics as stats:
                 headerChangedMisses1 = stats.numHeaderChangedMisses()
@@ -682,7 +684,7 @@ class TestHeaderMiss(unittest.TestCase):
                 header.write('\n')
             os.remove("B.h")
 
-            subprocess.check_call(compileCmd)
+            subprocess.check_call(compileCmd, env=customEnv)
 
             with cache.statistics as stats:
                 headerChangedMisses2 = stats.numHeaderChangedMisses()
@@ -694,7 +696,7 @@ class TestHeaderMiss(unittest.TestCase):
             self.assertEqual(hits2, hits1)
 
             # Ensure the new manifest was stored
-            subprocess.check_call(compileCmd)
+            subprocess.check_call(compileCmd, env=customEnv)
 
             with cache.statistics as stats:
                 headerChangedMisses3 = stats.numHeaderChangedMisses()
