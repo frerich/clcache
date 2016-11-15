@@ -1095,7 +1095,7 @@ class TestBasedir(unittest.TestCase):
         cmd = CLCACHE_CMD + ["/nologo", "/EHsc", "/c"]
         if extraArgs:
             cmd.extend(extraArgs)
-        cmd = cmd + [cppFile]
+        cmd.append(cppFile)
         env = dict(os.environ, CLCACHE_DIR=self.clcacheDir, CLCACHE_BASEDIR=os.getcwd())
         self.assertEqual(subprocess.call(cmd, env=env), 0)
 
@@ -1164,7 +1164,7 @@ class TestBasedir(unittest.TestCase):
 
         def runCompiler(cppFile="main.cpp"):
             cmd = CLCACHE_CMD + ["/nologo", "/EHsc", "/c", "/I."]
-            cmd = cmd + [cppFile]
+            cmd.append(cppFile)
             env = dict(os.environ, CLCACHE_DIR=self.clcacheDir, CLCACHE_BASEDIR=basedir)
             self.assertEqual(subprocess.call(cmd, env=env), 0)
 
