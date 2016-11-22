@@ -1,3 +1,5 @@
+# We often don't use all members of all the pyuv callbacks
+# pylint: disable=unused-argument
 import hashlib
 import logging
 import os
