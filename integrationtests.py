@@ -24,12 +24,14 @@ import clcache
 
 PYTHON_BINARY = sys.executable
 CLCACHE_SCRIPT = os.path.join(os.path.dirname(os.path.realpath(__file__)), "clcache.py")
-ASSETS_DIR = os.path.join("tests", "integrationtests")
+ASSETS_DIR = os.path.join(os.path.dirname(os.path.realpath(__file__)), "tests", "integrationtests")
 
-if "CLCACHE_CMD" in os.environ:
-    CLCACHE_CMD = os.environ['CLCACHE_CMD'].split()
-else:
-    CLCACHE_CMD = [PYTHON_BINARY, CLCACHE_SCRIPT]
+# pytest-cov note: subprocesses are coverage tested by default with some limitations
+#   "For subprocess measurement environment variables must make it from the main process to the
+#   subprocess. The python used by the subprocess must have pytest-cov installed. The subprocess
+#   must do normal site initialisation so that the environment variables can be detected and
+#   coverage started."
+CLCACHE_CMD = [PYTHON_BINARY, CLCACHE_SCRIPT]
 
 
 @contextmanager
@@ -231,11 +233,333 @@ class TestHits(unittest.TestCase):
                 newHits = stats.numCacheHits()
             self.assertEqual(newHits, oldHits + 1)
 
+    def testAlternatingHeadersHit(self):
+        with cd(os.path.join(ASSETS_DIR, "hits-and-misses")), tempfile.TemporaryDirectory() as tempDir:
+            cache = clcache.Cache(tempDir)
+            customEnv = dict(os.environ, CLCACHE_DIR=tempDir)
+            baseCmd = CLCACHE_CMD + ["/nologo", "/EHsc", "/c"]
+
+            with cache.statistics as stats:
+                self.assertEqual(stats.numCacheHits(), 0)
+                self.assertEqual(stats.numCacheMisses(), 0)
+                self.assertEqual(stats.numCacheEntries(), 0)
+
+            # VERSION 1
+            with open('stable-source-with-alternating-header.h', 'w') as f:
+                f.write("#define VERSION 1\n")
+            subprocess.check_call(baseCmd + ["stable-source-with-alternating-header.cpp"], env=customEnv)
+
+            with cache.statistics as stats:
+                self.assertEqual(stats.numCacheHits(), 0)
+                self.assertEqual(stats.numCacheMisses(), 1)
+                self.assertEqual(stats.numCacheEntries(), 1)
+
+            # VERSION 2
+            with open('stable-source-with-alternating-header.h', 'w') as f:
+                f.write("#define VERSION 2\n")
+            subprocess.check_call(baseCmd + ["stable-source-with-alternating-header.cpp"], env=customEnv)
+
+            with cache.statistics as stats:
+                self.assertEqual(stats.numCacheHits(), 0)
+                self.assertEqual(stats.numCacheMisses(), 2)
+                self.assertEqual(stats.numCacheEntries(), 2)
+
+            # VERSION 1 again
+            with open('stable-source-with-alternating-header.h', 'w') as f:
+                f.write("#define VERSION 1\n")
+            subprocess.check_call(baseCmd + ["stable-source-with-alternating-header.cpp"], env=customEnv)
+
+            with cache.statistics as stats:
+                self.assertEqual(stats.numCacheHits(), 1)
+                self.assertEqual(stats.numCacheMisses(), 2)
+                self.assertEqual(stats.numCacheEntries(), 2)
+
+            # VERSION 2 again
+            with open('stable-source-with-alternating-header.h', 'w') as f:
+                f.write("#define VERSION 1\n")
+            subprocess.check_call(baseCmd + ["stable-source-with-alternating-header.cpp"], env=customEnv)
+
+            with cache.statistics as stats:
+                self.assertEqual(stats.numCacheHits(), 2)
+                self.assertEqual(stats.numCacheMisses(), 2)
+                self.assertEqual(stats.numCacheEntries(), 2)
+
+    def testRemovedHeader(self):
+        with cd(os.path.join(ASSETS_DIR, "hits-and-misses")), tempfile.TemporaryDirectory() as tempDir:
+            cache = clcache.Cache(tempDir)
+            customEnv = dict(os.environ, CLCACHE_DIR=tempDir)
+            baseCmd = CLCACHE_CMD + ["/nologo", "/EHsc", "/c"]
+
+            with cache.statistics as stats:
+                self.assertEqual(stats.numCacheHits(), 0)
+                self.assertEqual(stats.numCacheMisses(), 0)
+                self.assertEqual(stats.numCacheEntries(), 0)
+
+            # VERSION 1
+            with open('stable-source-with-alternating-header.h', 'w') as f:
+                f.write("#define VERSION 1\n")
+            subprocess.check_call(baseCmd + ["stable-source-with-alternating-header.cpp"], env=customEnv)
+
+            with cache.statistics as stats:
+                self.assertEqual(stats.numCacheHits(), 0)
+                self.assertEqual(stats.numCacheMisses(), 1)
+                self.assertEqual(stats.numCacheEntries(), 1)
+
+            # Remove header, trigger the compiler which should fail
+            os.remove('stable-source-with-alternating-header.h')
+            with self.assertRaises(subprocess.CalledProcessError):
+                subprocess.check_call(baseCmd + ["stable-source-with-alternating-header.cpp"], env=customEnv)
+
+            with cache.statistics as stats:
+                self.assertEqual(stats.numCacheHits(), 0)
+                self.assertEqual(stats.numCacheMisses(), 2)
+                self.assertEqual(stats.numCacheEntries(), 1)
+
+            # VERSION 1 again
+            with open('stable-source-with-alternating-header.h', 'w') as f:
+                f.write("#define VERSION 1\n")
+            subprocess.check_call(baseCmd + ["stable-source-with-alternating-header.cpp"], env=customEnv)
+
+            with cache.statistics as stats:
+                self.assertEqual(stats.numCacheHits(), 1)
+                self.assertEqual(stats.numCacheMisses(), 2)
+                self.assertEqual(stats.numCacheEntries(), 1)
+
+            # Remove header again, trigger the compiler which should fail
+            os.remove('stable-source-with-alternating-header.h')
+            with self.assertRaises(subprocess.CalledProcessError):
+                subprocess.check_call(baseCmd + ["stable-source-with-alternating-header.cpp"], env=customEnv)
+
+            with cache.statistics as stats:
+                self.assertEqual(stats.numCacheHits(), 1)
+                self.assertEqual(stats.numCacheMisses(), 3)
+                self.assertEqual(stats.numCacheEntries(), 1)
+
+    def testAlternatingTransitiveHeader(self):
+        with cd(os.path.join(ASSETS_DIR, "hits-and-misses")), tempfile.TemporaryDirectory() as tempDir:
+            cache = clcache.Cache(tempDir)
+            customEnv = dict(os.environ, CLCACHE_DIR=tempDir)
+            baseCmd = CLCACHE_CMD + ["/nologo", "/EHsc", "/c"]
+
+            with cache.statistics as stats:
+                self.assertEqual(stats.numCacheHits(), 0)
+                self.assertEqual(stats.numCacheMisses(), 0)
+                self.assertEqual(stats.numCacheEntries(), 0)
+
+            # VERSION 1
+            with open('alternating-header.h', 'w') as f:
+                f.write("#define VERSION 1\n")
+            subprocess.check_call(baseCmd + ["stable-source-transitive-header.cpp"], env=customEnv)
+
+            with cache.statistics as stats:
+                self.assertEqual(stats.numCacheHits(), 0)
+                self.assertEqual(stats.numCacheMisses(), 1)
+                self.assertEqual(stats.numCacheEntries(), 1)
+
+            # VERSION 2
+            with open('alternating-header.h', 'w') as f:
+                f.write("#define VERSION 2\n")
+            subprocess.check_call(baseCmd + ["stable-source-transitive-header.cpp"], env=customEnv)
+
+            with cache.statistics as stats:
+                self.assertEqual(stats.numCacheHits(), 0)
+                self.assertEqual(stats.numCacheMisses(), 2)
+                self.assertEqual(stats.numCacheEntries(), 2)
+
+            # VERSION 1 again
+            with open('alternating-header.h', 'w') as f:
+                f.write("#define VERSION 1\n")
+            subprocess.check_call(baseCmd + ["stable-source-transitive-header.cpp"], env=customEnv)
+
+            with cache.statistics as stats:
+                self.assertEqual(stats.numCacheHits(), 1)
+                self.assertEqual(stats.numCacheMisses(), 2)
+                self.assertEqual(stats.numCacheEntries(), 2)
+
+            # VERSION 2 again
+            with open('alternating-header.h', 'w') as f:
+                f.write("#define VERSION 1\n")
+            subprocess.check_call(baseCmd + ["stable-source-transitive-header.cpp"], env=customEnv)
+
+            with cache.statistics as stats:
+                self.assertEqual(stats.numCacheHits(), 2)
+                self.assertEqual(stats.numCacheMisses(), 2)
+                self.assertEqual(stats.numCacheEntries(), 2)
+
+    def testRemovedTransitiveHeader(self):
+        with cd(os.path.join(ASSETS_DIR, "hits-and-misses")), tempfile.TemporaryDirectory() as tempDir:
+            cache = clcache.Cache(tempDir)
+            customEnv = dict(os.environ, CLCACHE_DIR=tempDir)
+            baseCmd = CLCACHE_CMD + ["/nologo", "/EHsc", "/c"]
+
+            with cache.statistics as stats:
+                self.assertEqual(stats.numCacheHits(), 0)
+                self.assertEqual(stats.numCacheMisses(), 0)
+                self.assertEqual(stats.numCacheEntries(), 0)
+
+            # VERSION 1
+            with open('alternating-header.h', 'w') as f:
+                f.write("#define VERSION 1\n")
+            subprocess.check_call(baseCmd + ["stable-source-transitive-header.cpp"], env=customEnv)
+
+            with cache.statistics as stats:
+                self.assertEqual(stats.numCacheHits(), 0)
+                self.assertEqual(stats.numCacheMisses(), 1)
+                self.assertEqual(stats.numCacheEntries(), 1)
+
+            # Remove header, trigger the compiler which should fail
+            os.remove('alternating-header.h')
+            with self.assertRaises(subprocess.CalledProcessError):
+                subprocess.check_call(baseCmd + ["stable-source-transitive-header.cpp"], env=customEnv)
+
+            with cache.statistics as stats:
+                self.assertEqual(stats.numCacheHits(), 0)
+                self.assertEqual(stats.numCacheMisses(), 2)
+                self.assertEqual(stats.numCacheEntries(), 1)
+
+            # VERSION 1 again
+            with open('alternating-header.h', 'w') as f:
+                f.write("#define VERSION 1\n")
+            subprocess.check_call(baseCmd + ["stable-source-transitive-header.cpp"], env=customEnv)
+
+            with cache.statistics as stats:
+                self.assertEqual(stats.numCacheHits(), 1)
+                self.assertEqual(stats.numCacheMisses(), 2)
+                self.assertEqual(stats.numCacheEntries(), 1)
+
+            # Remove header again, trigger the compiler which should fail
+            os.remove('alternating-header.h')
+            with self.assertRaises(subprocess.CalledProcessError):
+                subprocess.check_call(baseCmd + ["stable-source-transitive-header.cpp"], env=customEnv)
+
+            with cache.statistics as stats:
+                self.assertEqual(stats.numCacheHits(), 1)
+                self.assertEqual(stats.numCacheMisses(), 3)
+                self.assertEqual(stats.numCacheEntries(), 1)
+
+    def testAlternatingIncludeOrder(self):
+        with cd(os.path.join(ASSETS_DIR, "hits-and-misses")), tempfile.TemporaryDirectory() as tempDir:
+            cache = clcache.Cache(tempDir)
+            customEnv = dict(os.environ, CLCACHE_DIR=tempDir)
+            baseCmd = CLCACHE_CMD + ["/nologo", "/EHsc", "/c"]
+
+            with open('A.h', 'w') as header:
+                header.write('#define A 1\n')
+            with open('B.h', 'w') as header:
+                header.write('#define B 1\n')
+
+            with cache.statistics as stats:
+                self.assertEqual(stats.numCacheHits(), 0)
+                self.assertEqual(stats.numCacheMisses(), 0)
+                self.assertEqual(stats.numCacheEntries(), 0)
+
+            # VERSION 1
+            with open('stable-source-with-alternating-header.h', 'w') as f:
+                f.write('#include "A.h"\n')
+                f.write('#include "B.h"\n')
+            subprocess.check_call(baseCmd + ["stable-source-with-alternating-header.cpp"], env=customEnv)
+
+            with cache.statistics as stats:
+                self.assertEqual(stats.numCacheHits(), 0)
+                self.assertEqual(stats.numCacheMisses(), 1)
+                self.assertEqual(stats.numCacheEntries(), 1)
+
+            # VERSION 2
+            with open('stable-source-with-alternating-header.h', 'w') as f:
+                f.write('#include "B.h"\n')
+                f.write('#include "A.h"\n')
+            subprocess.check_call(baseCmd + ["stable-source-with-alternating-header.cpp"], env=customEnv)
+
+            with cache.statistics as stats:
+                self.assertEqual(stats.numCacheHits(), 0)
+                self.assertEqual(stats.numCacheMisses(), 2)
+                self.assertEqual(stats.numCacheEntries(), 2)
+
+            # VERSION 1 again
+            with open('stable-source-with-alternating-header.h', 'w') as f:
+                f.write('#include "A.h"\n')
+                f.write('#include "B.h"\n')
+            subprocess.check_call(baseCmd + ["stable-source-with-alternating-header.cpp"], env=customEnv)
+
+            with cache.statistics as stats:
+                self.assertEqual(stats.numCacheHits(), 1)
+                self.assertEqual(stats.numCacheMisses(), 2)
+                self.assertEqual(stats.numCacheEntries(), 2)
+
+            # VERSION 2 again
+            with open('stable-source-with-alternating-header.h', 'w') as f:
+                f.write('#include "B.h"\n')
+                f.write('#include "A.h"\n')
+            subprocess.check_call(baseCmd + ["stable-source-with-alternating-header.cpp"], env=customEnv)
+
+            with cache.statistics as stats:
+                self.assertEqual(stats.numCacheHits(), 2)
+                self.assertEqual(stats.numCacheMisses(), 2)
+                self.assertEqual(stats.numCacheEntries(), 2)
+
+    def testRepeatedIncludes(self):
+        with cd(os.path.join(ASSETS_DIR, "hits-and-misses")), tempfile.TemporaryDirectory() as tempDir:
+            cache = clcache.Cache(tempDir)
+            customEnv = dict(os.environ, CLCACHE_DIR=tempDir)
+            baseCmd = CLCACHE_CMD + ["/nologo", "/EHsc", "/c"]
+
+            with open('A.h', 'w') as header:
+                header.write('#define A 1\n')
+            with open('B.h', 'w') as header:
+                header.write('#define B 1\n')
+
+            with cache.statistics as stats:
+                self.assertEqual(stats.numCacheHits(), 0)
+                self.assertEqual(stats.numCacheMisses(), 0)
+                self.assertEqual(stats.numCacheEntries(), 0)
+
+            # VERSION 1
+            with open('stable-source-with-alternating-header.h', 'w') as f:
+                f.write('#include "A.h"\n')
+                f.write('#include "A.h"\n')
+            subprocess.check_call(baseCmd + ["stable-source-with-alternating-header.cpp"], env=customEnv)
+
+            with cache.statistics as stats:
+                self.assertEqual(stats.numCacheHits(), 0)
+                self.assertEqual(stats.numCacheMisses(), 1)
+                self.assertEqual(stats.numCacheEntries(), 1)
+
+            # VERSION 2
+            with open('stable-source-with-alternating-header.h', 'w') as f:
+                f.write('#include "A.h"\n')
+            subprocess.check_call(baseCmd + ["stable-source-with-alternating-header.cpp"], env=customEnv)
+
+            with cache.statistics as stats:
+                self.assertEqual(stats.numCacheHits(), 0)
+                self.assertEqual(stats.numCacheMisses(), 2)
+                self.assertEqual(stats.numCacheEntries(), 2)
+
+            # VERSION 1 again
+            with open('stable-source-with-alternating-header.h', 'w') as f:
+                f.write('#include "A.h"\n')
+                f.write('#include "A.h"\n')
+            subprocess.check_call(baseCmd + ["stable-source-with-alternating-header.cpp"], env=customEnv)
+
+            with cache.statistics as stats:
+                self.assertEqual(stats.numCacheHits(), 1)
+                self.assertEqual(stats.numCacheMisses(), 2)
+                self.assertEqual(stats.numCacheEntries(), 2)
+
+            # VERSION 2 again
+            with open('stable-source-with-alternating-header.h', 'w') as f:
+                f.write('#include "A.h"\n')
+            subprocess.check_call(baseCmd + ["stable-source-with-alternating-header.cpp"], env=customEnv)
+
+            with cache.statistics as stats:
+                self.assertEqual(stats.numCacheHits(), 2)
+                self.assertEqual(stats.numCacheMisses(), 2)
+                self.assertEqual(stats.numCacheEntries(), 2)
+
 
 class TestPrecompiledHeaders(unittest.TestCase):
     def testSampleproject(self):
         with cd(os.path.join(ASSETS_DIR, "precompiled-headers")):
-            cpp = ' '.join(CLCACHE_CMD)
+            cpp = subprocess.list2cmdline(CLCACHE_CMD)
 
             testEnvironment = dict(os.environ, CPP=cpp)
 
@@ -310,6 +634,78 @@ class TestHeaderChange(unittest.TestCase):
             cmdRun = [os.path.abspath("main.exe")]
             output = subprocess.check_output(cmdRun).decode("ascii").strip()
             self.assertEqual(output, "2")
+
+
+class TestHeaderMiss(unittest.TestCase):
+    # When a required header disappears, we must fall back to real compiler
+    # complaining about the miss
+    def testRequiredHeaderDisappears(self):
+        with cd(os.path.join(ASSETS_DIR, "header-miss")), tempfile.TemporaryDirectory() as tempDir:
+            customEnv = dict(os.environ, CLCACHE_DIR=tempDir)
+            compileCmd = CLCACHE_CMD + ["/nologo", "/EHsc", "/c", "main.cpp"]
+
+            with open("info.h", "w") as header:
+                header.write("#define INFO 1337\n")
+            subprocess.check_call(compileCmd, env=customEnv)
+
+            os.remove("info.h")
+
+            # real compiler fails
+            process = subprocess.Popen(compileCmd, stdout=subprocess.PIPE, env=customEnv)
+            stdout, _ = process.communicate()
+            self.assertEqual(process.returncode, 2)
+            self.assertTrue("C1083" in stdout.decode(clcache.CL_DEFAULT_CODEC))
+
+    # When a header included by another header becomes obsolete and disappers,
+    # we must fall back to real compiler.
+    def testObsoleteHeaderDisappears(self):
+        # A includes B
+        with cd(os.path.join(ASSETS_DIR, "header-miss-obsolete")), tempfile.TemporaryDirectory() as tempDir:
+            customEnv = dict(os.environ, CLCACHE_DIR=tempDir)
+            compileCmd = CLCACHE_CMD + ["/I.", "/nologo", "/EHsc", "/c", "main.cpp"]
+            cache = clcache.Cache(tempDir)
+
+            with open("A.h", "w") as header:
+                header.write('#define INFO 1337\n')
+                header.write('#include "B.h"\n')
+            with open("B.h", "w") as header:
+                header.write('#define SOMETHING 1\n')
+
+            subprocess.check_call(compileCmd, env=customEnv)
+
+            with cache.statistics as stats:
+                headerChangedMisses1 = stats.numHeaderChangedMisses()
+                hits1 = stats.numCacheHits()
+                misses1 = stats.numCacheMisses()
+
+            # Make include B.h obsolete
+            with open("A.h", "w") as header:
+                header.write('#define INFO 1337\n')
+                header.write('\n')
+            os.remove("B.h")
+
+            subprocess.check_call(compileCmd, env=customEnv)
+
+            with cache.statistics as stats:
+                headerChangedMisses2 = stats.numHeaderChangedMisses()
+                hits2 = stats.numCacheHits()
+                misses2 = stats.numCacheMisses()
+
+            self.assertEqual(headerChangedMisses2, headerChangedMisses1+1)
+            self.assertEqual(misses2, misses1+1)
+            self.assertEqual(hits2, hits1)
+
+            # Ensure the new manifest was stored
+            subprocess.check_call(compileCmd, env=customEnv)
+
+            with cache.statistics as stats:
+                headerChangedMisses3 = stats.numHeaderChangedMisses()
+                hits3 = stats.numCacheHits()
+                misses3 = stats.numCacheMisses()
+
+            self.assertEqual(headerChangedMisses3, headerChangedMisses2)
+            self.assertEqual(misses3, misses2)
+            self.assertEqual(hits3, hits2+1)
 
 
 class TestRunParallel(unittest.TestCase):
@@ -411,6 +807,79 @@ class TestRunParallel(unittest.TestCase):
                 self.assertEqual(stats.numCacheEntries(), 2)
 
 
+# Compiler calls with multiple sources files at once, e.g.
+# cl file1.c file2.c
+class TestMultipleSources(unittest.TestCase):
+    def testTwo(self):
+        with cd(os.path.join(ASSETS_DIR, "mutiple-sources")), tempfile.TemporaryDirectory() as tempDir:
+            cache = clcache.Cache(tempDir)
+            customEnv = dict(os.environ, CLCACHE_DIR=tempDir)
+            baseCmd = CLCACHE_CMD + ["/nologo", "/EHsc", "/c"]
+
+            with cache.statistics as stats:
+                self.assertEqual(stats.numCacheHits(), 0)
+                self.assertEqual(stats.numCacheMisses(), 0)
+                self.assertEqual(stats.numCacheEntries(), 0)
+
+            subprocess.check_call(baseCmd + ["fibonacci01.cpp", "fibonacci02.cpp"], env=customEnv)
+
+            with cache.statistics as stats:
+                self.assertEqual(stats.numCacheHits(), 0)
+                self.assertEqual(stats.numCacheMisses(), 2)
+                self.assertEqual(stats.numCacheEntries(), 2)
+
+            subprocess.check_call(baseCmd + ["fibonacci01.cpp", "fibonacci02.cpp"], env=customEnv)
+
+            with cache.statistics as stats:
+                self.assertEqual(stats.numCacheHits(), 2)
+                self.assertEqual(stats.numCacheMisses(), 2)
+                self.assertEqual(stats.numCacheEntries(), 2)
+
+    def testFive(self):
+        with cd(os.path.join(ASSETS_DIR, "mutiple-sources")), tempfile.TemporaryDirectory() as tempDir:
+            cache = clcache.Cache(tempDir)
+            customEnv = dict(os.environ, CLCACHE_DIR=tempDir)
+            baseCmd = CLCACHE_CMD + ["/nologo", "/EHsc", "/c"]
+
+            with cache.statistics as stats:
+                self.assertEqual(stats.numCacheHits(), 0)
+                self.assertEqual(stats.numCacheMisses(), 0)
+                self.assertEqual(stats.numCacheEntries(), 0)
+
+            subprocess.check_call(baseCmd + [
+                "fibonacci01.cpp",
+                "fibonacci02.cpp",
+                "fibonacci03.cpp",
+                "fibonacci04.cpp",
+                "fibonacci05.cpp",
+            ], env=customEnv)
+
+            with cache.statistics as stats:
+                self.assertEqual(stats.numCacheHits(), 0)
+                self.assertEqual(stats.numCacheMisses(), 5)
+                self.assertEqual(stats.numCacheEntries(), 5)
+
+            subprocess.check_call(baseCmd + [
+                "fibonacci01.cpp",
+                "fibonacci02.cpp",
+                "fibonacci03.cpp",
+                "fibonacci04.cpp",
+                "fibonacci05.cpp",
+            ], env=customEnv)
+
+            with cache.statistics as stats:
+                self.assertEqual(stats.numCacheHits(), 5)
+                self.assertEqual(stats.numCacheMisses(), 5)
+                self.assertEqual(stats.numCacheEntries(), 5)
+
+class TestMultipleSourceWithClEnv(unittest.TestCase):
+    def testAppend(self):
+        with cd(os.path.join(ASSETS_DIR)):
+            customEnv = dict(os.environ, _CL_="minimal.cpp")
+            cmd = CLCACHE_CMD + ["/nologo", "/EHsc", "/c"]
+            subprocess.check_call(cmd + ["fibonacci.cpp"], env=customEnv)
+
+
 class TestClearing(unittest.TestCase):
     def _clearCache(self):
         subprocess.check_call(CLCACHE_CMD + ["-C"])
@@ -466,7 +935,7 @@ class TestAnalysisErrorsCalls(unittest.TestCase):
         # This ensures all AnalysisError cases are run once without crashes
 
         with cd(os.path.join(ASSETS_DIR)):
-            baseCmd = [PYTHON_BINARY, CLCACHE_SCRIPT, '/nologo']
+            baseCmd = CLCACHE_CMD + ['/nologo']
 
             # NoSourceFileError
             # This must fail because cl.exe: "cl : Command line error D8003 : missing source filename"
@@ -545,7 +1014,6 @@ class TestNoDirectCalls(unittest.TestCase):
             with cache.statistics as stats:
                 self.assertEqual(stats.numCacheHits(), oldHits + 1)
 
-
     def testHitViaMpSequential(self):
         with cd(os.path.join(ASSETS_DIR, "parallel")), tempfile.TemporaryDirectory() as tempDir:
             cache = clcache.Cache(tempDir)
@@ -604,38 +1072,138 @@ class TestNoDirectCalls(unittest.TestCase):
                 self.assertEqual(stats.numCacheHits(), 2)
                 self.assertEqual(stats.numCacheMisses(), 2)
                 self.assertEqual(stats.numCacheEntries(), 2)
+
+
 class TestBasedir(unittest.TestCase):
-    def testBasedir(self):
-        with cd(os.path.join(ASSETS_DIR, "basedir")), tempfile.TemporaryDirectory() as tempDir:
-            # First, create two separate build directories with the same sources
-            for buildDir in ["builddir_a", "builddir_b"]:
-                shutil.rmtree(buildDir, ignore_errors=True)
-                os.mkdir(buildDir)
+    def setUp(self):
+        self.projectDir = os.path.join(ASSETS_DIR, "basedir")
+        self.tempDir = tempfile.TemporaryDirectory()
+        self.clcacheDir = os.path.join(self.tempDir.name, "clcache")
+        self.savedCwd = os.getcwd()
 
-                shutil.copy("main.cpp", buildDir)
-                shutil.copy("constants.h", buildDir)
+        os.chdir(self.tempDir.name)
 
+        # First, create two separate build directories with the same sources
+        for buildDir in ["builddir_a", "builddir_b"]:
+            shutil.copytree(self.projectDir, buildDir)
+
+        self.cache = clcache.Cache(self.clcacheDir)
+
+    def tearDown(self):
+        os.chdir(self.savedCwd)
+        self.tempDir.cleanup()
+
+    def _runCompiler(self, cppFile, extraArgs=None):
+        cmd = CLCACHE_CMD + ["/nologo", "/EHsc", "/c"]
+        if extraArgs:
+            cmd.extend(extraArgs)
+        cmd.append(cppFile)
+        env = dict(os.environ, CLCACHE_DIR=self.clcacheDir, CLCACHE_BASEDIR=os.getcwd())
+        self.assertEqual(subprocess.call(cmd, env=env), 0)
+
+    def expectHit(self, runCompiler):
+        # Build once in one directory
+        with cd("builddir_a"):
+            runCompiler[0]()
+            with self.cache.statistics as stats:
+                self.assertEqual(stats.numCacheMisses(), 1)
+                self.assertEqual(stats.numCacheHits(), 0)
+
+        # Build again in a different directory, this should hit now because of CLCACHE_BASEDIR
+        with cd("builddir_b"):
+            runCompiler[1]()
+            with self.cache.statistics as stats:
+                self.assertEqual(stats.numCacheMisses(), 1)
+                self.assertEqual(stats.numCacheHits(), 1)
+
+    def expectMiss(self, runCompiler):
+        # Build once in one directory
+        with cd("builddir_a"):
+            runCompiler[0]()
+            with self.cache.statistics as stats:
+                self.assertEqual(stats.numCacheMisses(), 1)
+                self.assertEqual(stats.numCacheHits(), 0)
+
+        # Build again in a different directory, this should hit now because of CLCACHE_BASEDIR
+        with cd("builddir_b"):
+            runCompiler[1]()
+            with self.cache.statistics as stats:
+                self.assertEqual(stats.numCacheMisses(), 2)
+                self.assertEqual(stats.numCacheHits(), 0)
+
+    def testBasedirRelativePaths(self):
+        def runCompiler():
+            self._runCompiler("main.cpp")
+        self.expectHit([runCompiler, runCompiler])
+
+    def testBasedirAbsolutePaths(self):
+        def runCompiler():
+            self._runCompiler(os.path.join(os.getcwd(), "main.cpp"))
+        self.expectHit([runCompiler, runCompiler])
+
+    def testBasedirIncludeArg(self):
+        def runCompiler():
+            self._runCompiler("main.cpp", ["/I{}".format(os.getcwd())])
+        self.expectHit([runCompiler, runCompiler])
+
+    def testBasedirIncludeSlashes(self):
+        def runCompiler(includePath):
+            self._runCompiler("main.cpp", ["/I{}".format(includePath)])
+        self.expectHit([
+            lambda: runCompiler(os.getcwd() + "/"),
+            lambda: runCompiler(os.getcwd())
+        ])
+
+    def testBasedirIncludeArgDifferentCapitalization(self):
+        def runCompiler():
+            self._runCompiler("main.cpp", ["/I{}".format(os.getcwd().upper())])
+        self.expectHit([runCompiler, runCompiler])
+
+    def testBasedirDefineArg(self):
+        def runCompiler():
+            self._runCompiler("main.cpp", ["/DRESOURCES_DIR={}".format(os.getcwd())])
+        self.expectMiss([runCompiler, runCompiler])
+
+    def testBasedirRelativeIncludeArg(self):
+        basedir = os.getcwd()
+
+        def runCompiler(cppFile="main.cpp"):
+            cmd = CLCACHE_CMD + ["/nologo", "/EHsc", "/c", "/I."]
+            cmd.append(cppFile)
+            env = dict(os.environ, CLCACHE_DIR=self.clcacheDir, CLCACHE_BASEDIR=basedir)
+            self.assertEqual(subprocess.call(cmd, env=env), 0)
+
+        self.expectMiss([runCompiler, runCompiler])
+
+
+class TestCleanCache(unittest.TestCase):
+    def testEvictedObject(self):
+        with cd(os.path.join(ASSETS_DIR, "hits-and-misses")), tempfile.TemporaryDirectory() as tempDir:
+            customEnv = dict(os.environ, CLCACHE_DIR=tempDir)
+            cmd = CLCACHE_CMD + ["/nologo", "/EHsc", "/c", 'hit.cpp']
+
+            # Compile once to insert the object in the cache
+            subprocess.check_call(cmd, env=customEnv)
+
+            # Remove object
             cache = clcache.Cache(tempDir)
+            cache.compilerArtifactsRepository.clean(0)
 
-            cmd = CLCACHE_CMD + ["/nologo", "/EHsc", "/c", "main.cpp"]
+            self.assertEqual(subprocess.call(cmd, env=customEnv), 0)
 
-            # Build once in one directory
-            with cd("builddir_a"):
-                env = dict(os.environ, CLCACHE_DIR=tempDir, CLCACHE_BASEDIR=os.getcwd())
-                self.assertEqual(subprocess.call(cmd, env=env), 0)
-                with cache.statistics as stats:
-                    self.assertEqual(stats.numCacheMisses(), 1)
-                    self.assertEqual(stats.numCacheHits(), 0)
+    def testEvictedManifest(self):
+        with cd(os.path.join(ASSETS_DIR, "hits-and-misses")), tempfile.TemporaryDirectory() as tempDir:
+            customEnv = dict(os.environ, CLCACHE_DIR=tempDir)
+            cmd = CLCACHE_CMD + ["/nologo", "/EHsc", "/c", 'hit.cpp']
 
-            shutil.rmtree("builddir_a", ignore_errors=True)
+            # Compile once to insert the object in the cache
+            subprocess.check_call(cmd, env=customEnv)
 
-            # Build again in a different directory, this should hit now because of CLCACHE_BASEDIR
-            with cd("builddir_b"):
-                env = dict(os.environ, CLCACHE_DIR=tempDir, CLCACHE_BASEDIR=os.getcwd())
-                self.assertEqual(subprocess.call(cmd, env=env), 0)
-                with cache.statistics as stats:
-                    self.assertEqual(stats.numCacheMisses(), 1)
-                    self.assertEqual(stats.numCacheHits(), 1)
+            # Remove manifest
+            cache = clcache.Cache(tempDir)
+            cache.manifestRepository.clean(0)
+
+            self.assertEqual(subprocess.call(cmd, env=customEnv), 0)
 
 
 if __name__ == '__main__':
