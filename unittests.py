@@ -986,7 +986,7 @@ class TestCreateManifestEntry(unittest.TestCase):
         entry = clcache.createManifestEntry(TestCreateManifestEntry.manifestHash, includePathsWithDuplicates)
         self.assertManifestEntryIsCorrect(entry)
 
-        
+
 class TestPersistentJSONDict(unittest.TestCase):
     def testEmptyFile(self):
         emptyFile = os.path.join(ASSETS_DIR, "empty_file.txt")
