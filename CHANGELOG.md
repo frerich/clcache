@@ -3,7 +3,43 @@ clcache changelog
 
 ## Upcoming release
 
+ * Bugfix: Fixed occasional 'Cannot create a file when that file already
+   exists' error when adding new objects to the cache (GH #155).
+ * Improvement: Extended handling of CLCACHE_BASEDIR variable to improve cache
+   hit rates when using different build directories.
+
+## clcache 3.3.1 (2016-10-25)
+
+ * Bugfix: Aborting clcache via Ctrl+C or SIGTERM will no longer have the risk
+   of leaving the cache in a defective state.
+ * Internal: Fixed running integration tests when the clcache source code is
+   stored in a path with spaces (GH #206).
+ * Improvement: Optimized communicating with real compiler.
+ * Bugfix: Fixed a potential CacheLockException apparently caused by
+   a race condition between calling CreateMutexW() and
+   WaitForSingleObject().
+
+## clcache 3.3.0 (2016-09-07)
+
  * Bugfix: /MP no longer causes a greatly reduced cache hit rate.
+ * Bugfix: In direct mode, clcache will no longer try to access non-existant
+   header files (GH #200, GH #209).
+ * Bugfix: Correctly cache and restore stdout/stderr output of compiler when
+   building via the Visual Studio IDE.
+ * Add support for the `CL` and `_CL_` environment variables (GH #196).
+ * Feature: A new `CLCACHE_PROFILE` environment variable is now recognised
+   which can be used to make clcache generate profiling information. The
+   generated data can be processed into a final report using a new
+   `showprofilereport.py` script.
+ * Improvement: Timeout errors when accessing the cache now generate friendlier
+   error messages mentioning the possibility to work around the issue using the
+   `CLCACHE_OBJECT_CACHE_TIMEOUT_MS` environment variable.
+ * Improvement: Greatly improved concurrency of clcache such that concurrent
+   invocations of the tool no longer block each other.
+ * Improvement: Improve hit rate when alternating between two identical
+   versions of the same source file that transitively get different contents of
+   the included files (a common case when switching back and forth between
+   branches).
 
 ## clcache 3.2.0 (2016-07-28)
 

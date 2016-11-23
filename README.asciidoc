@@ -8,9 +8,9 @@ script analyses the command line to decide whether source code is
 to be compiled. If so, a cache will be queried for a previously stored
 object file.
 
-If the script is called in an unsupported way (multiple source files in
-one invocation, compiler called for linking), the script will simply
-relay the invocation to the real 'cl.exe' program.
+If the script is called in an unsupported way (e.g. if the compiler is
+called for linking), the script will simply relay the invocation to the real
+'cl.exe' program.
 
 image:https://ci.appveyor.com/api/projects/status/sf98y2686r00q6ga/branch/master?svg=true[Build status, link="https://ci.appveyor.com/project/frerich/clcache"]
 image:https://codecov.io/gh/frerich/clcache/branch/master/graph/badge.svg[Code coverage, link="https://codecov.io/gh/frerich/clcache"]
@@ -139,12 +139,18 @@ CLCACHE_OBJECT_CACHE_TIMEOUT_MS::
     used by the clcache script. You may override this variable if you are
     getting ObjectCacheLockExceptions with return code 258 (which is the
     WAIT_TIMEOUT return code).
+CLCACHE_PROFILE::
+    If this variable is set, clcache will generate profiling information about
+    how the runtime is spent in the clcache code. For each invocation, clcache
+    will generate a file with a name similiar to 'clcache-<hashsum>.prof'. You
+    can aggregate these files and generate a report by running the
+    'showprofilereport.py' script.
 
 Known limitations
 ~~~~~~~~~~~~~~~~~
 
-* https://msdn.microsoft.com/en-us/library/kezkeayy.aspx[CL and +_CL_+] environment
-  variables are not supported.
+* https://msdn.microsoft.com/en-us/library/kezkeayy.aspx[+INCLUDE+ and +LIBPATH+]
+  environment variables are not supported.
 
 How clcache works
 ~~~~~~~~~~~~~~~~~
