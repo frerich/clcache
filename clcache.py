@@ -172,6 +172,9 @@ class ManifestSection(object):
                                  for e in doc['entries']])
         except IOError:
             return None
+        except ValueError:
+            print("clcache: manifest file %s was broken" % fileName, file=sys.stderr)
+            return None
 
 
 @contextlib.contextmanager
@@ -522,6 +525,8 @@ class PersistentJSONDict(object):
                 self._dict = json.load(f)
         except IOError:
             pass
+        except ValueError:
+            print("clcache: persistent json file %s was broken" % fileName, file=sys.stderr)
 
     def save(self):
         if self._dirty:

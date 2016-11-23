@@ -32,6 +32,7 @@ from clcache import (
     InvalidArgumentError,
     MultipleSourceFilesComplexError,
     NoSourceFileError,
+    PersistentJSONDict,
 )
 
 
@@ -303,6 +304,13 @@ class TestManifestRepository(unittest.TestCase):
         mm = ManifestRepository(manifestsRootDir)
 
         retrieved = mm.section("ffffffffffffffffffffffffffffffff").getManifest("ffffffffffffffffffffffffffffffff")
+        self.assertIsNone(retrieved)
+
+    def testBrokenManifest(self):
+        manifestsRootDir = os.path.join(ASSETS_DIR, "manifests")
+        mm = ManifestRepository(manifestsRootDir)
+
+        retrieved = mm.section("brokenmanifest").getManifest("brokenmanifest")
         self.assertIsNone(retrieved)
 
     def testClean(self):
@@ -977,6 +985,16 @@ class TestCreateManifestEntry(unittest.TestCase):
         includePathsWithDuplicates = TestCreateManifestEntry.includePaths + TestCreateManifestEntry.includePaths
         entry = clcache.createManifestEntry(TestCreateManifestEntry.manifestHash, includePathsWithDuplicates)
         self.assertManifestEntryIsCorrect(entry)
+
+
+class TestPersistentJSONDict(unittest.TestCase):
+    def testEmptyFile(self):
+        emptyFile = os.path.join(ASSETS_DIR, "empty_file.txt")
+        PersistentJSONDict(emptyFile)
+
+    def testBrokenJson(self):
+        brokenJson = os.path.join(ASSETS_DIR, "broken_json.txt")
+        PersistentJSONDict(brokenJson)
 
 
 if __name__ == '__main__':

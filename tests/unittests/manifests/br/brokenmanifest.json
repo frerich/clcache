@@ -1,0 +1,8 @@
+{
+  "includeFiles": [
+    "somepath\\myinclude.h"
+  ],
+  "includesContentToObjectMap": {
+    "fdde59862785f9f0ad6e661b9b5746b7" "a649723940dc975ebd17167d29a532f8"
+  }
+}
