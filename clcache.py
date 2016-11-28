@@ -1434,32 +1434,6 @@ def createOrUpdateManifest(manifestSection, manifestHash, entry):
     return manifest
 
 
-def postprocessUnusableManifestMiss(
-        cache, objectFile, manifestSection, manifestHash, sourceFile, compiler, cmdLine, reason):
-    stripIncludes = False
-    if '/showIncludes' not in cmdLine:
-        cmdLine = list(cmdLine)
-        cmdLine.insert(0, '/showIncludes')
-        stripIncludes = True
-    returnCode, compilerOutput, compilerStderr = invokeRealCompiler(compiler, cmdLine, captureOutput=True)
-    includePaths, compilerOutput = parseIncludesSet(compilerOutput, sourceFile, stripIncludes)
-
-    entry = createManifestEntry(manifestHash, includePaths)
-    cachekey = entry.objectHash
-
-    cleanupRequired = False
-    section = cache.compilerArtifactsRepository.section(cachekey)
-    with section.lock, cache.statistics.lock, cache.statistics as stats:
-        reason(stats)
-        if returnCode == 0 and os.path.exists(objectFile) and not section.hasEntry(cachekey):
-            artifacts = CompilerArtifacts(objectFile, compilerOutput, compilerStderr)
-            cleanupRequired = addObjectToCache(stats, cache, section, cachekey, artifacts)
-            manifest = createOrUpdateManifest(manifestSection, manifestHash, entry)
-            manifestSection.setManifest(manifestHash, manifest)
-
-    return returnCode, compilerOutput, compilerStderr, cleanupRequired
-
-
 def installSignalHandlers():
     # Ignore Ctrl-C and SIGTERM signals to avoid corrupting the cache
     signal.signal(signal.SIGINT, signal.SIG_IGN)
@@ -1605,57 +1579,89 @@ def processCompileRequest(cache, compiler, args):
 def processDirect(cache, objectFile, compiler, cmdLine, sourceFile):
     manifestHash = ManifestRepository.getManifestHash(compiler, cmdLine, sourceFile)
     manifestSection = cache.manifestRepository.section(manifestHash)
+    artifactSection = None
     with manifestSection.lock:
         manifest = manifestSection.getManifest(manifestHash)
-        if manifest is None:
-            return postprocessUnusableManifestMiss(
-                cache, objectFile, manifestSection, manifestHash, sourceFile, compiler, cmdLine,
-                Statistics.registerSourceChangedMiss)
+        if manifest:
+            for entryIndex, entry in enumerate(manifest.entries()):
+                # NOTE: command line options already included in hash for manifest name
+                try:
+                    includesContentHash = ManifestRepository.getIncludesContentHashForFiles(
+                        [expandBasedirPlaceholder(path) for path in entry.includeFiles])
 
-        for entryIndex, entry in enumerate(manifest.entries()):
-            # NOTE: command line options already included in hash for manifest name
-            try:
-                includesContentHash = ManifestRepository.getIncludesContentHashForFiles(
-                    [expandBasedirPlaceholder(path) for path in entry.includeFiles])
+                    if entry.includesContentHash == includesContentHash:
+                        cachekey = entry.objectHash
+                        assert cachekey is not None
+                        # Move manifest entry to the top of the entries in the manifest
+                        manifest.touchEntry(entryIndex)
+                        manifestSection.setManifest(manifestHash, manifest)
 
-                if entry.includesContentHash == includesContentHash:
-                    cachekey = entry.objectHash
-                    assert cachekey is not None
-                    # Move manifest entry to the top of the entries in the manifest
-                    manifest.touchEntry(entryIndex)
-                    manifestSection.setManifest(manifestHash, manifest)
+                        artifactSection = cache.compilerArtifactsRepository.section(cachekey)
+                        with artifactSection.lock:
+                            if artifactSection.hasEntry(cachekey):
+                                return processCacheHit(cache, objectFile, cachekey)
 
-                    return getOrSetArtifacts(
-                        cache, cachekey, objectFile, compiler, cmdLine, Statistics.registerEvictedMiss)
-            except IncludeNotFoundException:
-                pass
+                except IncludeNotFoundException:
+                    pass
 
-        return postprocessUnusableManifestMiss(
-            cache, objectFile, manifestSection, manifestHash, sourceFile, compiler, cmdLine,
-            Statistics.registerHeaderChangedMiss)
+            unusableManifestMissReason = Statistics.registerHeaderChangedMiss
+        else:
+            unusableManifestMissReason = Statistics.registerSourceChangedMiss
+
+    if artifactSection is None:
+        stripIncludes = False
+        if '/showIncludes' not in cmdLine:
+            cmdLine = list(cmdLine)
+            cmdLine.insert(0, '/showIncludes')
+            stripIncludes = True
+    compilerResult = invokeRealCompiler(compiler, cmdLine, captureOutput=True)
+    if artifactSection is None:
+        includePaths, compilerOutput = parseIncludesSet(compilerResult[1], sourceFile, stripIncludes)
+        compilerResult = (compilerResult[0], compilerOutput, compilerResult[2])
+
+    with manifestSection.lock:
+        if artifactSection is not None:
+            return ensureArtifactsExist(cache, artifactSection, cachekey, unusableManifestMissReason,
+                                        objectFile, compilerResult)
+
+        entry = createManifestEntry(manifestHash, includePaths)
+        cachekey = entry.objectHash
+
+        def addManifest():
+            manifest = createOrUpdateManifest(manifestSection, manifestHash, entry)
+            manifestSection.setManifest(manifestHash, manifest)
+
+        artifactSection = cache.compilerArtifactsRepository.section(cachekey)
+        return ensureArtifactsExist(cache, artifactSection, cachekey, unusableManifestMissReason,
+                                    objectFile, compilerResult, addManifest)
 
 
 def processNoDirect(cache, objectFile, compiler, cmdLine, environment):
     cachekey = CompilerArtifactsRepository.computeKeyNodirect(compiler, cmdLine, environment)
-    return getOrSetArtifacts(cache, cachekey, objectFile, compiler, cmdLine, Statistics.registerCacheMiss, environment)
-
-
-def getOrSetArtifacts(cache, cachekey, objectFile, compiler, cmdLine, statsField, environment=None):
     artifactSection = cache.compilerArtifactsRepository.section(cachekey)
-    cleanupRequired = False
     with artifactSection.lock:
         if artifactSection.hasEntry(cachekey):
             return processCacheHit(cache, objectFile, cachekey)
 
-        compilerResult = invokeRealCompiler(compiler, cmdLine, captureOutput=True, environment=environment)
-        returnCode, compilerStdout, compilerStderr = compilerResult
-        with cache.statistics.lock, cache.statistics as stats:
-            statsField(stats)
-            if returnCode == 0 and os.path.exists(objectFile):
-                artifacts = CompilerArtifacts(objectFile, compilerStdout, compilerStderr)
-                cleanupRequired = addObjectToCache(stats, cache, artifactSection, cachekey, artifacts)
+    compilerResult = invokeRealCompiler(compiler, cmdLine, captureOutput=True, environment=environment)
 
-    return compilerResult + (cleanupRequired,)
+    return ensureArtifactsExist(cache, artifactSection, cachekey, Statistics.registerCacheMiss,
+                                objectFile, compilerResult)
+
+
+def ensureArtifactsExist(cache, section, cachekey, reason, objectFile, compilerResult, extraCallable=None):
+    cleanupRequired = False
+    returnCode, compilerOutput, compilerStderr = compilerResult
+    with section.lock:
+        if not section.hasEntry(cachekey):
+            with cache.statistics.lock, cache.statistics as stats:
+                reason(stats)
+                if returnCode == 0 and os.path.exists(objectFile):
+                    artifacts = CompilerArtifacts(objectFile, compilerOutput, compilerStderr)
+                    cleanupRequired = addObjectToCache(stats, cache, section, cachekey, artifacts)
+                    if extraCallable:
+                        extraCallable()
+    return returnCode, compilerOutput, compilerStderr, cleanupRequired
 
 
 if __name__ == '__main__':
