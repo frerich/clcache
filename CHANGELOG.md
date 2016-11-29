@@ -10,6 +10,9 @@ clcache changelog
  * Improvement: Improved interaction between concurrent clcache invocations
    when encountering multiple cache misses in parallel; the risk of triggering
    timeout exceptions is greatly reduced (GH #229).
+ * Bugfix: Improved error handling in case statistics files or manifest files
+   in the cache are malformed, which could happen when clcache got terminated
+   abnormally.
 
 ## clcache 3.3.1 (2016-10-25)
 
