@@ -986,7 +986,7 @@ def expandCommandLine(cmdline):
     return ret
 
 
-def extentCommandLineFromEnvironment(cmdLine, environment):
+def extendCommandLineFromEnvironment(cmdLine, environment):
     remainingEnvironment = environment.copy()
 
     prependCmdLineString = remainingEnvironment.pop('CL', None)
@@ -1523,7 +1523,7 @@ def updateCacheStatistics(cache, method):
 def processCompileRequest(cache, compiler, args):
     printTraceStatement("Parsing given commandline '{0!s}'".format(args[1:]))
 
-    cmdLine, environment = extentCommandLineFromEnvironment(args[1:], os.environ)
+    cmdLine, environment = extendCommandLineFromEnvironment(args[1:], os.environ)
     cmdLine = expandCommandLine(cmdLine)
     printTraceStatement("Expanded commandline '{0!s}'".format(cmdLine))
 

@@ -49,6 +49,11 @@ def cd(targetDirectory):
         os.chdir(oldDirectory)
 
 
+def temporaryFileName():
+    with tempfile.NamedTemporaryFile() as f:
+        return f.name
+
+
 class TestHelperFunctions(unittest.TestCase):
     def testBasenameWithoutExtension(self):
         self.assertEqual(clcache.basenameWithoutExtension(r"README.asciidoc"), "README")
@@ -103,19 +108,19 @@ class TestHelperFunctions(unittest.TestCase):
             self.assertIn(r".\d\e\5.txt", files)
 
 
-class TestExtentCommandLineFromEnvironment(unittest.TestCase):
+class TestExtendCommandLineFromEnvironment(unittest.TestCase):
     def testEmpty(self):
-        cmdLine, env = clcache.extentCommandLineFromEnvironment([], {})
+        cmdLine, env = clcache.extendCommandLineFromEnvironment([], {})
         self.assertEqual(cmdLine, [])
         self.assertEqual(env, {})
 
     def testSimple(self):
-        cmdLine, env = clcache.extentCommandLineFromEnvironment(['/nologo'], {'USER': 'ab'})
+        cmdLine, env = clcache.extendCommandLineFromEnvironment(['/nologo'], {'USER': 'ab'})
         self.assertEqual(cmdLine, ['/nologo'])
         self.assertEqual(env, {'USER': 'ab'})
 
     def testPrepend(self):
-        cmdLine, env = clcache.extentCommandLineFromEnvironment(['/nologo'], {
+        cmdLine, env = clcache.extendCommandLineFromEnvironment(['/nologo'], {
             'USER': 'ab',
             'CL': '/MP',
         })
@@ -123,13 +128,13 @@ class TestExtentCommandLineFromEnvironment(unittest.TestCase):
         self.assertEqual(env, {'USER': 'ab'})
 
     def testPrependMultiple(self):
-        cmdLine, _ = clcache.extentCommandLineFromEnvironment(['INPUT.C'], {
+        cmdLine, _ = clcache.extendCommandLineFromEnvironment(['INPUT.C'], {
             'CL': r'/Zp2 /Ox /I\INCLUDE\MYINCLS \LIB\BINMODE.OBJ',
         })
         self.assertEqual(cmdLine, ['/Zp2', '/Ox', r'/I\INCLUDE\MYINCLS', r'\LIB\BINMODE.OBJ', 'INPUT.C'])
 
     def testAppend(self):
-        cmdLine, env = clcache.extentCommandLineFromEnvironment(['/nologo'], {
+        cmdLine, env = clcache.extendCommandLineFromEnvironment(['/nologo'], {
             'USER': 'ab',
             '_CL_': 'file.c',
         })
@@ -137,7 +142,7 @@ class TestExtentCommandLineFromEnvironment(unittest.TestCase):
         self.assertEqual(env, {'USER': 'ab'})
 
     def testAppendPrepend(self):
-        cmdLine, env = clcache.extentCommandLineFromEnvironment(['/nologo'], {
+        cmdLine, env = clcache.extendCommandLineFromEnvironment(['/nologo'], {
             'USER': 'ab',
             'CL': '/MP',
             '_CL_': 'file.c',
@@ -148,25 +153,21 @@ class TestExtentCommandLineFromEnvironment(unittest.TestCase):
 
 class TestConfiguration(unittest.TestCase):
     def testOpenClose(self):
-        configuration = Configuration(os.path.join(ASSETS_DIR, "configuration", "testOpenClose.json"))
-        with configuration:
+        with Configuration(temporaryFileName()):
             pass
 
     def testDefaults(self):
-        configuration = Configuration(os.path.join(ASSETS_DIR, "configuration", "testDefaults.json"))
-        with configuration as cfg:
+        with Configuration(temporaryFileName()) as cfg:
             self.assertGreaterEqual(cfg.maximumCacheSize(), 1024) # 1KiB
 
 
 class TestStatistics(unittest.TestCase):
     def testOpenClose(self):
-        stats = Statistics(os.path.join(ASSETS_DIR, "statistics", "testOpenClose.json"))
-        with stats:
+        with Statistics(temporaryFileName()):
             pass
 
     def testHitCounts(self):
-        stats = Statistics(os.path.join(ASSETS_DIR, "statistics", "testHitCounts.json"))
-        with stats as s:
+        with Statistics(temporaryFileName()) as s:
             self.assertEqual(s.numCallsWithInvalidArgument(), 0)
             self.assertEqual(s.numCallsWithoutSourceFile(), 0)
             self.assertEqual(s.numCallsWithMultipleSourceFiles(), 0)
@@ -280,24 +281,24 @@ class TestManifestRepository(unittest.TestCase):
         )
 
     def testStoreAndGetManifest(self):
-        manifestsRootDir = os.path.join(ASSETS_DIR, "manifests")
-        mm = ManifestRepository(manifestsRootDir)
+        with tempfile.TemporaryDirectory() as manifestsRootDir:
+            mm = ManifestRepository(manifestsRootDir)
 
-        ms1 = mm.section("8a33738d88be7edbacef48e262bbb5bc")
-        ms2 = mm.section("0623305942d216c165970948424ae7d1")
+            ms1 = mm.section("8a33738d88be7edbacef48e262bbb5bc")
+            ms2 = mm.section("0623305942d216c165970948424ae7d1")
 
-        ms1.setManifest("8a33738d88be7edbacef48e262bbb5bc", TestManifestRepository.manifest1)
-        ms2.setManifest("0623305942d216c165970948424ae7d1", TestManifestRepository.manifest2)
+            ms1.setManifest("8a33738d88be7edbacef48e262bbb5bc", TestManifestRepository.manifest1)
+            ms2.setManifest("0623305942d216c165970948424ae7d1", TestManifestRepository.manifest2)
 
-        retrieved1 = ms1.getManifest("8a33738d88be7edbacef48e262bbb5bc")
-        self.assertIsNotNone(retrieved1)
-        retrieved1Entry = retrieved1.entries()[0]
-        self.assertEqual(retrieved1Entry, TestManifestRepository.entry1)
+            retrieved1 = ms1.getManifest("8a33738d88be7edbacef48e262bbb5bc")
+            self.assertIsNotNone(retrieved1)
+            retrieved1Entry = retrieved1.entries()[0]
+            self.assertEqual(retrieved1Entry, TestManifestRepository.entry1)
 
-        retrieved2 = ms2.getManifest("0623305942d216c165970948424ae7d1")
-        self.assertIsNotNone(retrieved2)
-        retrieved2Entry = retrieved2.entries()[0]
-        self.assertEqual(retrieved2Entry, TestManifestRepository.entry2)
+            retrieved2 = ms2.getManifest("0623305942d216c165970948424ae7d1")
+            self.assertIsNotNone(retrieved2)
+            retrieved2Entry = retrieved2.entries()[0]
+            self.assertEqual(retrieved2Entry, TestManifestRepository.entry2)
 
     def testNonExistingManifest(self):
         manifestsRootDir = os.path.join(ASSETS_DIR, "manifests")
@@ -314,30 +315,30 @@ class TestManifestRepository(unittest.TestCase):
         self.assertIsNone(retrieved)
 
     def testClean(self):
-        manifestsRootDir = os.path.join(ASSETS_DIR, "manifests")
-        mm = ManifestRepository(manifestsRootDir)
+        with tempfile.TemporaryDirectory() as manifestsRootDir:
+            mm = ManifestRepository(manifestsRootDir)
 
-        mm.section("8a33738d88be7edbacef48e262bbb5bc").setManifest("8a33738d88be7edbacef48e262bbb5bc",
-                                                                   TestManifestRepository.manifest1)
-        mm.section("0623305942d216c165970948424ae7d1").setManifest("0623305942d216c165970948424ae7d1",
-                                                                   TestManifestRepository.manifest2)
+            mm.section("8a33738d88be7edbacef48e262bbb5bc").setManifest("8a33738d88be7edbacef48e262bbb5bc",
+                                                                       TestManifestRepository.manifest1)
+            mm.section("0623305942d216c165970948424ae7d1").setManifest("0623305942d216c165970948424ae7d1",
+                                                                       TestManifestRepository.manifest2)
 
-        cleaningResultSize = mm.clean(240)
-        # Only one of those manifests can be left
-        self.assertLessEqual(cleaningResultSize, 240)
-        self.assertLessEqual(self._getDirectorySize(manifestsRootDir), 240)
+            cleaningResultSize = mm.clean(240)
+            # Only one of those manifests can be left
+            self.assertLessEqual(cleaningResultSize, 240)
+            self.assertLessEqual(self._getDirectorySize(manifestsRootDir), 240)
 
-        cleaningResultSize = mm.clean(240)
-        # The one remaining is remains alive
-        self.assertLessEqual(cleaningResultSize, 240)
-        self.assertGreaterEqual(cleaningResultSize, 120)
-        self.assertLessEqual(self._getDirectorySize(manifestsRootDir), 240)
-        self.assertGreaterEqual(self._getDirectorySize(manifestsRootDir), 120)
+            cleaningResultSize = mm.clean(240)
+            # The one remaining is remains alive
+            self.assertLessEqual(cleaningResultSize, 240)
+            self.assertGreaterEqual(cleaningResultSize, 120)
+            self.assertLessEqual(self._getDirectorySize(manifestsRootDir), 240)
+            self.assertGreaterEqual(self._getDirectorySize(manifestsRootDir), 120)
 
-        cleaningResultSize = mm.clean(0)
-        # All manifest are gone
-        self.assertEqual(cleaningResultSize, 0)
-        self.assertEqual(self._getDirectorySize(manifestsRootDir), 0)
+            cleaningResultSize = mm.clean(0)
+            # All manifest are gone
+            self.assertEqual(cleaningResultSize, 0)
+            self.assertEqual(self._getDirectorySize(manifestsRootDir), 0)
 
 
 class TestCompilerArtifactsRepository(unittest.TestCase):
