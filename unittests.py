@@ -49,6 +49,11 @@ def cd(targetDirectory):
         os.chdir(oldDirectory)
 
 
+def temporaryFileName():
+    with tempfile.NamedTemporaryFile() as f:
+        return f.name
+
+
 class TestHelperFunctions(unittest.TestCase):
     def testBasenameWithoutExtension(self):
         self.assertEqual(clcache.basenameWithoutExtension(r"README.asciidoc"), "README")
@@ -148,24 +153,24 @@ class TestExtentCommandLineFromEnvironment(unittest.TestCase):
 
 class TestConfiguration(unittest.TestCase):
     def testOpenClose(self):
-        configuration = Configuration(os.path.join(ASSETS_DIR, "configuration", "testOpenClose.json"))
+        configuration = Configuration(temporaryFileName())
         with configuration:
             pass
 
     def testDefaults(self):
-        configuration = Configuration(os.path.join(ASSETS_DIR, "configuration", "testDefaults.json"))
+        configuration = Configuration(temporaryFileName())
         with configuration as cfg:
             self.assertGreaterEqual(cfg.maximumCacheSize(), 1024) # 1KiB
 
 
 class TestStatistics(unittest.TestCase):
     def testOpenClose(self):
-        stats = Statistics(os.path.join(ASSETS_DIR, "statistics", "testOpenClose.json"))
+        stats = Statistics(temporaryFileName())
         with stats:
             pass
 
     def testHitCounts(self):
-        stats = Statistics(os.path.join(ASSETS_DIR, "statistics", "testHitCounts.json"))
+        stats = Statistics(temporaryFileName())
         with stats as s:
             self.assertEqual(s.numCallsWithInvalidArgument(), 0)
             self.assertEqual(s.numCallsWithoutSourceFile(), 0)
