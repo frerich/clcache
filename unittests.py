@@ -153,25 +153,21 @@ class TestExtentCommandLineFromEnvironment(unittest.TestCase):
 
 class TestConfiguration(unittest.TestCase):
     def testOpenClose(self):
-        configuration = Configuration(temporaryFileName())
-        with configuration:
+        with Configuration(temporaryFileName()):
             pass
 
     def testDefaults(self):
-        configuration = Configuration(temporaryFileName())
-        with configuration as cfg:
+        with Configuration(temporaryFileName()) as cfg:
             self.assertGreaterEqual(cfg.maximumCacheSize(), 1024) # 1KiB
 
 
 class TestStatistics(unittest.TestCase):
     def testOpenClose(self):
-        stats = Statistics(temporaryFileName())
-        with stats:
+        with Statistics(temporaryFileName()):
             pass
 
     def testHitCounts(self):
-        stats = Statistics(temporaryFileName())
-        with stats as s:
+        with Statistics(temporaryFileName()) as s:
             self.assertEqual(s.numCallsWithInvalidArgument(), 0)
             self.assertEqual(s.numCallsWithoutSourceFile(), 0)
             self.assertEqual(s.numCallsWithMultipleSourceFiles(), 0)
