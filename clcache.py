@@ -1248,7 +1248,7 @@ def runJobs(commands, environment, j=1):
 
     while len(commands):
 
-        while len(running) > j:
+        while len(running) >= j:
             thiscode = waitForAnyProcess(running).returncode
             if thiscode != 0:
                 return thiscode
