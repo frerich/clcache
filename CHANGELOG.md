@@ -13,6 +13,8 @@ clcache changelog
  * Bugfix: Improved error handling in case statistics files or manifest files
    in the cache are malformed, which could happen when clcache got terminated
    abnormally.
+ * Bugfix: Fixed off-by-one error when compiling source files concurrently,
+   clcache would always launch one concurrent instance more than intended.
 
 ## clcache 3.3.1 (2016-10-25)
 
