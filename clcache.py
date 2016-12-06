@@ -1526,10 +1526,7 @@ clcache.py v{}
     if "CLCACHE_DISABLE" in os.environ:
         return invokeRealCompiler(compiler, sys.argv[1:])[0]
     try:
-        exitCode, compilerStdout, compilerStderr = processCompileRequest(cache, compiler, sys.argv)
-        printBinary(sys.stdout, compilerStdout.encode(CL_DEFAULT_CODEC))
-        printBinary(sys.stderr, compilerStderr.encode(CL_DEFAULT_CODEC))
-        return exitCode
+        return processCompileRequest(cache, compiler, sys.argv)
     except LogicException as e:
         print(e)
         return 1
@@ -1566,7 +1563,9 @@ def processCompileRequest(cache, compiler, args):
                 with cache.lock:
                     cleanCache(cache)
 
-            return returnCode, compilerOutput, compilerStderr
+            printBinary(sys.stderr, err.encode(CL_DEFAULT_CODEC))
+            printBinary(sys.stdout, out.encode(CL_DEFAULT_CODEC))
+            return returnCode
     except InvalidArgumentError:
         printTraceStatement("Cannot cache invocation as {}: invalid argument".format(cmdLine))
         updateCacheStatistics(cache, Statistics.registerCallWithInvalidArgument)
@@ -1593,8 +1592,12 @@ def processCompileRequest(cache, compiler, args):
     except IncludeNotFoundException:
         pass
 
-    return invokeRealCompiler(compiler, args[1:])
+    exitCode, err, out = invokeRealCompiler(compiler, args[1:])
+    printBinary(sys.stderr, err.encode(CL_DEFAULT_CODEC))
+    printBinary(sys.stdout, out.encode(CL_DEFAULT_CODEC))
+    return exitCode
 
+    return returnCode, compilerOutput, compilerStderr
 
 def processDirect(cache, objectFile, compiler, cmdLine, sourceFile):
     manifestHash = ManifestRepository.getManifestHash(compiler, cmdLine, sourceFile)
