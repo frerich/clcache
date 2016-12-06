@@ -74,6 +74,7 @@ CompilerArtifacts = namedtuple('CompilerArtifacts', ['objectFilePath', 'stdout',
 
 def printBinary(stream, rawData):
     stream.buffer.write(rawData)
+    stream.flush()
 
 
 def basenameWithoutExtension(path):
