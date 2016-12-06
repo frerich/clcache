@@ -11,6 +11,7 @@ from ctypes import windll, wintypes
 from shutil import copyfile, rmtree
 import cProfile
 import codecs
+import concurrent.futures
 import contextlib
 import errno
 import hashlib
@@ -1268,56 +1269,6 @@ def jobCount(cmdLine):
         # not expected to happen
         return 2
 
-
-# Run commands, up to j concurrently.
-# Aborts on first failure and returns the first non-zero exit code.
-def runJobs(commands, environment, j=1):
-    running = []
-
-    while len(commands):
-
-        while len(running) >= j:
-            thiscode = waitForAnyProcess(running).returncode
-            if thiscode != 0:
-                return thiscode
-
-        thiscmd = commands.pop(0)
-        running.append(subprocess.Popen(thiscmd, env=environment))
-
-    while len(running) > 0:
-        thiscode = waitForAnyProcess(running).returncode
-        if thiscode != 0:
-            return thiscode
-
-    return 0
-
-
-# re-invoke clcache.py once per source file.
-# Used when called via nmake 'batch mode'.
-# Returns the first non-zero exit code encountered, or 0 if all jobs succeed.
-def reinvokePerSourceFile(cmdLine, sourceFiles, environment):
-    printTraceStatement("Will reinvoke self for: {}".format(sourceFiles))
-    commands = []
-    for sourceFile in sourceFiles:
-        # The child command consists of clcache.py ...
-        newCmdLine = [sys.executable]
-        if not hasattr(sys, "frozen"):
-            newCmdLine.append(sys.argv[0])
-
-        for arg in cmdLine:
-            # and the current source file ...
-            if arg == sourceFile:
-                newCmdLine.append(arg)
-            # and all other arguments which are not a source file
-            elif arg not in sourceFiles:
-                newCmdLine.append(arg)
-
-        printTraceStatement("Child: {}".format(newCmdLine))
-        commands.append(newCmdLine)
-
-    return runJobs(commands, environment, jobCount(cmdLine))
-
-
 def printStatistics(cache):
     template = """
 clcache statistics:
@@ -1548,25 +1499,28 @@ def processCompileRequest(cache, compiler, args):
     try:
         sourceFiles, objectFiles = CommandLineAnalyzer.analyze(cmdLine)
 
-        if len(sourceFiles) > 1:
-            return reinvokePerSourceFile(cmdLine, sourceFiles, environment), '', ''
-        else:
-            assert objectFile is not None
-            if 'CLCACHE_NODIRECT' in os.environ:
-                returnCode, compilerOutput, compilerStderr, cleanupRequired = \
-                    processNoDirect(cache, objectFiles[0], compiler, cmdLine, environment)
-            else:
-                returnCode, compilerOutput, compilerStderr, cleanupRequired = \
-                    processDirect(cache, objectFiles[0], compiler, cmdLine, sourceFiles[0])
-            printTraceStatement("Finished. Exit code {0:d}".format(returnCode))
+        baseCmdLine = []
+        for arg in cmdLine:
+            if arg not in sourceFiles:
+                baseCmdLine.append(arg)
+        with concurrent.futures.ThreadPoolExecutor(max_workers=jobCount(cmdLine)) as executor:
+            jobs = []
+            for i, srcFile in enumerate(sourceFiles):
+                jobCmdLine = list(baseCmdLine)
+                jobCmdLine.append(srcFile)
+                jobs.append(executor.submit( \
+                        processActualCompileRequest, \
+                        cache, compiler, jobCmdLine, srcFile, objectFiles[i], environment))
+            for future in concurrent.futures.as_completed(jobs):
+                exitCode, out, err = future.result()
+                printBinary(sys.stderr, err.encode(CL_DEFAULT_CODEC))
+                printBinary(sys.stdout, out.encode(CL_DEFAULT_CODEC))
 
-            if cleanupRequired:
-                with cache.lock:
-                    cleanCache(cache)
+                if exitCode != 0:
+                    return exitCode
 
-            printBinary(sys.stderr, err.encode(CL_DEFAULT_CODEC))
-            printBinary(sys.stdout, out.encode(CL_DEFAULT_CODEC))
-            return returnCode
+        return 0
+
     except InvalidArgumentError:
         printTraceStatement("Cannot cache invocation as {}: invalid argument".format(cmdLine))
         updateCacheStatistics(cache, Statistics.registerCallWithInvalidArgument)
@@ -1590,15 +1544,32 @@ def processCompileRequest(cache, compiler, args):
     except CalledForPreprocessingError:
         printTraceStatement("Cannot cache invocation as {}: called for preprocessing".format(cmdLine))
         updateCacheStatistics(cache, Statistics.registerCallForPreprocessing)
-    except IncludeNotFoundException:
-        pass
 
-    exitCode, err, out = invokeRealCompiler(compiler, args[1:])
+    exitCode, out, err = invokeRealCompiler(compiler, args[1:])
     printBinary(sys.stderr, err.encode(CL_DEFAULT_CODEC))
     printBinary(sys.stdout, out.encode(CL_DEFAULT_CODEC))
     return exitCode
 
-    return returnCode, compilerOutput, compilerStderr
+def processActualCompileRequest(cache, compiler, cmdLine, sourceFile, objectFile, environment):
+    try:
+        assert objectFile is not None
+        if 'CLCACHE_NODIRECT' in os.environ:
+            returnCode, compilerOutput, compilerStderr, cleanupRequired = \
+            processNoDirect(cache, objectFile, compiler, cmdLine, environment)
+        else:
+            returnCode, compilerOutput, compilerStderr, cleanupRequired = \
+            processDirect(cache, objectFile, compiler, cmdLine, sourceFile)
+
+        printTraceStatement("Finished. Exit code {0:d}".format(returnCode))
+
+        if cleanupRequired:
+            with cache.lock:
+                cleanCache(cache)
+
+        return returnCode, compilerOutput, compilerStderr
+
+    except IncludeNotFoundException:
+        return invokeRealCompiler(compiler, cmdLine, environment=environment)
 
 def processDirect(cache, objectFile, compiler, cmdLine, sourceFile):
     manifestHash = ManifestRepository.getManifestHash(compiler, cmdLine, sourceFile)
