@@ -510,7 +510,7 @@ class TestAnalyzeCommandLine(unittest.TestCase):
 
     def _testFo(self, foArgument, expectedObjectFilepath):
         self._testFull(['/c', foArgument, 'main.cpp'],
-                       ["main.cpp"], expectedObjectFilepath)
+                       ["main.cpp"], [expectedObjectFilepath])
 
     def _testFi(self, fiArgument):
         self._testPreprocessingOutfile(['/c', '/P', fiArgument, 'main.cpp'])
@@ -528,7 +528,7 @@ class TestAnalyzeCommandLine(unittest.TestCase):
         self._testFailure([], NoSourceFileError)
 
     def testSimple(self):
-        self._testFull(["/c", "main.cpp"], ["main.cpp"], "main.obj")
+        self._testFull(["/c", "main.cpp"], ["main.cpp"], ["main.obj"])
 
     def testNoSource(self):
         # No source file has priority over other errors, for consistency
@@ -547,7 +547,7 @@ class TestAnalyzeCommandLine(unittest.TestCase):
     def testOutputFileFromSourcefile(self):
         # For object file
         self._testFull(['/c', 'main.cpp'],
-                       ['main.cpp'], 'main.obj')
+                       ['main.cpp'], ['main.obj'])
         # For preprocessor file
         self._testFailure(['/c', '/P', 'main.cpp'], CalledForPreprocessingError)
 
@@ -634,9 +634,9 @@ class TestAnalyzeCommandLine(unittest.TestCase):
     def testTpTcSimple(self):
         # clcache can handle /Tc or /Tp as long as there is only one of them
         self._testFull(['/c', '/TcMyCcProgram.c'],
-                       ['MyCcProgram.c'], 'MyCcProgram.obj')
+                       ['MyCcProgram.c'], ['MyCcProgram.obj'])
         self._testFull(['/c', '/TpMyCxxProgram.cpp'],
-                       ['MyCxxProgram.cpp'], 'MyCxxProgram.obj')
+                       ['MyCxxProgram.cpp'], ['MyCxxProgram.obj'])
 
     def testLink(self):
         self._testFailure(["main.cpp"], CalledForLinkError)

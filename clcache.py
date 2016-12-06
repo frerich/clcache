@@ -1171,21 +1171,22 @@ class CommandLineAnalyzer(object):
         if len(inputFiles) > 1 and compl:
             raise MultipleSourceFilesComplexError()
 
-        if len(inputFiles) == 1:
-            if 'Fo' in options and options['Fo'][0]:
-                # Handle user input
-                objectFile = os.path.normpath(options['Fo'][0])
-                if os.path.isdir(objectFile):
-                    objectFile = os.path.join(objectFile, basenameWithoutExtension(inputFiles[0]) + '.obj')
-            else:
-                # Generate from .c/.cpp filename
-                objectFile = basenameWithoutExtension(inputFiles[0]) + '.obj'
-        else:
-            objectFile = None
+        objectFiles = None
+        prefix = ''
+        if 'Fo' in options and options['Fo'][0]:
+            # Handle user input
+            tmp = os.path.normpath(options['Fo'][0])
+            if os.path.isdir(tmp):
+                prefix = tmp
+            elif len(inputFiles) == 1:
+                objectFiles = [tmp]
+        if objectFiles is None:
+            # Generate from .c/.cpp filenames
+            objectFiles = [os.path.join(prefix, basenameWithoutExtension(f)) + '.obj' for f in inputFiles]
 
         printTraceStatement("Compiler source files: {}".format(inputFiles))
-        printTraceStatement("Compiler object file: {}".format(objectFile))
-        return inputFiles, objectFile
+        printTraceStatement("Compiler object file: {}".format(objectFiles))
+        return inputFiles, objectFiles
 
 
 def invokeRealCompiler(compilerBinary, cmdLine, captureOutput=False, outputAsString=True, environment=None):
@@ -1545,7 +1546,7 @@ def processCompileRequest(cache, compiler, args):
     printTraceStatement("Expanded commandline '{0!s}'".format(cmdLine))
 
     try:
-        sourceFiles, objectFile = CommandLineAnalyzer.analyze(cmdLine)
+        sourceFiles, objectFiles = CommandLineAnalyzer.analyze(cmdLine)
 
         if len(sourceFiles) > 1:
             return reinvokePerSourceFile(cmdLine, sourceFiles, environment), '', ''
@@ -1553,10 +1554,10 @@ def processCompileRequest(cache, compiler, args):
             assert objectFile is not None
             if 'CLCACHE_NODIRECT' in os.environ:
                 returnCode, compilerOutput, compilerStderr, cleanupRequired = \
-                    processNoDirect(cache, objectFile, compiler, cmdLine, environment)
+                    processNoDirect(cache, objectFiles[0], compiler, cmdLine, environment)
             else:
                 returnCode, compilerOutput, compilerStderr, cleanupRequired = \
-                    processDirect(cache, objectFile, compiler, cmdLine, sourceFiles[0])
+                    processDirect(cache, objectFiles[0], compiler, cmdLine, sourceFiles[0])
             printTraceStatement("Finished. Exit code {0:d}".format(returnCode))
 
             if cleanupRequired:
