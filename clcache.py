@@ -1427,13 +1427,6 @@ def createManifestEntry(manifestHash, includePaths):
     return ManifestEntry(safeIncludes, includesContentHash, cachekey)
 
 
-def createOrUpdateManifest(manifestSection, manifestHash, entry):
-    manifest = manifestSection.getManifest(manifestHash) or Manifest()
-    manifest.addEntry(entry)
-    manifestSection.setManifest(manifestHash, manifest)
-    return manifest
-
-
 def installSignalHandlers():
     # Ignore Ctrl-C and SIGTERM signals to avoid corrupting the cache
     signal.signal(signal.SIGINT, signal.SIG_IGN)
@@ -1628,7 +1621,8 @@ def processDirect(cache, objectFile, compiler, cmdLine, sourceFile):
         cachekey = entry.objectHash
 
         def addManifest():
-            manifest = createOrUpdateManifest(manifestSection, manifestHash, entry)
+            manifest = manifestSection.getManifest(manifestHash) or Manifest()
+            manifest.addEntry(entry)
             manifestSection.setManifest(manifestHash, manifest)
 
         artifactSection = cache.compilerArtifactsRepository.section(cachekey)
