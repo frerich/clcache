@@ -1506,6 +1506,9 @@ def processCompileRequest(cache, compiler, args):
         for arg in cmdLine:
             if arg not in sourceFiles:
                 baseCmdLine.append(arg)
+
+        exitCode = 0
+        cleanupRequired = False
         with concurrent.futures.ThreadPoolExecutor(max_workers=jobCount(cmdLine)) as executor:
             jobs = []
             for i, srcFile in enumerate(sourceFiles):
@@ -1515,13 +1518,18 @@ def processCompileRequest(cache, compiler, args):
                         processActualCompileRequest, \
                         cache, compiler, jobCmdLine, srcFile, objectFiles[i], environment))
             for future in concurrent.futures.as_completed(jobs):
-                exitCode, out, err = future.result()
+                exitCode, out, err, doCleanup = future.result()
+                cleanupRequired |= doCleanup
                 printOutAndErr(out, err)
 
                 if exitCode != 0:
-                    return exitCode
+                    break
 
-        return 0
+        if cleanupRequired:
+            with cache.lock:
+                cleanCache(cache)
+
+        return exitCode
 
     except InvalidArgumentError:
         printTraceStatement("Cannot cache invocation as {}: invalid argument".format(cmdLine))
@@ -1563,14 +1571,10 @@ def processActualCompileRequest(cache, compiler, cmdLine, sourceFile, objectFile
 
         printTraceStatement("Finished. Exit code {0:d}".format(returnCode))
 
-        if cleanupRequired:
-            with cache.lock:
-                cleanCache(cache)
-
-        return returnCode, compilerOutput, compilerStderr
+        return returnCode, compilerOutput, compilerStderr, cleanupRequired
 
     except IncludeNotFoundException:
-        return invokeRealCompiler(compiler, cmdLine, environment=environment)
+        return invokeRealCompiler(compiler, cmdLine, environment=environment), False
 
 def processDirect(cache, objectFile, compiler, cmdLine, sourceFile):
     manifestHash = ManifestRepository.getManifestHash(compiler, cmdLine, sourceFile)
