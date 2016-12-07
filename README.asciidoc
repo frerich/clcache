@@ -32,18 +32,19 @@ installing PyInstaller is usually a matter of running
 
 Afterwards, you can generate an executable by running
 
-    pyinstaller --onefile clcache.py
+    pyinstaller clcache.py
 
-This will put the resulting binary and all the dependencies into a 'dist\\'
-subdirectory.  You could then tell your build system to use 'clcache.exe' as
-the compiler binary, or you could rename 'clcache.exe' to 'cl.exe' and put it
-into a directory which comes first in the +PATH+. In my case, I went for the
-latter solution; I put the 'cl.exe' binary into '%HOME%\bin' and prepended that
-directory to the +PATH+.  The 'cl.exe' wrapper binary will notice that it was
-renamed and forward all the arguments to the real compiler executable.
+This will put the resulting 'clcache.exe' binary and all its dependencies into
+a 'dist\clcache' subdirectory.  You could then tell your build system to use
+'clcache.exe' as the compiler binary, or you could rename 'clcache.exe' to
+'cl.exe' and prepend the directory to the +PATH+ environment variable.  This
+way, simply running 'cl' will invoke the script instead of the real compiler.
 
-This way, simply running 'cl' will invoke the script instead of the real
-compiler.
+*Note:* The '--onefile' argument to PyInstaller will make it generate a single
+monolithic executable file which is very convenient, but also slows things
+down. See the
+https://github.com/frerich/clcache/wiki/Caveats#slow-performance-when-using-a-clcache-executable-built-via-pyinstaller[Caveats wiki page]
+for some further discussion.
 
 Installation for Visual Studio
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
