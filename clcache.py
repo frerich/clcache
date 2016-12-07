@@ -1488,6 +1488,9 @@ def updateCacheStatistics(cache, method):
     with cache.statistics.lock, cache.statistics as stats:
         method(stats)
 
+def printOutAndErr(out, err):
+    printBinary(sys.stdout, out.encode(CL_DEFAULT_CODEC))
+    printBinary(sys.stderr, err.encode(CL_DEFAULT_CODEC))
 
 def processCompileRequest(cache, compiler, args):
     printTraceStatement("Parsing given commandline '{0!s}'".format(args[1:]))
@@ -1513,8 +1516,7 @@ def processCompileRequest(cache, compiler, args):
                         cache, compiler, jobCmdLine, srcFile, objectFiles[i], environment))
             for future in concurrent.futures.as_completed(jobs):
                 exitCode, out, err = future.result()
-                printBinary(sys.stderr, err.encode(CL_DEFAULT_CODEC))
-                printBinary(sys.stdout, out.encode(CL_DEFAULT_CODEC))
+                printOutAndErr(out, err)
 
                 if exitCode != 0:
                     return exitCode
@@ -1546,8 +1548,7 @@ def processCompileRequest(cache, compiler, args):
         updateCacheStatistics(cache, Statistics.registerCallForPreprocessing)
 
     exitCode, out, err = invokeRealCompiler(compiler, args[1:])
-    printBinary(sys.stderr, err.encode(CL_DEFAULT_CODEC))
-    printBinary(sys.stdout, out.encode(CL_DEFAULT_CODEC))
+    printOutAndErr(out, err)
     return exitCode
 
 def processActualCompileRequest(cache, compiler, cmdLine, sourceFile, objectFile, environment):
