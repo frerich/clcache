@@ -1519,6 +1519,7 @@ def processCompileRequest(cache, compiler, args):
                         cache, compiler, jobCmdLine, srcFile, objectFiles[i], environment))
             for future in concurrent.futures.as_completed(jobs):
                 exitCode, out, err, doCleanup = future.result()
+                printTraceStatement("Finished. Exit code {0:d}".format(exitCode))
                 cleanupRequired |= doCleanup
                 printOutAndErr(out, err)
 
@@ -1563,15 +1564,9 @@ def processActualCompileRequest(cache, compiler, cmdLine, sourceFile, objectFile
     try:
         assert objectFile is not None
         if 'CLCACHE_NODIRECT' in os.environ:
-            returnCode, compilerOutput, compilerStderr, cleanupRequired = \
-            processNoDirect(cache, objectFile, compiler, cmdLine, environment)
+            return processNoDirect(cache, objectFile, compiler, cmdLine, environment)
         else:
-            returnCode, compilerOutput, compilerStderr, cleanupRequired = \
-            processDirect(cache, objectFile, compiler, cmdLine, sourceFile)
-
-        printTraceStatement("Finished. Exit code {0:d}".format(returnCode))
-
-        return returnCode, compilerOutput, compilerStderr, cleanupRequired
+            return processDirect(cache, objectFile, compiler, cmdLine, sourceFile)
 
     except IncludeNotFoundException:
         return invokeRealCompiler(compiler, cmdLine, environment=environment), False
