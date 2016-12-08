@@ -1226,28 +1226,6 @@ def invokeRealCompiler(compilerBinary, cmdLine, captureOutput=False, outputAsStr
 
     return returnCode, stdout, stderr
 
-
-# Given a list of Popen objects, removes and returns
-# a completed Popen object.
-#
-# This is a bit inefficient but Python on Windows does not appear to
-# provide any blocking "wait for any process to complete" out of the box.
-def waitForAnyProcess(procs):
-    out = [p for p in procs if p.poll() is not None]
-    if len(out) >= 1:
-        out = out[0]
-        procs.remove(out)
-        return out
-
-    # Damn, none finished yet.
-    # Do a blocking wait for the first one.
-    # This could waste time waiting for one process while others have
-    # already finished :(
-    out = procs.pop(0)
-    out.wait()
-    return out
-
-
 # Returns the amount of jobs which should be run in parallel when
 # invoked in batch mode as determined by the /MP argument
 def jobCount(cmdLine):
