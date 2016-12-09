@@ -1481,8 +1481,9 @@ def processCompileRequest(cache, compiler, args):
         sourceFiles, objectFiles = CommandLineAnalyzer.analyze(cmdLine)
 
         baseCmdLine = []
+        setOfSources = set(sourceFiles)
         for arg in cmdLine:
-            if arg not in sourceFiles:
+            if arg not in setOfSources:
                 baseCmdLine.append(arg)
 
         exitCode = 0
