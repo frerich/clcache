@@ -1495,7 +1495,7 @@ def processCompileRequest(cache, compiler, args):
                 jobCmdLine.append(srcFile)
                 jobs.append(executor.submit( \
                         processActualCompileRequest, \
-                        cache, compiler, jobCmdLine, srcFile, objectFiles[i], environment))
+                        compiler, jobCmdLine, srcFile, objectFiles[i], environment))
             for future in concurrent.futures.as_completed(jobs):
                 exitCode, out, err, doCleanup = future.result()
                 printTraceStatement("Finished. Exit code {0:d}".format(exitCode))
@@ -1539,9 +1539,11 @@ def processCompileRequest(cache, compiler, args):
     printOutAndErr(out, err)
     return exitCode
 
-def processActualCompileRequest(cache, compiler, cmdLine, sourceFile, objectFile, environment):
+def processActualCompileRequest(compiler, cmdLine, sourceFile, objectFile, environment):
     try:
         assert objectFile is not None
+        cache = Cache()
+
         if 'CLCACHE_NODIRECT' in os.environ:
             return processNoDirect(cache, objectFile, compiler, cmdLine, environment)
         else:
