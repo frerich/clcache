@@ -120,6 +120,17 @@ class CacheLockException(Exception):
     pass
 
 
+class CompilerFailedException(Exception):
+    def __init__(self, exitCode, msgErr, msgOut=""):
+        super(CompilerFailedException, self).__init__(msgErr)
+        self.exitCode = exitCode
+        self.msgOut = msgOut
+        self.msgErr = msgErr
+
+    def getReturnTuple(self):
+        return self.exitCode, self.msgErr, self.msgOut, False
+
+
 class LogicException(Exception):
     def __init__(self, message):
         super(LogicException, self).__init__(message)
@@ -431,9 +442,8 @@ class CompilerArtifactsRepository(object):
             invokeRealCompiler(compilerBinary, ppcmd, captureOutput=True, outputAsString=False, environment=environment)
 
         if returnCode != 0:
-            printBinary(sys.stderr, ppStderrBinary)
-            print("clcache: preprocessor failed", file=sys.stderr)
-            sys.exit(returnCode)
+            errMsg = ppStderrBinary.decode(CL_DEFAULT_CODEC) + "\nclcache: preprocessor failed"
+            raise CompilerFailedException(returnCode, errMsg)
 
         compilerHash = getCompilerHash(compilerBinary)
         normalizedCmdLine = CompilerArtifactsRepository._normalizedCommandLine(commandLine)
@@ -1551,6 +1561,8 @@ def processActualCompileRequest(compiler, cmdLine, sourceFile, objectFile, envir
 
     except IncludeNotFoundException:
         return invokeRealCompiler(compiler, cmdLine, environment=environment), False
+    except CompilerFailedException as e:
+        return e.getReturnTuple()
 
 def processDirect(cache, objectFile, compiler, cmdLine, sourceFile):
     manifestHash = ManifestRepository.getManifestHash(compiler, cmdLine, sourceFile)
