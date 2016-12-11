@@ -23,11 +23,14 @@ import re
 import signal
 import subprocess
 import sys
+import threading
 from tempfile import TemporaryFile
 
 VERSION = "3.3.1-dev"
 
 HashAlgorithm = hashlib.md5
+
+OUTPUT_LOCK = threading.Lock()
 
 # try to use os.scandir or scandir.scandir
 # fall back to os.listdir if not found
@@ -74,8 +77,9 @@ ManifestEntry = namedtuple('ManifestEntry', ['includeFiles', 'includesContentHas
 CompilerArtifacts = namedtuple('CompilerArtifacts', ['objectFilePath', 'stdout', 'stderr'])
 
 def printBinary(stream, rawData):
-    stream.buffer.write(rawData)
-    stream.flush()
+    with OUTPUT_LOCK:
+        stream.buffer.write(rawData)
+        stream.flush()
 
 
 def basenameWithoutExtension(path):
@@ -191,7 +195,7 @@ class ManifestSection(object):
         except IOError:
             return None
         except ValueError:
-            print("clcache: manifest file %s was broken" % fileName, file=sys.stderr)
+            printErrStr("clcache: manifest file %s was broken" % fileName)
             return None
 
 
@@ -542,7 +546,7 @@ class PersistentJSONDict(object):
         except IOError:
             pass
         except ValueError:
-            print("clcache: persistent json file %s was broken" % fileName, file=sys.stderr)
+            printErrStr("clcache: persistent json file %s was broken" % fileName)
 
     def save(self):
         if self._dirty:
@@ -906,7 +910,8 @@ def findCompilerBinary():
 def printTraceStatement(msg):
     if "CLCACHE_LOG" in os.environ:
         scriptDir = os.path.realpath(os.path.dirname(sys.argv[0]))
-        print(os.path.join(scriptDir, "clcache.py") + " " + msg)
+        with OUTPUT_LOCK:
+            print(os.path.join(scriptDir, "clcache.py") + " " + msg)
 
 
 class CommandLineTokenizer(object):
@@ -1478,6 +1483,10 @@ def updateCacheStatistics(cache, method):
 def printOutAndErr(out, err):
     printBinary(sys.stdout, out.encode(CL_DEFAULT_CODEC))
     printBinary(sys.stderr, err.encode(CL_DEFAULT_CODEC))
+
+def printErrStr(message):
+    with OUTPUT_LOCK:
+        print(message, file=sys.stderr)
 
 def processCompileRequest(cache, compiler, args):
     printTraceStatement("Parsing given commandline '{0!s}'".format(args[1:]))
