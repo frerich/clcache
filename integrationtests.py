@@ -583,57 +583,39 @@ class TestHeaderChange(unittest.TestCase):
         if os.path.isfile("main.exe"):
             os.remove("main.exe")
 
-    def _compileAndLink(self, environment=None):
+    def _compileAndLink(self, environment):
         cmdCompile = CLCACHE_CMD + ["/nologo", "/EHsc", "/c", "main.cpp"]
         cmdLink = ["link", "/nologo", "/OUT:main.exe", "main.obj"]
-        subprocess.check_call(cmdCompile, env=environment or os.environ)
-        subprocess.check_call(cmdLink, env=environment or os.environ)
+        subprocess.check_call(cmdCompile, env=environment)
+        subprocess.check_call(cmdLink, env=environment)
+
+    def _performTest(self, env):
+        with cd(os.path.join(ASSETS_DIR, "header-change")):
+            self._clean()
+
+            with open("version.h", "w") as header:
+                header.write("#define VERSION 1")
+
+            self._compileAndLink(env)
+            cmdRun = [os.path.abspath("main.exe")]
+            output = subprocess.check_output(cmdRun).decode("ascii").strip()
+            self.assertEqual(output, "1")
+
+            self._clean()
+
+            with open("version.h", "w") as header:
+                header.write("#define VERSION 2")
+
+            self._compileAndLink(env)
+            cmdRun = [os.path.abspath("main.exe")]
+            output = subprocess.check_output(cmdRun).decode("ascii").strip()
+            self.assertEqual(output, "2")
 
     def testDirect(self):
-        with cd(os.path.join(ASSETS_DIR, "header-change")):
-            self._clean()
-
-            with open("version.h", "w") as header:
-                header.write("#define VERSION 1")
-
-            self._compileAndLink()
-            cmdRun = [os.path.abspath("main.exe")]
-            output = subprocess.check_output(cmdRun).decode("ascii").strip()
-            self.assertEqual(output, "1")
-
-            self._clean()
-
-            with open("version.h", "w") as header:
-                header.write("#define VERSION 2")
-
-            self._compileAndLink()
-            cmdRun = [os.path.abspath("main.exe")]
-            output = subprocess.check_output(cmdRun).decode("ascii").strip()
-            self.assertEqual(output, "2")
+        self._performTest(dict(os.environ))
 
     def testNoDirect(self):
-        with cd(os.path.join(ASSETS_DIR, "header-change")):
-            self._clean()
-
-            with open("version.h", "w") as header:
-                header.write("#define VERSION 1")
-
-            testEnvironment = dict(os.environ, CLCACHE_NODIRECT="1")
-
-            self._compileAndLink(testEnvironment)
-            cmdRun = [os.path.abspath("main.exe")]
-            output = subprocess.check_output(cmdRun).decode("ascii").strip()
-            self.assertEqual(output, "1")
-
-            self._clean()
-
-            with open("version.h", "w") as header:
-                header.write("#define VERSION 2")
-
-            self._compileAndLink(testEnvironment)
-            cmdRun = [os.path.abspath("main.exe")]
-            output = subprocess.check_output(cmdRun).decode("ascii").strip()
-            self.assertEqual(output, "2")
+        self._performTest(dict(os.environ, CLCACHE_NODIRECT="1"))
 
 
 class TestHeaderMiss(unittest.TestCase):
