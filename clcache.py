@@ -1499,12 +1499,11 @@ def processCompileRequest(cache, compiler, args):
         cleanupRequired = False
         with concurrent.futures.ThreadPoolExecutor(max_workers=jobCount(cmdLine)) as executor:
             jobs = []
-            for i, srcFile in enumerate(sourceFiles):
-                jobCmdLine = list(baseCmdLine)
-                jobCmdLine.append(srcFile)
-                jobs.append(executor.submit( \
-                        processActualCompileRequest, \
-                        compiler, jobCmdLine, srcFile, objectFiles[i], environment))
+            for srcFile, objFile in zip(sourceFiles, objectFiles):
+                jobCmdLine = baseCmdLine + [srcFile]
+                jobs.append(executor.submit(
+                        processActualCompileRequest,
+                        compiler, jobCmdLine, srcFile, objFile, environment))
             for future in concurrent.futures.as_completed(jobs):
                 exitCode, out, err, doCleanup = future.result()
                 printTraceStatement("Finished. Exit code {0:d}".format(exitCode))
