@@ -18,6 +18,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+import time
 
 import clcache
 
@@ -578,6 +579,11 @@ class TestPrecompiledHeaders(unittest.TestCase):
 
 class TestHeaderChange(unittest.TestCase):
     def _clean(self):
+        # It seems that subprocess.check_output() occasionally returns before
+        # windows fully releases the respective executable.
+        # This pause prevents failing tests because of missing permissions to remove the file.
+        time.sleep(.1)
+
         if os.path.isfile("main.obj"):
             os.remove("main.obj")
         if os.path.isfile("main.exe"):
