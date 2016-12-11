@@ -1531,7 +1531,7 @@ def scheduleJobs(cache, compiler, cmdLine, environment, sourceFiles, objectFiles
         for srcFile, objFile in zip(sourceFiles, objectFiles):
             jobCmdLine = baseCmdLine + [srcFile]
             jobs.append(executor.submit(
-                processActualCompileRequest,
+                processSingleSource,
                 compiler, jobCmdLine, srcFile, objFile, environment))
         for future in concurrent.futures.as_completed(jobs):
             exitCode, out, err, doCleanup = future.result()
@@ -1548,7 +1548,7 @@ def scheduleJobs(cache, compiler, cmdLine, environment, sourceFiles, objectFiles
 
     return exitCode
 
-def processActualCompileRequest(compiler, cmdLine, sourceFile, objectFile, environment):
+def processSingleSource(compiler, cmdLine, sourceFile, objectFile, environment):
     try:
         assert objectFile is not None
         cache = Cache()
