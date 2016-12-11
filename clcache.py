@@ -1488,37 +1488,7 @@ def processCompileRequest(cache, compiler, args):
 
     try:
         sourceFiles, objectFiles = CommandLineAnalyzer.analyze(cmdLine)
-
-        baseCmdLine = []
-        setOfSources = set(sourceFiles)
-        for arg in cmdLine:
-            if not (arg in setOfSources or arg.startswith("/MP")):
-                baseCmdLine.append(arg)
-
-        exitCode = 0
-        cleanupRequired = False
-        with concurrent.futures.ThreadPoolExecutor(max_workers=jobCount(cmdLine)) as executor:
-            jobs = []
-            for srcFile, objFile in zip(sourceFiles, objectFiles):
-                jobCmdLine = baseCmdLine + [srcFile]
-                jobs.append(executor.submit(
-                        processActualCompileRequest,
-                        compiler, jobCmdLine, srcFile, objFile, environment))
-            for future in concurrent.futures.as_completed(jobs):
-                exitCode, out, err, doCleanup = future.result()
-                printTraceStatement("Finished. Exit code {0:d}".format(exitCode))
-                cleanupRequired |= doCleanup
-                printOutAndErr(out, err)
-
-                if exitCode != 0:
-                    break
-
-        if cleanupRequired:
-            with cache.lock:
-                cleanCache(cache)
-
-        return exitCode
-
+        return scheduleJobs(cache, compiler, cmdLine, environment, sourceFiles, objectFiles)
     except InvalidArgumentError:
         printTraceStatement("Cannot cache invocation as {}: invalid argument".format(cmdLine))
         updateCacheStatistics(cache, Statistics.registerCallWithInvalidArgument)
@@ -1545,6 +1515,37 @@ def processCompileRequest(cache, compiler, args):
 
     exitCode, out, err = invokeRealCompiler(compiler, args[1:])
     printOutAndErr(out, err)
+    return exitCode
+
+def scheduleJobs(cache, compiler, cmdLine, environment, sourceFiles, objectFiles):
+    baseCmdLine = []
+    setOfSources = set(sourceFiles)
+    for arg in cmdLine:
+        if not (arg in setOfSources or arg.startswith("/MP")):
+            baseCmdLine.append(arg)
+
+    exitCode = 0
+    cleanupRequired = False
+    with concurrent.futures.ThreadPoolExecutor(max_workers=jobCount(cmdLine)) as executor:
+        jobs = []
+        for srcFile, objFile in zip(sourceFiles, objectFiles):
+            jobCmdLine = baseCmdLine + [srcFile]
+            jobs.append(executor.submit(
+                processActualCompileRequest,
+                compiler, jobCmdLine, srcFile, objFile, environment))
+        for future in concurrent.futures.as_completed(jobs):
+            exitCode, out, err, doCleanup = future.result()
+            printTraceStatement("Finished. Exit code {0:d}".format(exitCode))
+            cleanupRequired |= doCleanup
+            printOutAndErr(out, err)
+
+            if exitCode != 0:
+                break
+
+    if cleanupRequired:
+        with cache.lock:
+            cleanCache(cache)
+
     return exitCode
 
 def processActualCompileRequest(compiler, cmdLine, sourceFile, objectFile, environment):
