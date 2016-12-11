@@ -806,6 +806,17 @@ class TestRunParallel(unittest.TestCase):
                 self.assertEqual(stats.numCacheMisses(), 2)
                 self.assertEqual(stats.numCacheEntries(), 2)
 
+    def testOutput(self):
+        with cd(os.path.join(ASSETS_DIR, "parallel")), tempfile.TemporaryDirectory() as tempDir:
+            sources = glob.glob("*.cpp")
+            clcache.Cache(tempDir)
+            customEnv = dict(os.environ, CLCACHE_DIR=tempDir)
+            cmd = CLCACHE_CMD + ["/nologo", "/EHsc", "/c"]
+            mpFlag = "/MP" + str(len(sources))
+            out = subprocess.check_output(cmd + [mpFlag] + sources, env=customEnv).decode("ascii")
+
+            for s in sources:
+                self.assertEqual(out.count(s), 1)
 
 # Compiler calls with multiple sources files at once, e.g.
 # cl file1.c file2.c
