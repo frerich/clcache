@@ -47,7 +47,7 @@ build_script:
   - python clcache.py -s
   - pylint --rcfile=.pylintrc clcache.py
   - pylint --rcfile=.pylintrc unittests.py
-  - pylint --rcfile=.pylintrc integrationtests.py
+  - pylint --rcfile=.pylintrc --disable=no-member integrationtests.py
   - pylint --rcfile=.pylintrc performancetests.py
 
 test_script:
