@@ -254,7 +254,6 @@ class ManifestRepository(object):
         # compiler processes are running simultaneusly.  Arguments that specify
         # the compiler where to find the source files are parsed to replace
         # ocurrences of CLCACHE_BASEDIR by a placeholder.
-        commandLine = [arg for arg in commandLine if not arg.startswith("/MP")]
         arguments, inputFiles = CommandLineAnalyzer.parseArgumentsAndInputFiles(commandLine)
         collapseBasedirInCmdPath = lambda path: collapseBasedirToPlaceholder(os.path.normcase(os.path.abspath(path)))
 
@@ -1493,7 +1492,7 @@ def processCompileRequest(cache, compiler, args):
         baseCmdLine = []
         setOfSources = set(sourceFiles)
         for arg in cmdLine:
-            if arg not in setOfSources:
+            if not (arg in setOfSources or arg.startswith("/MP")):
                 baseCmdLine.append(arg)
 
         exitCode = 0
