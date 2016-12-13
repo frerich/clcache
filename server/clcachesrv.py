@@ -5,14 +5,18 @@ import logging
 import os
 import pickle
 import signal
+import argparse
+import re
 
 import pyuv
 
 class HashCache(object):
-    def __init__(self, loop):
+    def __init__(self, loop, excludePatterns, disableWatching):
         self._loop = loop
         self._watchedDirectories = {}
         self._handlers = []
+        self._excludePatterns = excludePatterns if excludePatterns else []
+        self._disableWatching = disableWatching
 
     def getFileHash(self, path):
         logging.debug("getting hash for %s", path)
@@ -28,10 +32,11 @@ class HashCache(object):
             hashsum = hashlib.md5(f.read()).hexdigest()
 
         watchedDirectory[basename] = hashsum
-        if dirname not in self._watchedDirectories:
+        if dirname not in self._watchedDirectories and not self.isExcluded(dirname) and not self._disableWatching:
             logging.debug("starting to watch directory %s for changes", dirname)
             self._startWatching(dirname)
-            self._watchedDirectories[dirname] = watchedDirectory
+        
+        self._watchedDirectories[dirname] = watchedDirectory
 
         logging.debug("calculated and stored hashsum %s", hashsum)
         return hashsum
@@ -51,6 +56,14 @@ class HashCache(object):
     def __del__(self):
         for ev in self._handlers:
             ev.stop()
+
+    def isExcluded(self, dirname):
+        # as long as we do not have more than _MAXCACHE regex we can
+        # rely on the internal cacheing of re.match
+        excluded = any(re.search(pattern, dirname, re.IGNORECASE) for pattern in self._excludePatterns)
+        if excluded:
+            logging.debug("NOT watching %s", dirname)
+        return excluded
 
 
 class Connection(object):
@@ -114,9 +127,24 @@ def onSigterm(handle, signum):
 def main():
     logging.basicConfig(format='%(asctime)s [%(levelname)s]: %(message)s', level=logging.INFO)
 
+    parser = argparse.ArgumentParser(description='Process some integers.')
+    parser.add_argument('--exclude', metavar='REGEX', action='append', \
+                        help='Regex ( re.search() ) for exluding of directory watching. Can be specified multiple times. \
+                              Pathnames to test against are after os.path.normcase(), i.e. all lowercase with backslashes. \
+                              Example: --exclude \\\\build\\\\')
+    parser.add_argument('--disable_watching', action='store_true', help='Disable watching of directories which we have in the cache.')
+    args = parser.parse_args()
+
+    if args.exclude:
+        for pattern in vars(args)['exclude']:
+            logging.info("Not watching paths which match: %s", pattern)
+
+    if args.disable_watching:
+        logging.info("Disabled directory watching")
+
     eventLoop = pyuv.Loop.default_loop()
 
-    cache = HashCache(eventLoop)
+    cache = HashCache(eventLoop, vars(args)['exclude'], args.disable_watching)
 
     server = PipeServer(eventLoop, r'\\.\pipe\clcache_srv', cache)
     server.listen()
