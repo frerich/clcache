@@ -15,6 +15,9 @@ clcache changelog
    abnormally.
  * Bugfix: Fixed off-by-one error when compiling source files concurrently,
    clcache would always launch one concurrent instance more than intended.
+ * Feature: Added support for a 'CLCACHE_SERVER' environment variable which, when
+   set to '1', makes 'clcache' use a separate 'clcachesrv' server process to cache
+   hash sums. This improves performance, especially so for warm caches.
 
 ## clcache 3.3.1 (2016-10-25)
 
