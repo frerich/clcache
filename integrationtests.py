@@ -18,6 +18,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+import time
 
 import clcache
 
@@ -578,62 +579,49 @@ class TestPrecompiledHeaders(unittest.TestCase):
 
 class TestHeaderChange(unittest.TestCase):
     def _clean(self):
+        # It seems that subprocess.check_output() occasionally returns before
+        # windows fully releases the respective executable.
+        # This pause prevents failing tests because of missing permissions to remove the file.
+        time.sleep(.1)
+
         if os.path.isfile("main.obj"):
             os.remove("main.obj")
         if os.path.isfile("main.exe"):
             os.remove("main.exe")
 
-    def _compileAndLink(self, environment=None):
+    def _compileAndLink(self, environment):
         cmdCompile = CLCACHE_CMD + ["/nologo", "/EHsc", "/c", "main.cpp"]
         cmdLink = ["link", "/nologo", "/OUT:main.exe", "main.obj"]
-        subprocess.check_call(cmdCompile, env=environment or os.environ)
-        subprocess.check_call(cmdLink, env=environment or os.environ)
+        subprocess.check_call(cmdCompile, env=environment)
+        subprocess.check_call(cmdLink, env=environment)
+
+    def _performTest(self, env):
+        with cd(os.path.join(ASSETS_DIR, "header-change")):
+            self._clean()
+
+            with open("version.h", "w") as header:
+                header.write("#define VERSION 1")
+
+            self._compileAndLink(env)
+            cmdRun = [os.path.abspath("main.exe")]
+            output = subprocess.check_output(cmdRun).decode("ascii").strip()
+            self.assertEqual(output, "1")
+
+            self._clean()
+
+            with open("version.h", "w") as header:
+                header.write("#define VERSION 2")
+
+            self._compileAndLink(env)
+            cmdRun = [os.path.abspath("main.exe")]
+            output = subprocess.check_output(cmdRun).decode("ascii").strip()
+            self.assertEqual(output, "2")
 
     def testDirect(self):
-        with cd(os.path.join(ASSETS_DIR, "header-change")):
-            self._clean()
-
-            with open("version.h", "w") as header:
-                header.write("#define VERSION 1")
-
-            self._compileAndLink()
-            cmdRun = [os.path.abspath("main.exe")]
-            output = subprocess.check_output(cmdRun).decode("ascii").strip()
-            self.assertEqual(output, "1")
-
-            self._clean()
-
-            with open("version.h", "w") as header:
-                header.write("#define VERSION 2")
-
-            self._compileAndLink()
-            cmdRun = [os.path.abspath("main.exe")]
-            output = subprocess.check_output(cmdRun).decode("ascii").strip()
-            self.assertEqual(output, "2")
+        self._performTest(dict(os.environ))
 
     def testNoDirect(self):
-        with cd(os.path.join(ASSETS_DIR, "header-change")):
-            self._clean()
-
-            with open("version.h", "w") as header:
-                header.write("#define VERSION 1")
-
-            testEnvironment = dict(os.environ, CLCACHE_NODIRECT="1")
-
-            self._compileAndLink(testEnvironment)
-            cmdRun = [os.path.abspath("main.exe")]
-            output = subprocess.check_output(cmdRun).decode("ascii").strip()
-            self.assertEqual(output, "1")
-
-            self._clean()
-
-            with open("version.h", "w") as header:
-                header.write("#define VERSION 2")
-
-            self._compileAndLink(testEnvironment)
-            cmdRun = [os.path.abspath("main.exe")]
-            output = subprocess.check_output(cmdRun).decode("ascii").strip()
-            self.assertEqual(output, "2")
+        self._performTest(dict(os.environ, CLCACHE_NODIRECT="1"))
 
 
 class TestHeaderMiss(unittest.TestCase):
@@ -707,8 +695,7 @@ class TestHeaderMiss(unittest.TestCase):
             self.assertEqual(misses3, misses2)
             self.assertEqual(hits3, hits2+1)
 
-
-class TestRunParallel(unittest.TestCase):
+class RunParallelBase:
     def _zeroStats(self):
         subprocess.check_call(CLCACHE_CMD + ["-z"])
 
@@ -719,10 +706,13 @@ class TestRunParallel(unittest.TestCase):
             print("Starting compilation of {}".format(sourceFile))
             cxxflags = ["/c", "/nologo", "/EHsc"]
             cmd = CLCACHE_CMD + cxxflags + [sourceFile]
-            processes.append(subprocess.Popen(cmd))
+            processes.append(subprocess.Popen(cmd, env=self.env))
 
         for p in processes:
             p.wait()
+
+    def _createEnv(self, directory):
+        return dict(self.env, CLCACHE_DIR=directory)
 
     # Test counting of misses and hits in a parallel environment
     def testParallel(self):
@@ -751,7 +741,7 @@ class TestRunParallel(unittest.TestCase):
         with cd(os.path.join(ASSETS_DIR, "parallel")), tempfile.TemporaryDirectory() as tempDir:
             cache = clcache.Cache(tempDir)
 
-            customEnv = dict(os.environ, CLCACHE_DIR=tempDir)
+            customEnv = self._createEnv(tempDir)
 
             with cache.statistics as stats:
                 self.assertEqual(stats.numCacheHits(), 0)
@@ -780,7 +770,7 @@ class TestRunParallel(unittest.TestCase):
         with cd(os.path.join(ASSETS_DIR, "parallel")), tempfile.TemporaryDirectory() as tempDir:
             cache = clcache.Cache(tempDir)
 
-            customEnv = dict(os.environ, CLCACHE_DIR=tempDir)
+            customEnv = self._createEnv(tempDir)
 
             with cache.statistics as stats:
                 self.assertEqual(stats.numCacheHits(), 0)
@@ -806,6 +796,20 @@ class TestRunParallel(unittest.TestCase):
                 self.assertEqual(stats.numCacheMisses(), 2)
                 self.assertEqual(stats.numCacheEntries(), 2)
 
+    def testOutput(self):
+        with cd(os.path.join(ASSETS_DIR, "parallel")), tempfile.TemporaryDirectory() as tempDir:
+            sources = glob.glob("*.cpp")
+            clcache.Cache(tempDir)
+            customEnv = self._createEnv(tempDir)
+            cmd = CLCACHE_CMD + ["/nologo", "/EHsc", "/c"]
+            mpFlag = "/MP" + str(len(sources))
+            out = subprocess.check_output(cmd + [mpFlag] + sources, env=customEnv).decode("ascii")
+
+            for s in sources:
+                self.assertEqual(out.count(s), 1)
+
+class TestRunParallel(RunParallelBase, unittest.TestCase):
+    env = dict(os.environ)
 
 # Compiler calls with multiple sources files at once, e.g.
 # cl file1.c file2.c
@@ -986,93 +990,31 @@ class TestPreprocessorCalls(unittest.TestCase):
             self.assertEqual(newPreprocessorCalls, oldPreprocessorCalls + i, str(cmd))
 
 
-class TestNoDirectCalls(unittest.TestCase):
+class TestNoDirectCalls(RunParallelBase, unittest.TestCase):
+    env = dict(os.environ, CLCACHE_NODIRECT="1")
+
     def testPreprocessorFailure(self):
         cache = clcache.Cache()
-
         oldStats = copy.copy(cache.statistics)
 
         cmd = CLCACHE_CMD + ["/nologo", "/c", "doesnotexist.cpp"]
-        env = dict(os.environ, CLCACHE_NODIRECT="1")
 
-        self.assertNotEqual(subprocess.call(cmd, env=env), 0)
-
+        self.assertNotEqual(subprocess.call(cmd, env=self.env), 0)
         self.assertEqual(cache.statistics, oldStats)
 
     def testHit(self):
         with cd(os.path.join(ASSETS_DIR, "hits-and-misses")):
             cmd = CLCACHE_CMD + ["/nologo", "/EHsc", "/c", "hit.cpp"]
-            env = dict(os.environ, CLCACHE_NODIRECT="1")
 
-            self.assertEqual(subprocess.call(cmd, env=env), 0)
+            self.assertEqual(subprocess.call(cmd, env=self.env), 0)
 
             cache = clcache.Cache()
             with cache.statistics as stats:
                 oldHits = stats.numCacheHits()
 
-            self.assertEqual(subprocess.call(cmd, env=env), 0) # This should hit now
+            self.assertEqual(subprocess.call(cmd, env=self.env), 0) # This should hit now
             with cache.statistics as stats:
                 self.assertEqual(stats.numCacheHits(), oldHits + 1)
-
-    def testHitViaMpSequential(self):
-        with cd(os.path.join(ASSETS_DIR, "parallel")), tempfile.TemporaryDirectory() as tempDir:
-            cache = clcache.Cache(tempDir)
-
-            customEnv = dict(os.environ, CLCACHE_DIR=tempDir, CLCACHE_NODIRECT="1")
-
-            with cache.statistics as stats:
-                self.assertEqual(stats.numCacheHits(), 0)
-                self.assertEqual(stats.numCacheMisses(), 0)
-                self.assertEqual(stats.numCacheEntries(), 0)
-
-            cmd = CLCACHE_CMD + ["/nologo", "/EHsc", "/c"]
-
-            # Compile random file, filling cache
-            subprocess.check_call(cmd + ["fibonacci01.cpp"], env=customEnv)
-
-            with cache.statistics as stats:
-                self.assertEqual(stats.numCacheHits(), 0)
-                self.assertEqual(stats.numCacheMisses(), 1)
-                self.assertEqual(stats.numCacheEntries(), 1)
-
-            # Compile same files with specifying /MP, this should hit
-            subprocess.check_call(cmd + ["/MP", "fibonacci01.cpp"], env=customEnv)
-
-            with cache.statistics as stats:
-                self.assertEqual(stats.numCacheHits(), 1)
-                self.assertEqual(stats.numCacheMisses(), 1)
-                self.assertEqual(stats.numCacheEntries(), 1)
-
-    def testHitsViaMpConcurrent(self):
-        with cd(os.path.join(ASSETS_DIR, "parallel")), tempfile.TemporaryDirectory() as tempDir:
-            cache = clcache.Cache(tempDir)
-
-            customEnv = dict(os.environ, CLCACHE_DIR=tempDir, CLCACHE_NODIRECT="1")
-
-            with cache.statistics as stats:
-                self.assertEqual(stats.numCacheHits(), 0)
-                self.assertEqual(stats.numCacheMisses(), 0)
-                self.assertEqual(stats.numCacheEntries(), 0)
-
-            cmd = CLCACHE_CMD + ["/nologo", "/EHsc", "/c"]
-
-            # Compile two random files
-            subprocess.check_call(cmd + ["fibonacci01.cpp"], env=customEnv)
-            subprocess.check_call(cmd + ["fibonacci02.cpp"], env=customEnv)
-
-            with cache.statistics as stats:
-                self.assertEqual(stats.numCacheHits(), 0)
-                self.assertEqual(stats.numCacheMisses(), 2)
-                self.assertEqual(stats.numCacheEntries(), 2)
-
-            # Compile same two files concurrently, this should hit twice.
-            subprocess.check_call(cmd + ["/MP2", "fibonacci01.cpp", "fibonacci02.cpp"], env=customEnv)
-
-            with cache.statistics as stats:
-                self.assertEqual(stats.numCacheHits(), 2)
-                self.assertEqual(stats.numCacheMisses(), 2)
-                self.assertEqual(stats.numCacheEntries(), 2)
-
 
 class TestBasedir(unittest.TestCase):
     def setUp(self):
