@@ -17,6 +17,7 @@ import hashlib
 import json
 import multiprocessing
 import os
+import pickle
 import re
 import signal
 import subprocess
@@ -58,6 +59,10 @@ MAX_MANIFEST_HASHES = 100
 # ? is invalid character for file name, so it seems ok
 # to use it as mark for relative path.
 BASEDIR_REPLACEMENT = '?'
+
+# Define some Win32 API constants here to avoid dependency on win32pipe
+NMPWAIT_WAIT_FOREVER = wintypes.DWORD(0xFFFFFFFF)
+ERROR_PIPE_BUSY = 231
 
 # ManifestEntry: an entry in a manifest file
 # `includeFiles`: list of paths to include files, which this source file uses
@@ -257,7 +262,7 @@ class ManifestRepository(object):
     @staticmethod
     def getIncludesContentHashForFiles(includes):
         try:
-            listOfHashes = [getFileHash(path) for path in includes]
+            listOfHashes = getFileHashes(includes)
         except FileNotFoundError:
             raise IncludeNotFoundException
         return ManifestRepository.getIncludesContentHashForHashes(listOfHashes)
@@ -768,6 +773,27 @@ def getCompilerHash(compilerBinary):
     hasher = HashAlgorithm()
     hasher.update(data.encode("UTF-8"))
     return hasher.hexdigest()
+
+
+def getFileHashes(filePaths):
+    if 'CLCACHE_SERVER' in os.environ:
+        pipeName = r'\\.\pipe\clcache_srv'
+        while True:
+            try:
+                with open(pipeName, 'w+b') as f:
+                    f.write('\n'.join(filePaths).encode('utf-8'))
+                    f.write(b'\x00')
+                    response = f.read()
+                    if response.startswith(b'!'):
+                        raise pickle.loads(response[1:-1])
+                    return response[:-1].decode('utf-8').splitlines()
+            except OSError as e:
+                if e.errno == errno.EINVAL and windll.kernel32.GetLastError() == ERROR_PIPE_BUSY:
+                    windll.kernel32.WaitNamedPipeW(pipeName, NMPWAIT_WAIT_FOREVER)
+                else:
+                    raise
+    else:
+        return [getFileHash(filePath) for filePath in filePaths]
 
 
 def getFileHash(filePath, additionalData=None):
@@ -1418,7 +1444,7 @@ def processCacheHit(cache, objectFile, cachekey):
 
 def createManifestEntry(manifestHash, includePaths):
     sortedIncludePaths = sorted(set(includePaths))
-    includeHashes = [getFileHash(path) for path in sortedIncludePaths]
+    includeHashes = getFileHashes(sortedIncludePaths)
 
     safeIncludes = [collapseBasedirToPlaceholder(path) for path in sortedIncludePaths]
     includesContentHash = ManifestRepository.getIncludesContentHashForHashes(includeHashes)

@@ -146,6 +146,11 @@ CLCACHE_PROFILE::
     will generate a file with a name similiar to 'clcache-<hashsum>.prof'. You
     can aggregate these files and generate a report by running the
     'showprofilereport.py' script.
+CLCACHE_SERVER::
+    Setting this environment variable will make clcache use (and expect) a
+    running `clcachesrv.py` script which takes care of caching file hashes.
+    This greatly improves performance of cache hits, but only has an effect in
+    direct mode (i.e. when `CLCACHE_NODIRECT` is not set).
 
 Known limitations
 ~~~~~~~~~~~~~~~~~
