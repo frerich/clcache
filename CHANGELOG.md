@@ -21,6 +21,7 @@ clcache changelog
  * Improvement: Improved performance when invoking clcache with multiple source
    files; it will no longer launch itself recursively but rather use multiple
    threads to process the individual source files.
+ * Internal: clcache now uses semantic versioning.
 
 ## clcache 3.3.1 (2016-10-25)
 
