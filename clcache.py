@@ -11,6 +11,7 @@ from ctypes import windll, wintypes
 from shutil import copyfile, rmtree
 import cProfile
 import codecs
+import concurrent.futures
 import contextlib
 import errno
 import hashlib
@@ -22,11 +23,14 @@ import re
 import signal
 import subprocess
 import sys
+import threading
 from tempfile import TemporaryFile
 
 VERSION = "3.3.1-dev"
 
 HashAlgorithm = hashlib.md5
+
+OUTPUT_LOCK = threading.Lock()
 
 # try to use os.scandir or scandir.scandir
 # fall back to os.listdir if not found
@@ -73,7 +77,9 @@ ManifestEntry = namedtuple('ManifestEntry', ['includeFiles', 'includesContentHas
 CompilerArtifacts = namedtuple('CompilerArtifacts', ['objectFilePath', 'stdout', 'stderr'])
 
 def printBinary(stream, rawData):
-    stream.buffer.write(rawData)
+    with OUTPUT_LOCK:
+        stream.buffer.write(rawData)
+        stream.flush()
 
 
 def basenameWithoutExtension(path):
@@ -116,6 +122,17 @@ class IncludeNotFoundException(Exception):
 
 class CacheLockException(Exception):
     pass
+
+
+class CompilerFailedException(Exception):
+    def __init__(self, exitCode, msgErr, msgOut=""):
+        super(CompilerFailedException, self).__init__(msgErr)
+        self.exitCode = exitCode
+        self.msgOut = msgOut
+        self.msgErr = msgErr
+
+    def getReturnTuple(self):
+        return self.exitCode, self.msgErr, self.msgOut, False
 
 
 class LogicException(Exception):
@@ -178,7 +195,7 @@ class ManifestSection(object):
         except IOError:
             return None
         except ValueError:
-            print("clcache: manifest file %s was broken" % fileName, file=sys.stderr)
+            printErrStr("clcache: manifest file %s was broken" % fileName)
             return None
 
 
@@ -241,7 +258,6 @@ class ManifestRepository(object):
         # compiler processes are running simultaneusly.  Arguments that specify
         # the compiler where to find the source files are parsed to replace
         # ocurrences of CLCACHE_BASEDIR by a placeholder.
-        commandLine = [arg for arg in commandLine if not arg.startswith("/MP")]
         arguments, inputFiles = CommandLineAnalyzer.parseArgumentsAndInputFiles(commandLine)
         collapseBasedirInCmdPath = lambda path: collapseBasedirToPlaceholder(os.path.normcase(os.path.abspath(path)))
 
@@ -429,9 +445,8 @@ class CompilerArtifactsRepository(object):
             invokeRealCompiler(compilerBinary, ppcmd, captureOutput=True, outputAsString=False, environment=environment)
 
         if returnCode != 0:
-            printBinary(sys.stderr, ppStderrBinary)
-            print("clcache: preprocessor failed", file=sys.stderr)
-            sys.exit(returnCode)
+            errMsg = ppStderrBinary.decode(CL_DEFAULT_CODEC) + "\nclcache: preprocessor failed"
+            raise CompilerFailedException(returnCode, errMsg)
 
         compilerHash = getCompilerHash(compilerBinary)
         normalizedCmdLine = CompilerArtifactsRepository._normalizedCommandLine(commandLine)
@@ -531,7 +546,7 @@ class PersistentJSONDict(object):
         except IOError:
             pass
         except ValueError:
-            print("clcache: persistent json file %s was broken" % fileName, file=sys.stderr)
+            printErrStr("clcache: persistent json file %s was broken" % fileName)
 
     def save(self):
         if self._dirty:
@@ -895,7 +910,8 @@ def findCompilerBinary():
 def printTraceStatement(msg):
     if "CLCACHE_LOG" in os.environ:
         scriptDir = os.path.realpath(os.path.dirname(sys.argv[0]))
-        print(os.path.join(scriptDir, "clcache.py") + " " + msg)
+        with OUTPUT_LOCK:
+            print(os.path.join(scriptDir, "clcache.py") + " " + msg)
 
 
 class CommandLineTokenizer(object):
@@ -1170,21 +1186,22 @@ class CommandLineAnalyzer(object):
         if len(inputFiles) > 1 and compl:
             raise MultipleSourceFilesComplexError()
 
-        if len(inputFiles) == 1:
-            if 'Fo' in options and options['Fo'][0]:
-                # Handle user input
-                objectFile = os.path.normpath(options['Fo'][0])
-                if os.path.isdir(objectFile):
-                    objectFile = os.path.join(objectFile, basenameWithoutExtension(inputFiles[0]) + '.obj')
-            else:
-                # Generate from .c/.cpp filename
-                objectFile = basenameWithoutExtension(inputFiles[0]) + '.obj'
-        else:
-            objectFile = None
+        objectFiles = None
+        prefix = ''
+        if 'Fo' in options and options['Fo'][0]:
+            # Handle user input
+            tmp = os.path.normpath(options['Fo'][0])
+            if os.path.isdir(tmp):
+                prefix = tmp
+            elif len(inputFiles) == 1:
+                objectFiles = [tmp]
+        if objectFiles is None:
+            # Generate from .c/.cpp filenames
+            objectFiles = [os.path.join(prefix, basenameWithoutExtension(f)) + '.obj' for f in inputFiles]
 
         printTraceStatement("Compiler source files: {}".format(inputFiles))
-        printTraceStatement("Compiler object file: {}".format(objectFile))
-        return inputFiles, objectFile
+        printTraceStatement("Compiler object file: {}".format(objectFiles))
+        return inputFiles, objectFiles
 
 
 def invokeRealCompiler(compilerBinary, cmdLine, captureOutput=False, outputAsString=True, environment=None):
@@ -1223,28 +1240,6 @@ def invokeRealCompiler(compilerBinary, cmdLine, captureOutput=False, outputAsStr
 
     return returnCode, stdout, stderr
 
-
-# Given a list of Popen objects, removes and returns
-# a completed Popen object.
-#
-# This is a bit inefficient but Python on Windows does not appear to
-# provide any blocking "wait for any process to complete" out of the box.
-def waitForAnyProcess(procs):
-    out = [p for p in procs if p.poll() is not None]
-    if len(out) >= 1:
-        out = out[0]
-        procs.remove(out)
-        return out
-
-    # Damn, none finished yet.
-    # Do a blocking wait for the first one.
-    # This could waste time waiting for one process while others have
-    # already finished :(
-    out = procs.pop(0)
-    out.wait()
-    return out
-
-
 # Returns the amount of jobs which should be run in parallel when
 # invoked in batch mode as determined by the /MP argument
 def jobCount(cmdLine):
@@ -1265,56 +1260,6 @@ def jobCount(cmdLine):
     except NotImplementedError:
         # not expected to happen
         return 2
-
-
-# Run commands, up to j concurrently.
-# Aborts on first failure and returns the first non-zero exit code.
-def runJobs(commands, environment, j=1):
-    running = []
-
-    while len(commands):
-
-        while len(running) >= j:
-            thiscode = waitForAnyProcess(running).returncode
-            if thiscode != 0:
-                return thiscode
-
-        thiscmd = commands.pop(0)
-        running.append(subprocess.Popen(thiscmd, env=environment))
-
-    while len(running) > 0:
-        thiscode = waitForAnyProcess(running).returncode
-        if thiscode != 0:
-            return thiscode
-
-    return 0
-
-
-# re-invoke clcache.py once per source file.
-# Used when called via nmake 'batch mode'.
-# Returns the first non-zero exit code encountered, or 0 if all jobs succeed.
-def reinvokePerSourceFile(cmdLine, sourceFiles, environment):
-    printTraceStatement("Will reinvoke self for: {}".format(sourceFiles))
-    commands = []
-    for sourceFile in sourceFiles:
-        # The child command consists of clcache.py ...
-        newCmdLine = [sys.executable]
-        if not hasattr(sys, "frozen"):
-            newCmdLine.append(sys.argv[0])
-
-        for arg in cmdLine:
-            # and the current source file ...
-            if arg == sourceFile:
-                newCmdLine.append(arg)
-            # and all other arguments which are not a source file
-            elif arg not in sourceFiles:
-                newCmdLine.append(arg)
-
-        printTraceStatement("Child: {}".format(newCmdLine))
-        commands.append(newCmdLine)
-
-    return runJobs(commands, environment, jobCount(cmdLine))
-
 
 def printStatistics(cache):
     template = """
@@ -1525,10 +1470,7 @@ clcache.py v{}
     if "CLCACHE_DISABLE" in os.environ:
         return invokeRealCompiler(compiler, sys.argv[1:])[0]
     try:
-        exitCode, compilerStdout, compilerStderr = processCompileRequest(cache, compiler, sys.argv)
-        printBinary(sys.stdout, compilerStdout.encode(CL_DEFAULT_CODEC))
-        printBinary(sys.stderr, compilerStderr.encode(CL_DEFAULT_CODEC))
-        return exitCode
+        return processCompileRequest(cache, compiler, sys.argv)
     except LogicException as e:
         print(e)
         return 1
@@ -1538,6 +1480,13 @@ def updateCacheStatistics(cache, method):
     with cache.statistics.lock, cache.statistics as stats:
         method(stats)
 
+def printOutAndErr(out, err):
+    printBinary(sys.stdout, out.encode(CL_DEFAULT_CODEC))
+    printBinary(sys.stderr, err.encode(CL_DEFAULT_CODEC))
+
+def printErrStr(message):
+    with OUTPUT_LOCK:
+        print(message, file=sys.stderr)
 
 def processCompileRequest(cache, compiler, args):
     printTraceStatement("Parsing given commandline '{0!s}'".format(args[1:]))
@@ -1547,25 +1496,8 @@ def processCompileRequest(cache, compiler, args):
     printTraceStatement("Expanded commandline '{0!s}'".format(cmdLine))
 
     try:
-        sourceFiles, objectFile = CommandLineAnalyzer.analyze(cmdLine)
-
-        if len(sourceFiles) > 1:
-            return reinvokePerSourceFile(cmdLine, sourceFiles, environment), '', ''
-        else:
-            assert objectFile is not None
-            if 'CLCACHE_NODIRECT' in os.environ:
-                returnCode, compilerOutput, compilerStderr, cleanupRequired = \
-                    processNoDirect(cache, objectFile, compiler, cmdLine, environment)
-            else:
-                returnCode, compilerOutput, compilerStderr, cleanupRequired = \
-                    processDirect(cache, objectFile, compiler, cmdLine, sourceFiles[0])
-            printTraceStatement("Finished. Exit code {0:d}".format(returnCode))
-
-            if cleanupRequired:
-                with cache.lock:
-                    cleanCache(cache)
-
-            return returnCode, compilerOutput, compilerStderr
+        sourceFiles, objectFiles = CommandLineAnalyzer.analyze(cmdLine)
+        return scheduleJobs(cache, compiler, cmdLine, environment, sourceFiles, objectFiles)
     except InvalidArgumentError:
         printTraceStatement("Cannot cache invocation as {}: invalid argument".format(cmdLine))
         updateCacheStatistics(cache, Statistics.registerCallWithInvalidArgument)
@@ -1589,11 +1521,56 @@ def processCompileRequest(cache, compiler, args):
     except CalledForPreprocessingError:
         printTraceStatement("Cannot cache invocation as {}: called for preprocessing".format(cmdLine))
         updateCacheStatistics(cache, Statistics.registerCallForPreprocessing)
+
+    exitCode, out, err = invokeRealCompiler(compiler, args[1:])
+    printOutAndErr(out, err)
+    return exitCode
+
+def scheduleJobs(cache, compiler, cmdLine, environment, sourceFiles, objectFiles):
+    baseCmdLine = []
+    setOfSources = set(sourceFiles)
+    for arg in cmdLine:
+        if not (arg in setOfSources or arg.startswith("/MP")):
+            baseCmdLine.append(arg)
+
+    exitCode = 0
+    cleanupRequired = False
+    with concurrent.futures.ThreadPoolExecutor(max_workers=jobCount(cmdLine)) as executor:
+        jobs = []
+        for srcFile, objFile in zip(sourceFiles, objectFiles):
+            jobCmdLine = baseCmdLine + [srcFile]
+            jobs.append(executor.submit(
+                processSingleSource,
+                compiler, jobCmdLine, srcFile, objFile, environment))
+        for future in concurrent.futures.as_completed(jobs):
+            exitCode, out, err, doCleanup = future.result()
+            printTraceStatement("Finished. Exit code {0:d}".format(exitCode))
+            cleanupRequired |= doCleanup
+            printOutAndErr(out, err)
+
+            if exitCode != 0:
+                break
+
+    if cleanupRequired:
+        with cache.lock:
+            cleanCache(cache)
+
+    return exitCode
+
+def processSingleSource(compiler, cmdLine, sourceFile, objectFile, environment):
+    try:
+        assert objectFile is not None
+        cache = Cache()
+
+        if 'CLCACHE_NODIRECT' in os.environ:
+            return processNoDirect(cache, objectFile, compiler, cmdLine, environment)
+        else:
+            return processDirect(cache, objectFile, compiler, cmdLine, sourceFile)
+
     except IncludeNotFoundException:
-        pass
-
-    return invokeRealCompiler(compiler, args[1:])
-
+        return invokeRealCompiler(compiler, cmdLine, environment=environment), False
+    except CompilerFailedException as e:
+        return e.getReturnTuple()
 
 def processDirect(cache, objectFile, compiler, cmdLine, sourceFile):
     manifestHash = ManifestRepository.getManifestHash(compiler, cmdLine, sourceFile)
