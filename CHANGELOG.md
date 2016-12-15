@@ -18,6 +18,9 @@ clcache changelog
  * Feature: Added support for a 'CLCACHE_SERVER' environment variable which, when
    set to '1', makes 'clcache' use a separate 'clcachesrv' server process to cache
    hash sums. This improves performance, especially so for warm caches.
+ * Improvement: Improved performance when invoking clcache with multiple source
+   files; it will no longer launch itself recursively but rather use multiple
+   threads to process the individual source files.
 
 ## clcache 3.3.1 (2016-10-25)
 
