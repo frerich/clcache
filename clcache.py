@@ -26,7 +26,7 @@ import sys
 import threading
 from tempfile import TemporaryFile
 
-VERSION = "4.0.0"
+VERSION = "4.0.0-dev"
 
 HashAlgorithm = hashlib.md5
 
