@@ -87,8 +87,7 @@ test_script:
       if ($testsExitCode -ne 0) {exit $testsExitCode}
 
 on_success:
-  # Creates executable with PyInstaller (perhaps could also be on a "before_deploy" or "after_test" section)
-  
+  # Creates executable with PyInstaller
   - pip install pyinstaller
   - pyinstaller clcache.py
   - for /F %%i in ('python -c "import clcache; print(clcache.VERSION)"') do set CLCACHE_VERSION=%%i
@@ -97,7 +96,7 @@ on_success:
   
   # Build the Chocolatey package
   - sed -i "s/{VERSION}/%CLCACHE_VERSION%/g" clcache.nuspec
-  - choco pack -v -d
+  - choco pack
   
   # Test the compiled extension
   - cd clcache-%CLCACHE_VERSION%
@@ -107,22 +106,18 @@ on_success:
   
   # Test the chocolatey package
   - ps: ls clcache.${env:CLCACHE_VERSION}.nupkg
-  - choco install -v -d "clcache.%CLCACHE_VERSION%.nupkg" --version=%CLCACHE_VERSION%
-  - clcache --help
-  - clcache -s
-  - where clcache
+  - choco install "clcache.%CLCACHE_VERSION%.nupkg" --version=%CLCACHE_VERSION%
+  - C:\ProgramData\chocolatey\bin\clcache.exe --help
+  - C:\ProgramData\chocolatey\bin\clcache.exe -s
   
   # Publish artifacts  
-  - "echo Branch: %APPVEYOR_REPO_BRANCH%"
-  - "echo Pull Request: %APPVEYOR_PULL_REQUEST_NUMBER%"
-  - "echo Tag: %APPVEYOR_REPO_TAG_NAME%"
   - cd clcache-%CLCACHE_VERSION%
   - 7z a -y clcache-%CLCACHE_VERSION%.zip
   - move clcache-%CLCACHE_VERSION%.zip ..
   - cd ..
-  - set PUBLISH=1
+  - echo PYTHON_INSTALL=%PYTHON_INSTALL%
   # Disable for Python 3.5, because of PyInstaller problems on older Windows
-  - if "%PYTHON_INSTALL%"=="C:\Python35" set PUBLISH=
+  - if not [%PYTHON_INSTALL%]==["C:\Python35"] set PUBLISH=1
   - sha256sum clcache.%CLCACHE_VERSION%.nupkg clcache-%CLCACHE_VERSION%.zip
   - sha256sum clcache.%CLCACHE_VERSION%.nupkg clcache-%CLCACHE_VERSION%.zip > SHA256SUM
   - if "%PUBLISH%"=="1" appveyor PushArtifact clcache.%CLCACHE_VERSION%.nupkg
