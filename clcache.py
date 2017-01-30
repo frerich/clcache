@@ -13,6 +13,7 @@ import cProfile
 import codecs
 import concurrent.futures
 import contextlib
+import datetime
 import errno
 import hashlib
 import json
@@ -320,22 +321,29 @@ class CacheLock(object):
     def acquire(self):
         if not self._mutex:
             self.createMutex()
+        print("clcache: {}: [PID={}, TID={}]: trying to acquire mutex {}...".format(datetime.datetime.now(), os.getpid(), threading.get_ident(), self._mutexName))
+
         result = windll.kernel32.WaitForSingleObject(
             self._mutex, wintypes.INT(self._timeoutMs))
         if result not in [0, self.WAIT_ABANDONED_CODE]:
             if result == self.WAIT_TIMEOUT_CODE:
+                print("clcache: {}: [PID={}, TID={}]: acquiring mutex {} timed out!".format(datetime.datetime.now(), os.getpid(), threading.get_ident(), self._mutexName))
                 errorString = \
                     'Failed to acquire lock {} after {}ms; ' \
                     'try setting CLCACHE_OBJECT_CACHE_TIMEOUT_MS environment variable to a larger value.'.format(
                         self._mutexName, self._timeoutMs)
             else:
+                print("clcache: {}: [PID={}, TID={}]: acquiring mutex {} failed with error code {}!".format(datetime.datetime.now(), os.getpid(), threading.get_ident(), self._mutexName, windll.kernel32.GetLastError()))
                 errorString = 'Error! WaitForSingleObject returns {result}, last error {error}'.format(
                     result=result,
                     error=windll.kernel32.GetLastError())
             raise CacheLockException(errorString)
+        print("clcache: {}: [PID={}, TID={}]: successfully acquired mutex {}!".format(datetime.datetime.now(), os.getpid(), threading.get_ident(), self._mutexName))
 
     def release(self):
+        print("clcache: {}: [PID={}, TID={}]: releasing mutex {}...".format(datetime.datetime.now(), os.getpid(), threading.get_ident(), self._mutexName))
         windll.kernel32.ReleaseMutex(self._mutex)
+        print("clcache: {}: [PID={}, TID={}]: successfully released mutex {}!".format(datetime.datetime.now(), os.getpid(), threading.get_ident(), self._mutexName))
 
     @staticmethod
     def forPath(path):
