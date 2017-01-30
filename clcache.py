@@ -479,8 +479,7 @@ class CompilerArtifactsRepository(object):
         return [arg for arg in cmdline
                 if not (arg[0] in "/-" and arg[1:].startswith(argsToStrip))]
 
-
-class Cache(object):
+class CacheFileStrategy(object):
     def __init__(self, cacheDirectory=None):
         self.dir = cacheDirectory
         if not self.dir:
@@ -500,6 +499,9 @@ class Cache(object):
         self.configuration = Configuration(os.path.join(self.dir, "config.txt"))
         self.statistics = Statistics(os.path.join(self.dir, "stats.txt"))
 
+    def __str__(self):
+        return "Disk cached at {}".format(self.dir)
+
     @property
     @contextlib.contextmanager
     def lock(self):
@@ -508,8 +510,6 @@ class Cache(object):
              self.statistics.lock:
             yield
 
-    def cacheDirectory(self):
-        return self.dir
 
     def clean(self, stats, maximumSize):
         currentSize = stats.currentCacheSize()
@@ -533,6 +533,37 @@ class Cache(object):
 
         stats.setCacheSize(currentCompilerArtifactsSize + currentSizeManifests)
         stats.setNumCacheEntries(currentCompilerArtifactsCount)
+
+
+class Cache(object):
+    def __init__(self, cacheDirectory=None):
+        self.strategy = CacheFileStrategy(cacheDirectory=cacheDirectory)
+
+    def __str__(self):
+        self.strategy.__str__(self)
+
+    @property
+    def lock(self):
+        return self.strategy.lock
+
+    @property
+    def manifestRepository(self):
+        return self.strategy.manifestRepository
+
+    @property
+    def compilerArtifactsRepository(self):
+        return self.strategy.compilerArtifactsRepository
+
+    @property
+    def configuration(self):
+        return self.strategy.configuration
+
+    @property
+    def statistics(self):
+        return self.strategy.statistics
+
+    def clean(self, stats, maximumSize):
+        return self.strategy.clean(stats, maximumSize)
 
 
 class PersistentJSONDict(object):
@@ -1285,7 +1316,7 @@ clcache statistics:
 
     with cache.statistics as stats, cache.configuration as cfg:
         print(template.format(
-            cache.cacheDirectory(),
+            str(cache()),
             stats.currentCacheSize(),
             cfg.maximumCacheSize(),
             stats.numCacheEntries(),
