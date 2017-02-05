@@ -63,6 +63,15 @@ class TestCommandLineArguments(unittest.TestCase):
             cmd = CLCACHE_CMD + ["-M", value]
             self.assertNotEqual(subprocess.call(cmd), 0, "Command must fail for max size: '" + value + "'")
 
+    def testPrintStatistics(self):
+        with tempfile.TemporaryDirectory() as tempDir:
+            customEnv = dict(os.environ, CLCACHE_DIR=tempDir)
+            cmd = CLCACHE_CMD +  ["-s"]
+            self.assertEqual(
+                subprocess.call(cmd, env=customEnv),
+                0,
+                "Command must be able to print statistics")
+
 
 class TestCompileRuns(unittest.TestCase):
     def testBasicCompileCc(self):

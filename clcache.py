@@ -500,7 +500,7 @@ class CacheFileStrategy(object):
         self.statistics = Statistics(os.path.join(self.dir, "stats.txt"))
 
     def __str__(self):
-        return "Disk cached at {}".format(self.dir)
+        return "Disk cache at {}".format(self.dir)
 
     @property
     @contextlib.contextmanager
@@ -578,7 +578,7 @@ class Cache(object):
             self.strategy = CacheFileStrategy(cacheDirectory=cacheDirectory)
 
     def __str__(self):
-        self.strategy.__str__(self)
+        return str(self.strategy)
 
     @property
     def lock(self):
@@ -1371,7 +1371,7 @@ clcache statistics:
 
     with cache.statistics as stats, cache.configuration as cfg:
         print(template.format(
-            str(cache()),
+            str(cache),
             stats.currentCacheSize(),
             cfg.maximumCacheSize(),
             stats.numCacheEntries(),
