@@ -1129,7 +1129,7 @@ class TestCleanCache(unittest.TestCase):
 
             # Remove object
             cache = clcache.Cache(tempDir)
-            cache.compilerArtifactsRepository.clean(0)
+            clcache.cleanCache(cache)
 
             self.assertEqual(subprocess.call(cmd, env=customEnv), 0)
 
