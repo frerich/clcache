@@ -1143,7 +1143,7 @@ class TestCleanCache(unittest.TestCase):
 
             # Remove manifest
             cache = clcache.Cache(tempDir)
-            cache.manifestRepository.clean(0)
+            clcache.clearCache(cache)
 
             self.assertEqual(subprocess.call(cmd, env=customEnv), 0)
 

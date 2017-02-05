@@ -514,6 +514,9 @@ class CacheFileStrategy(object):
         assert isinstance(self.compilerArtifactsRepository.section(key).lock, CacheLock)
         return self.compilerArtifactsRepository.section(key).lock
 
+    def manifestLockFor(self, key):
+        return self.manifestRepository.section(key).lock
+
     def getEntry(self, key):
         return self.compilerArtifactsRepository.section(key).getEntry(key)
 
@@ -522,6 +525,12 @@ class CacheFileStrategy(object):
 
     def hasEntry(self, cachekey):
         return self.compilerArtifactsRepository.section(cachekey).hasEntry(cachekey)
+
+    def setManifest(self, manifestHash, manifest):
+        self.manifestRepository.section(manifestHash).setManifest(manifestHash, manifest)
+
+    def getManifest(self, manifestHash):
+        return self.manifestRepository.section(manifestHash).getManifest(manifestHash)
 
     def clean(self, stats, maximumSize):
         currentSize = stats.currentCacheSize()
@@ -558,9 +567,10 @@ class Cache(object):
     def lock(self):
         return self.strategy.lock
 
-    @property
-    def manifestRepository(self):
-        return self.strategy.manifestRepository
+    @contextlib.contextmanager
+    def manifestLockFor(self, key):
+        with self.strategy.manifestLockFor(key):
+            yield
 
     @property
     def configuration(self):
@@ -586,6 +596,12 @@ class Cache(object):
 
     def hasEntry(self, cachekey):
         return self.strategy.hasEntry(cachekey)
+
+    def setManifest(self, manifestHash, manifest):
+        self.strategy.setManifest(manifestHash, manifest)
+
+    def getManifest(self, manifestHash):
+        return self.strategy.getManifest(manifestHash)
 
 
 class PersistentJSONDict(object):
@@ -1626,10 +1642,9 @@ def processSingleSource(compiler, cmdLine, sourceFile, objectFile, environment):
 
 def processDirect(cache, objectFile, compiler, cmdLine, sourceFile):
     manifestHash = ManifestRepository.getManifestHash(compiler, cmdLine, sourceFile)
-    manifestSection = cache.manifestRepository.section(manifestHash)
     manifestHit = None
-    with manifestSection.lock:
-        manifest = manifestSection.getManifest(manifestHash)
+    with cache.manifestLockFor(manifestHash):
+        manifest = cache.getManifest(manifestHash)
         if manifest:
             for entryIndex, entry in enumerate(manifest.entries()):
                 # NOTE: command line options already included in hash for manifest name
@@ -1642,7 +1657,7 @@ def processDirect(cache, objectFile, compiler, cmdLine, sourceFile):
                         assert cachekey is not None
                         # Move manifest entry to the top of the entries in the manifest
                         manifest.touchEntry(entryIndex)
-                        manifestSection.setManifest(manifestHash, manifest)
+                        cache.setManifest(manifestHash, manifest)
 
                         manifestHit = True
                         with cache.lockFor(cachekey):
@@ -1667,7 +1682,7 @@ def processDirect(cache, objectFile, compiler, cmdLine, sourceFile):
         includePaths, compilerOutput = parseIncludesSet(compilerResult[1], sourceFile, stripIncludes)
         compilerResult = (compilerResult[0], compilerOutput, compilerResult[2])
 
-    with manifestSection.lock:
+    with cache.manifestLockFor(manifestHash):
         if manifestHit is not None:
             return ensureArtifactsExist(cache, cachekey, unusableManifestMissReason,
                                         objectFile, compilerResult)
@@ -1676,9 +1691,10 @@ def processDirect(cache, objectFile, compiler, cmdLine, sourceFile):
         cachekey = entry.objectHash
 
         def addManifest():
-            manifest = manifestSection.getManifest(manifestHash) or Manifest()
+
+            manifest = cache.getManifest(manifestHash) or Manifest()
             manifest.addEntry(entry)
-            manifestSection.setManifest(manifestHash, manifest)
+            cache.setManifest(manifestHash, manifest)
 
         return ensureArtifactsExist(cache, cachekey, unusableManifestMissReason,
                                     objectFile, compilerResult, addManifest)
