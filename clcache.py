@@ -523,6 +523,19 @@ class CacheFileStrategy(object):
     def setEntry(self, key, value):
         self.compilerArtifactsRepository.section(key).setEntry(key, value)
 
+    def pathForObject(self, key):
+        return self.compilerArtifactsRepository.section(key).cachedObjectName(key)
+
+    def directoryForCache(self, key):
+        return self.compilerArtifactsRepository.section(key).cacheEntryDir(key)
+
+    def deserializeCacheEntry(self, key, objectData):
+        path = self.pathForObject(key)
+        ensureDirectoryExists(self.directoryForCache(key))
+        with open(path, 'wb') as f:
+            f.write(objectData)
+        return path
+
     def hasEntry(self, cachekey):
         return self.compilerArtifactsRepository.section(cachekey).hasEntry(cachekey)
 
@@ -558,7 +571,11 @@ class CacheFileStrategy(object):
 
 class Cache(object):
     def __init__(self, cacheDirectory=None):
-        self.strategy = CacheFileStrategy(cacheDirectory=cacheDirectory)
+        if os.environ.get("CLCACHE_MEMCACHED"):
+            from storage import CacheMemcacheStrategy
+            self.strategy = CacheMemcacheStrategy(os.environ.get("CLCACHE_MEMCACHED"), cacheDirectory=cacheDirectory)
+        else:
+            self.strategy = CacheFileStrategy(cacheDirectory=cacheDirectory)
 
     def __str__(self):
         self.strategy.__str__(self)
