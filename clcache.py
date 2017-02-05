@@ -1627,7 +1627,7 @@ def processSingleSource(compiler, cmdLine, sourceFile, objectFile, environment):
 def processDirect(cache, objectFile, compiler, cmdLine, sourceFile):
     manifestHash = ManifestRepository.getManifestHash(compiler, cmdLine, sourceFile)
     manifestSection = cache.manifestRepository.section(manifestHash)
-    artifactSection = None
+    manifestHit = None
     with manifestSection.lock:
         manifest = manifestSection.getManifest(manifestHash)
         if manifest:
@@ -1644,7 +1644,7 @@ def processDirect(cache, objectFile, compiler, cmdLine, sourceFile):
                         manifest.touchEntry(entryIndex)
                         manifestSection.setManifest(manifestHash, manifest)
 
-                        artifactSection = True
+                        manifestHit = True
                         with cache.lockFor(cachekey):
                             if cache.hasEntry(cachekey):
                                 return processCacheHit(cache, objectFile, cachekey)
@@ -1656,19 +1656,19 @@ def processDirect(cache, objectFile, compiler, cmdLine, sourceFile):
         else:
             unusableManifestMissReason = Statistics.registerSourceChangedMiss
 
-    if artifactSection is None:
+    if manifestHit is None:
         stripIncludes = False
         if '/showIncludes' not in cmdLine:
             cmdLine = list(cmdLine)
             cmdLine.insert(0, '/showIncludes')
             stripIncludes = True
     compilerResult = invokeRealCompiler(compiler, cmdLine, captureOutput=True)
-    if artifactSection is None:
+    if manifestHit is None:
         includePaths, compilerOutput = parseIncludesSet(compilerResult[1], sourceFile, stripIncludes)
         compilerResult = (compilerResult[0], compilerOutput, compilerResult[2])
 
     with manifestSection.lock:
-        if artifactSection is not None:
+        if manifestHit is not None:
             return ensureArtifactsExist(cache, cachekey, unusableManifestMissReason,
                                         objectFile, compilerResult)
 
