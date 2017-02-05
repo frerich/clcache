@@ -22,8 +22,8 @@ class CacheMemcacheStrategy(object):
         # XX Memcache Strategy should be independent
 
         self.lock = CacheDummyLock()
-        self.local_cache = {}
-        self.local_manifest = {}
+        self.localCache = {}
+        self.localManifest = {}
         self.objectPrefix = objectPrefix
         self.manifestPrefix = manifestPrefix
 
@@ -31,21 +31,21 @@ class CacheMemcacheStrategy(object):
 
     def connect(self, server):
         server = CacheMemcacheStrategy.splitHosts(server)
-        assert len(server) > 0, "%s is a suitable server" % server
+        assert server, "{} is not a suitable server".format(server)
         if len(server) == 1:
-            client_class = Client
+            clientClass = Client
             server = server[0]
         else:
             from pymemcache.client.hash import HashClient
-            client_class = HashClient
+            clientClass = HashClient
             server = server
-        self.client = client_class(server, ignore_exc=True,
-                                   serializer=python_memcache_serializer,
-                                   deserializer=python_memcache_deserializer,
-                                   timeout=5,
-                                   connect_timeout=5,
-                                   key_prefix=(getStringHash(self.fileStrategy.dir) + "_").encode("UTF-8")
-                                   )
+        self.client = clientClass(server, ignore_exc=True,
+                                  serializer=python_memcache_serializer,
+                                  deserializer=python_memcache_deserializer,
+                                  timeout=5,
+                                  connect_timeout=5,
+                                  key_prefix=(getStringHash(self.fileStrategy.dir) + "_").encode("UTF-8")
+                                 )
         # XX key_prefix ties fileStrategy cache to memcache entry
         # because tests currently the integration tests use this to start with clean cache
         # Prevents from having cache hits in when code base is in different locations
@@ -84,30 +84,31 @@ class CacheMemcacheStrategy(object):
         return self.fileStrategy.configuration
 
     @staticmethod
-    def lockFor(key):
+    def lockFor(_):
         return CacheDummyLock()
 
     @staticmethod
-    def manifestLockFor(key):
+    def manifestLockFor(_):
         return CacheDummyLock()
 
     def _fetchEntry(self, key):
         data = self.client.get((self.objectPrefix + key).encode("UTF-8"))
         if data is not None:
-            self.local_cache[key] = data
+            self.localCache[key] = data
             return True
-        self.local_cache[key] = None
+        self.localCache[key] = None
         return None
 
     def hasEntry(self, key):
-        return (key in self.local_cache and self.local_cache[key] is not None) or self._fetchEntry(key) is not None
+        localCache = key in self.localCache and self.localCache[key] is not None
+        return localCache or self._fetchEntry(key) is not None
 
     def getEntry(self, key):
-        if key not in self.local_cache:
+        if key not in self.localCache:
             self._fetchEntry(key)
-        if self.local_cache[key] is None:
+        if self.localCache[key] is None:
             return None
-        data = self.local_cache[key]
+        data = self.localCache[key]
 
         printTraceStatement("{} remote cache hit for {} dumping into local cache".format(self, key))
 
@@ -123,21 +124,21 @@ class CacheMemcacheStrategy(object):
         return CompilerArtifacts(objectFilePath,
                                  data[1].decode(CACHE_COMPILER_OUTPUT_STORAGE_CODEC),
                                  data[2].decode(CACHE_COMPILER_OUTPUT_STORAGE_CODEC)
-                                 )
+                                )
 
     def setEntry(self, key, artifacts):
         assert artifacts.objectFilePath
         with open(artifacts.objectFilePath, 'rb') as objectFile:
-            self.set_ignore_exc(self.objectPrefix + key,
-                                [objectFile.read(),
-                                 artifacts.stdout.encode(CACHE_COMPILER_OUTPUT_STORAGE_CODEC),
-                                 artifacts.stderr.encode(CACHE_COMPILER_OUTPUT_STORAGE_CODEC)],
-                                )
+            self._setIgnoreExc(self.objectPrefix + key,
+                               [objectFile.read(),
+                                artifacts.stdout.encode(CACHE_COMPILER_OUTPUT_STORAGE_CODEC),
+                                artifacts.stderr.encode(CACHE_COMPILER_OUTPUT_STORAGE_CODEC)],
+                              )
 
     def setManifest(self, manifestHash, manifest):
-        self.set_ignore_exc(self.manifestPrefix + manifestHash, manifest)
+        self._setIgnoreExc(self.manifestPrefix + manifestHash, manifest)
 
-    def set_ignore_exc(self, key, value):
+    def _setIgnoreExc(self, key, value):
         try:
             self.client.set(key.encode("UTF-8"), value)
         except Exception:
@@ -163,7 +164,8 @@ class CacheFileWithMemcacheFallbackStrategy(object):
                                                  objectPrefix=objectPrefix)
 
     def __str__(self):
-        return "CacheFileWithMemcacheFallbackStrategy local({}) and remote({})".format(self.localCache, self.remoteCache)
+        return "CacheFileWithMemcacheFallbackStrategy local({}) and remote({})".format(self.localCache,
+                                                                                       self.remoteCache)
 
     def hasEntry(self, key):
         return self.localCache.hasEntry(key) or self.remoteCache.hasEntry(key)
@@ -209,18 +211,17 @@ class CacheFileWithMemcacheFallbackStrategy(object):
         return self.localCache.configuration
 
     @staticmethod
-    def lockFor(key):
+    def lockFor(_):
         return CacheDummyLock()
 
     @staticmethod
-    def manifestLockFor(key):
+    def manifestLockFor(_):
         return CacheDummyLock()
 
     @property
     @contextlib.contextmanager
     def lock(self):
-        with self.remoteCache.lock:
-            self.localCache.lock
+        with self.remoteCache.lock, self.localCache.lock:
             yield
 
     def clean(self, stats, maximumSize):

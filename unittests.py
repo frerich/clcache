@@ -34,7 +34,7 @@ from clcache import (
     NoSourceFileError,
     PersistentJSONDict,
 )
-
+from storage import CacheMemcacheStrategy
 
 ASSETS_DIR = os.path.join("tests", "unittests")
 
@@ -1024,6 +1024,67 @@ class TestPersistentJSONDict(unittest.TestCase):
     def testBrokenJson(self):
         brokenJson = os.path.join(ASSETS_DIR, "broken_json.txt")
         PersistentJSONDict(brokenJson)
+
+
+class TestMemcacheStrategy(unittest.TestCase):
+    def testSetGet(self):
+        from pymemcache.test.utils import MockMemcacheClient
+        from clcache import CompilerArtifacts, getStringHash
+
+        with tempfile.TemporaryDirectory() as tempDir:
+            memcache = CacheMemcacheStrategy("localhost", cacheDirectory=tempDir)
+            memcache.client = MockMemcacheClient(allow_unicode_keys=True)
+            key = getStringHash("hello")
+            memcache.fileStrategy.lockFor = memcache.lockFor
+
+            self.assertEqual(memcache.hasEntry(key), False)
+            self.assertEqual(memcache.getEntry(key), None)
+
+            dirName = memcache.fileStrategy.directoryForCache(key)  # XX requires in depth knowledge of FileStrategy
+            os.makedirs(dirName)
+            fileName = os.path.join(dirName, "object")
+            with open(fileName, "wb") as f:
+                f.write(b'Content')
+
+            artifact = CompilerArtifacts(fileName, "", "")
+
+            memcache.setEntry(key, artifact)
+            self.assertEqual(memcache.hasEntry(key), True)
+            self.assertEqual(memcache.getEntry(key).objectFilePath, artifact.objectFilePath)
+            self.assertEqual(memcache.getEntry(key).stdout, artifact.stdout)
+            self.assertEqual(memcache.getEntry(key).stderr, artifact.stderr)
+
+            nonArtifact = CompilerArtifacts("random.txt", "stdout", "stderr")
+            with self.assertRaises(FileNotFoundError):
+                memcache.setEntry(key, nonArtifact)
+
+    def testArgumentParsing(self):
+        with self.assertRaises(ValueError):
+            CacheMemcacheStrategy.splitHosts("")
+
+        self.assertEqual(CacheMemcacheStrategy.splitHosts("localhost"), [("localhost", 11211)])
+        self.assertEqual(CacheMemcacheStrategy.splitHosts("localhost:123"), [("localhost", 123)])
+
+        with self.assertRaises(ValueError):
+            CacheMemcacheStrategy.splitHosts("localhost:123:")
+        with self.assertRaises(ValueError):
+            CacheMemcacheStrategy.splitHosts("localhost:123:")
+
+        self.assertEqual(CacheMemcacheStrategy.splitHosts("localhost.local, example.local"),
+                         [("localhost.local", 11211), ("example.local", 11211)])
+        self.assertEqual(CacheMemcacheStrategy.splitHosts("localhost.local:12345, example.local"),
+                         [("localhost.local", 12345), ("example.local", 11211)])
+
+        with self.assertRaises(ValueError):
+            CacheMemcacheStrategy.splitHosts("localhost.local:123456")
+        with self.assertRaises(ValueError):
+            CacheMemcacheStrategy.splitHosts("localhost.local:123456, example.local")
+        with self.assertRaises(ValueError):
+            CacheMemcacheStrategy.splitHosts("localhost.local:12345,")
+        with self.assertRaises(ValueError):
+            CacheMemcacheStrategy.splitHosts("localhost.local,12345:")
+        with self.assertRaises(ValueError):
+            CacheMemcacheStrategy.splitHosts("localhost.local;12345:")
 
 
 if __name__ == '__main__':

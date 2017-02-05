@@ -45,10 +45,14 @@ install:
   # Install dependencies for clcachesrv such that we can lint the source code
   - pip install -r server\requirements.txt
 
+  # Install pymemcache for memcache storage
+  - pip install pymemcache
+
 build_script:
   - python clcache.py --help
   - python clcache.py -s
   - pylint --rcfile=.pylintrc clcache.py
+  - pylint --rcfile=.pylintrc storage.py
   - pylint --rcfile=.pylintrc unittests.py
   - pylint --rcfile=.pylintrc --disable=no-member integrationtests.py
   - pylint --rcfile=.pylintrc performancetests.py

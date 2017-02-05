@@ -573,7 +573,8 @@ class Cache(object):
     def __init__(self, cacheDirectory=None):
         if os.environ.get("CLCACHE_MEMCACHED"):
             from storage import CacheFileWithMemcacheFallbackStrategy
-            self.strategy = CacheFileWithMemcacheFallbackStrategy(os.environ.get("CLCACHE_MEMCACHED"), cacheDirectory=cacheDirectory)
+            self.strategy = CacheFileWithMemcacheFallbackStrategy(os.environ.get("CLCACHE_MEMCACHED"),
+                                                                  cacheDirectory=cacheDirectory)
         else:
             self.strategy = CacheFileStrategy(cacheDirectory=cacheDirectory)
 
