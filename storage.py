@@ -1,9 +1,11 @@
-from clcache import CacheFileStrategy, getStringHash, printTraceStatement, CompilerArtifacts, \
-    CACHE_COMPILER_OUTPUT_STORAGE_CODEC
+import contextlib
 
 from pymemcache.client.base import Client
 from pymemcache.serde import (python_memcache_serializer,
                               python_memcache_deserializer)
+
+from clcache import CacheFileStrategy, getStringHash, printTraceStatement, CompilerArtifacts, \
+    CACHE_COMPILER_OUTPUT_STORAGE_CODEC
 
 
 class CacheDummyLock(object):
@@ -151,3 +153,76 @@ class CacheMemcacheStrategy(object):
     def clean(self, stats, maximumSize):
         self.fileStrategy.clean(stats,
                                 maximumSize)
+
+
+class CacheFileWithMemcacheFallbackStrategy(object):
+    def __init__(self, server, cacheDirectory=None, manifestPrefix='manifests_', objectPrefix='objects_'):
+        self.localCache = CacheFileStrategy(cacheDirectory=cacheDirectory)
+        self.remoteCache = CacheMemcacheStrategy(server, cacheDirectory=cacheDirectory,
+                                                 manifestPrefix=manifestPrefix,
+                                                 objectPrefix=objectPrefix)
+
+    def __str__(self):
+        return "CacheFileWithMemcacheFallbackStrategy local({}) and remote({})".format(self.localCache, self.remoteCache)
+
+    def hasEntry(self, key):
+        return self.localCache.hasEntry(key) or self.remoteCache.hasEntry(key)
+
+    def getEntry(self, key):
+        if self.localCache.hasEntry(key):
+            printTraceStatement("Getting object {} from local cache".format(key))
+            return self.localCache.getEntry(key)
+        remote = self.remoteCache.getEntry(key)
+        if remote:
+            printTraceStatement("Getting object {} from remote cache".format(key))
+            return remote
+        return None
+
+    def setEntry(self, key, artifacts):
+        self.localCache.setEntry(key, artifacts)
+        self.remoteCache.setEntry(key, artifacts)
+
+    def setManifest(self, manifestHash, manifest):
+        with self.localCache.manifestLockFor(manifestHash):
+            self.localCache.setManifest(manifestHash, manifest)
+        self.remoteCache.setManifest(manifestHash, manifest)
+
+    def getManifest(self, manifestHash):
+        local = self.localCache.getManifest(manifestHash)
+        if local:
+            printTraceStatement("{} local manifest hit for {}".format(self, manifestHash))
+            return local
+        remote = self.remoteCache.getManifest(manifestHash)
+        if remote:
+            with self.localCache.manifestLockFor(manifestHash):
+                self.localCache.setManifest(manifestHash, remote)
+            printTraceStatement("{} remote manifest hit for {} writing into local cache".format(self, manifestHash))
+            return remote
+        return None
+
+    @property
+    def statistics(self):
+        return self.localCache.statistics
+
+    @property
+    def configuration(self):
+        return self.localCache.configuration
+
+    @staticmethod
+    def lockFor(key):
+        return CacheDummyLock()
+
+    @staticmethod
+    def manifestLockFor(key):
+        return CacheDummyLock()
+
+    @property
+    @contextlib.contextmanager
+    def lock(self):
+        with self.remoteCache.lock:
+            self.localCache.lock
+            yield
+
+    def clean(self, stats, maximumSize):
+        self.localCache.clean(stats,
+                              maximumSize)
