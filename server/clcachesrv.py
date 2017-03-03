@@ -12,6 +12,7 @@ class HashCache(object):
     def __init__(self, loop):
         self._loop = loop
         self._watchedDirectories = {}
+        self._handlers = []
 
     def getFileHash(self, path):
         logging.debug("getting hash for %s", path)
@@ -38,6 +39,7 @@ class HashCache(object):
     def _startWatching(self, dirname):
         ev = pyuv.fs.FSEvent(self._loop)
         ev.start(dirname, 0, self._onPathChange)
+        self._handlers.append(ev)
 
     def _onPathChange(self, handle, filename, events, error):
         watchedDirectory = self._watchedDirectories[handle.path]
@@ -45,6 +47,10 @@ class HashCache(object):
         if filename in watchedDirectory:
             logging.debug("invalidating cached hashsum for %s", os.path.join(handle.path, filename))
             del watchedDirectory[filename]
+
+    def __del__(self):
+        for ev in self._handlers:
+            ev.stop()
 
 
 class Connection(object):
@@ -90,10 +96,19 @@ class PipeServer(object):
         self._connections.append(Connection(client, self._cache, self._connections.remove))
 
 
-def onSigint(handle, signum):
-    logging.info("Ctrl+C detected, shutting down")
+def closeHandlers(handle):
     for h in handle.loop.handles:
         h.close()
+
+
+def onSigint(handle, signum):
+    logging.info("Ctrl+C detected, shutting down")
+    closeHandlers(handle)
+
+
+def onSigterm(handle, signum):
+    logging.info("Server was killed by SIGTERM")
+    closeHandlers(handle)
 
 
 def main():
@@ -108,6 +123,7 @@ def main():
 
     signalHandle = pyuv.Signal(eventLoop)
     signalHandle.start(onSigint, signal.SIGINT)
+    signalHandle.start(onSigterm, signal.SIGTERM)
 
     logging.info("clcachesrv started")
     eventLoop.run()
