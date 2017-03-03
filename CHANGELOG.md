@@ -3,7 +3,8 @@ clcache changelog
 
 ## Upcoming release
 
- * Nothing yet!
+ * Bugfix: Fixed resource leak in clcachesrv.
+ * Improvement: clcachesrv now shuts down cleanly when receiving SIGTERM.
 
 ## clcache 4.0.0 (2016-12-15)
 
