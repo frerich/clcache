@@ -15,7 +15,7 @@ class HashCache(object):
         self._loop = loop
         self._watchedDirectories = {}
         self._handlers = []
-        self._excludePatterns = excludePatterns if excludePatterns else []
+        self._excludePatterns = excludePatterns or []
         self._disableWatching = disableWatching
 
     def getFileHash(self, path):
@@ -127,17 +127,15 @@ def onSigterm(handle, signum):
 def main():
     logging.basicConfig(format='%(asctime)s [%(levelname)s]: %(message)s', level=logging.INFO)
 
-    parser = argparse.ArgumentParser(description='Process some integers.')
+    parser = argparse.ArgumentParser(description='Server process for clcache to cache hash values of headers and observe them for changes.')
     parser.add_argument('--exclude', metavar='REGEX', action='append', \
                         help='Regex ( re.search() ) for exluding of directory watching. Can be specified multiple times. \
-                              Pathnames to test against are after os.path.normcase(), i.e. all lowercase with backslashes. \
                               Example: --exclude \\\\build\\\\')
     parser.add_argument('--disable_watching', action='store_true', help='Disable watching of directories which we have in the cache.')
     args = parser.parse_args()
 
-    if args.exclude:
-        for pattern in vars(args)['exclude']:
-            logging.info("Not watching paths which match: %s", pattern)
+    for pattern in args.exclude or []:
+        logging.info("Not watching paths which match: %s", pattern)
 
     if args.disable_watching:
         logging.info("Disabled directory watching")
