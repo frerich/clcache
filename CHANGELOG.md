@@ -5,6 +5,9 @@ clcache changelog
 
  * Bugfix: Fixed resource leak in clcachesrv.
  * Improvement: clcachesrv now shuts down cleanly when receiving SIGTERM.
+ * Feature: clcachesrv now supports blacklisting directories to watch for file
+   changes; this avoids problems with deleting such directories because clcachesrv
+   still has them opened (in order to get notified to changes to header files).
 
 ## clcache 4.0.0 (2016-12-15)
 
