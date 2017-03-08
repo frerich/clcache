@@ -35,7 +35,7 @@ class HashCache(object):
         if dirname not in self._watchedDirectories and not self.isExcluded(dirname) and not self._disableWatching:
             logging.debug("starting to watch directory %s for changes", dirname)
             self._startWatching(dirname)
-        
+
         self._watchedDirectories[dirname] = watchedDirectory
 
         logging.debug("calculated and stored hashsum %s", hashsum)
@@ -127,11 +127,13 @@ def onSigterm(handle, signum):
 def main():
     logging.basicConfig(format='%(asctime)s [%(levelname)s]: %(message)s', level=logging.INFO)
 
-    parser = argparse.ArgumentParser(description='Server process for clcache to cache hash values of headers and observe them for changes.')
+    parser = argparse.ArgumentParser(description='Server process for clcache to cache hash values of headers \
+                                                  and observe them for changes.')
     parser.add_argument('--exclude', metavar='REGEX', action='append', \
-                        help='Regex ( re.search() ) for exluding of directory watching. Can be specified multiple times. \
-                              Example: --exclude \\\\build\\\\')
-    parser.add_argument('--disable_watching', action='store_true', help='Disable watching of directories which we have in the cache.')
+                        help='Regex ( re.search() ) for exluding of directory watching. Can be specified \
+                              multiple times. Example: --exclude \\\\build\\\\')
+    parser.add_argument('--disable_watching', action='store_true', help='Disable watching of directories which \
+                         we have in the cache.')
     args = parser.parse_args()
 
     for pattern in args.exclude or []:
