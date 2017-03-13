@@ -21,7 +21,7 @@ import unittest
 import time
 
 import clcache
-
+import pytest
 
 PYTHON_BINARY = sys.executable
 CLCACHE_SCRIPT = os.path.join(os.path.dirname(os.path.realpath(__file__)), "clcache.py")
@@ -911,6 +911,8 @@ class TestClearing(unittest.TestCase):
             self.assertEqual(stats.currentCacheSize(), 0)
             self.assertEqual(stats.numCacheEntries(), 0)
 
+    @pytest.mark.skipif("CLCACHE_MEMCACHED" in os.environ,
+                        reason="clearing on memcached not implemented")
     def testClearPostcondition(self):
         cache = clcache.Cache()
 

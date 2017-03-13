@@ -13,6 +13,10 @@ environment:
     - PYTHON_INSTALL: "C:\\Python35"
 
 install:
+  - appveyor DownloadFile "http://s3.amazonaws.com/downloads.northscale.com/memcached-win64-1.4.4-14.zip" -FileName memcached.zip
+  - 7z x memcached.zip -y
+  - ps: $Memcached = Start-Process memcached\memcached.exe -PassThru
+
   # Make compiler available (use MSVC 2013, 32 bit)
   - call "%ProgramFiles(x86)%\Microsoft Visual Studio 12.0\VC\vcvarsall.bat" x86
 
@@ -48,6 +52,10 @@ install:
   # Install pymemcache for memcache storage
   - pip install pymemcache
 
+cache:
+  - '%LOCALAPPDATA%\pip\Cache -> appveyor.yml'
+  - memcached -> appveyor.yml
+
 build_script:
   - python clcache.py --help
   - python clcache.py -s
@@ -64,7 +72,7 @@ test_script:
   # Run test files via py.test and generate JUnit XML. Then push test results
   # to appveyor. The plugin pytest-cov takes care of coverage.
   - ps: |
-      & py.test --junitxml .\unittests.xml unittests.py --cov=clcache
+      & py.test --junitxml .\unittests.xml unittests.py --cov=clcache --cov=storage
       $testsExitCode = $lastexitcode
       & coverage report
       & coverage xml
@@ -91,6 +99,27 @@ test_script:
       & codecov --no-color -X gcov -F integrationtests -e PYTHON_INSTALL
 
       if ($testsExitCode -ne 0) {exit $testsExitCode}
+
+  - set CLCACHE_MEMCACHED=127.0.0.1:11211
+  - ps: |
+      & py.test --junitxml .\integrationtests.xml integrationtests.py --cov=clcache --cov=storage
+      $testsExitCode = $lastexitcode
+      & coverage report
+      & coverage xml
+
+      $wc = New-Object 'System.Net.WebClient'
+      $wc.UploadFile("https://ci.appveyor.com/api/testresults/junit/$($env:APPVEYOR_JOB_ID)", (Resolve-Path .\integrationtests.xml))
+
+      & codecov --no-color -X gcov -F integrationtests_memcached -e PYTHON_INSTALL
+
+      if ($testsExitCode -ne 0) {exit $testsExitCode}
+
+  - coverage erase
+  - del /Q coverage.xml
+  - set "CLCACHE_MEMCACHED="
+
+on_finish:
+  - ps: Stop-Process -Id $Memcached.Id
 
 on_success:
   # Creates executable with PyInstaller
