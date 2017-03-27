@@ -1733,15 +1733,16 @@ def processNoDirect(cache, objectFile, compiler, cmdLine, environment):
 def ensureArtifactsExist(cache, cachekey, reason, objectFile, compilerResult, extraCallable=None):
     cleanupRequired = False
     returnCode, compilerOutput, compilerStderr = compilerResult
+    correctCompiliation = (returnCode == 0 and os.path.exists(objectFile))
     with cache.lockFor(cachekey):
         if not cache.hasEntry(cachekey):
             with cache.statistics.lock, cache.statistics as stats:
                 reason(stats)
-                if returnCode == 0 and os.path.exists(objectFile):
+                if correctCompiliation:
                     artifacts = CompilerArtifacts(objectFile, compilerOutput, compilerStderr)
                     cleanupRequired = addObjectToCache(stats, cache, cachekey, artifacts)
-                    if extraCallable:
-                        extraCallable()
+            if extraCallable and correctCompiliation:
+                extraCallable()
     return returnCode, compilerOutput, compilerStderr, cleanupRequired
 
 
