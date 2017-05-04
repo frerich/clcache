@@ -87,8 +87,8 @@ def basenameWithoutExtension(path):
     return os.path.splitext(basename)[0]
 
 
-def filesBeneath(path):
-    for path, _, filenames in WALK(path):
+def filesBeneath(baseDir):
+    for path, _, filenames in WALK(baseDir):
         for filename in filenames:
             yield os.path.join(path, filename)
 
@@ -1165,7 +1165,7 @@ class CommandLineAnalyzer(object):
             inputFiles += options['Tc']
             compl = True
 
-        if len(inputFiles) == 0:
+        if not inputFiles:
             raise NoSourceFileError()
 
         for opt in ['E', 'EP', 'P']:
@@ -1244,7 +1244,7 @@ def invokeRealCompiler(compilerBinary, cmdLine, captureOutput=False, outputAsStr
 # invoked in batch mode as determined by the /MP argument
 def jobCount(cmdLine):
     mpSwitches = [arg for arg in cmdLine if re.match(r'^/MP(\d+)?$', arg)]
-    if len(mpSwitches) == 0:
+    if not mpSwitches:
         return 1
 
     # the last instance of /MP takes precedence
