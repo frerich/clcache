@@ -8,6 +8,9 @@ clcache changelog
  * Feature: clcachesrv now supports blacklisting directories to watch for file
    changes; this avoids problems with deleting such directories because clcachesrv
    still has them opened (in order to get notified to changes to header files).
+ * Internal: The clcache source code now passes the checks performed by pylint 1.7.1
+ * Documentation: Installation & integration instructions have been moved from
+   the README file, into the clcache wiki at https://github.com/frerich/clcache/wiki
 
 ## clcache 4.0.0 (2016-12-15)
 
