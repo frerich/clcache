@@ -11,6 +11,9 @@ clcache changelog
  * Internal: The clcache source code now passes the checks performed by pylint 1.7.1
  * Documentation: Installation & integration instructions have been moved from
    the README file, into the clcache wiki at https://github.com/frerich/clcache/wiki
+ * Feature: clcache now supports using a [memcached](https://memcached.org/)
+   setup as the storage mechanism in addition to storing cached files in the file
+   system.
 
 ## clcache 4.0.0 (2016-12-15)
 
