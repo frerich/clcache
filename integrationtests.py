@@ -21,7 +21,7 @@ import unittest
 import time
 
 import clcache
-
+import pytest
 
 PYTHON_BINARY = sys.executable
 CLCACHE_SCRIPT = os.path.join(os.path.dirname(os.path.realpath(__file__)), "clcache.py")
@@ -62,6 +62,15 @@ class TestCommandLineArguments(unittest.TestCase):
         for value in invalidValues:
             cmd = CLCACHE_CMD + ["-M", value]
             self.assertNotEqual(subprocess.call(cmd), 0, "Command must fail for max size: '" + value + "'")
+
+    def testPrintStatistics(self):
+        with tempfile.TemporaryDirectory() as tempDir:
+            customEnv = dict(os.environ, CLCACHE_DIR=tempDir)
+            cmd = CLCACHE_CMD +  ["-s"]
+            self.assertEqual(
+                subprocess.call(cmd, env=customEnv),
+                0,
+                "Command must be able to print statistics")
 
 
 class TestCompileRuns(unittest.TestCase):
@@ -902,6 +911,8 @@ class TestClearing(unittest.TestCase):
             self.assertEqual(stats.currentCacheSize(), 0)
             self.assertEqual(stats.numCacheEntries(), 0)
 
+    @pytest.mark.skipif("CLCACHE_MEMCACHED" in os.environ,
+                        reason="clearing on memcached not implemented")
     def testClearPostcondition(self):
         cache = clcache.Cache()
 
@@ -1129,7 +1140,7 @@ class TestCleanCache(unittest.TestCase):
 
             # Remove object
             cache = clcache.Cache(tempDir)
-            cache.compilerArtifactsRepository.clean(0)
+            clcache.cleanCache(cache)
 
             self.assertEqual(subprocess.call(cmd, env=customEnv), 0)
 
@@ -1143,7 +1154,7 @@ class TestCleanCache(unittest.TestCase):
 
             # Remove manifest
             cache = clcache.Cache(tempDir)
-            cache.manifestRepository.clean(0)
+            clcache.clearCache(cache)
 
             self.assertEqual(subprocess.call(cmd, env=customEnv), 0)
 
