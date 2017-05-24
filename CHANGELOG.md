@@ -1,10 +1,6 @@
 clcache changelog
 =================
 
-## Upcoming release
-
- * Nothing yet!
-
 ## clcache 4.1.0 (2017-05-23)
 
  * Bugfix: Fixed resource leak in clcachesrv.
