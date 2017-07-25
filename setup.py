@@ -13,6 +13,12 @@ setup(
     packages=find_packages(),
     platforms='any',
     keywords=[],
+    py_modules=['clcache'],
+    entry_points={
+          'console_scripts': [
+              'clcache = clcache:main'
+          ]
+    },
     install_requires=['pypiwin32'],
     setup_requires=[
         'setuptools_scm',
