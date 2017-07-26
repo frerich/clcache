@@ -6,7 +6,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='clcache',
-    description='MSVC Complier cache',
+    description='MSVC compiler cache',
     author='Frerich Raabe',
     author_email='raabe@froglogic.com',
     url='https://github.com/frerich/clcache',
