@@ -41,6 +41,9 @@ install:
 
   # Install coverage plugin for pytest
   - pip install pytest-cov
+  
+  # Install the package
+  - pip install .
 
   # Install tool for uploading coverage data to codecov.io
   - pip install codecov
@@ -57,6 +60,7 @@ cache:
   - memcached -> appveyor.yml
 
 build_script:
+  - clcache --help
   - python clcache.py --help
   - python clcache.py -s
   - pylint --rcfile=.pylintrc clcache.py
