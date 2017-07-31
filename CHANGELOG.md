@@ -3,7 +3,7 @@ clcache changelog
 
 ## Upcoming release
 
- * Nothing yet!
+ * Feature: Enable installation directly from GitHub via 'pip install'
 
 ## clcache 4.1.0 (2017-05-23)
 
