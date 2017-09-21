@@ -127,7 +127,7 @@ on_finish:
 
 on_success:
   # Creates executable with PyInstaller
-  - pip install pyinstaller
+  - pip install pyinstaller pypiwin32
   - pyinstaller clcache.py
   - for /F %%i in ('python -c "import clcache; print(clcache.VERSION)"') do set CLCACHE_VERSION=%%i
   - "echo Version: %CLCACHE_VERSION"

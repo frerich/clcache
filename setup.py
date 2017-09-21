@@ -19,7 +19,6 @@ setup(
               'clcache = clcache:main'
           ]
     },
-    install_requires=['pypiwin32'],
     setup_requires=[
         'setuptools_scm',
     ],
