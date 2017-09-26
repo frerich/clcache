@@ -116,6 +116,10 @@ def normalizeBaseDir(baseDir):
         return None
 
 
+def atomicRename(tempFile, destFile):
+    os.replace(tempFile, destFile)
+
+
 class IncludeNotFoundException(Exception):
     pass
 
@@ -177,11 +181,13 @@ class ManifestSection(object):
         manifestPath = self.manifestPath(manifestHash)
         printTraceStatement("Writing manifest with manifestHash = {} to {}".format(manifestHash, manifestPath))
         ensureDirectoryExists(self.manifestSectionDir)
-        with open(manifestPath, 'w') as outFile:
+        tempManifest = manifestPath + ".new"
+        with open(tempManifest, 'w') as outFile:
             # Converting namedtuple to JSON via OrderedDict preserves key names and keys order
             entries = [e._asdict() for e in manifest.entries()]
             jsonobject = {'entries': entries}
             json.dump(jsonobject, outFile, sort_keys=True, indent=2)
+        atomicRename(tempManifest, manifestPath)
 
     def getManifest(self, manifestHash):
         fileName = self.manifestPath(manifestHash)
@@ -637,8 +643,11 @@ class PersistentJSONDict(object):
 
     def save(self):
         if self._dirty:
-            with open(self._fileName, 'w') as f:
+            tempFileName = self._fileName + ".new"
+            with open(tempFileName, 'w') as f:
                 json.dump(self._dict, f, sort_keys=True, indent=4)
+            atomicRename(tempFileName, self._fileName)
+
 
     def __setitem__(self, key, value):
         self._dict[key] = value
