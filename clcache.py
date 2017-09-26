@@ -161,8 +161,13 @@ class Manifest(object):
         """Adds entry at the top of the entries"""
         self._entries.insert(0, entry)
 
-    def touchEntry(self, entryIndex):
+    def touchEntry(self, objectHash):
         """Moves entry in entryIndex position to the top of entries()"""
+        entryIndex = 0
+        for i, e in enumerate(self.entries()):
+            if e.objectHash == objectHash:
+                entryIndex = i
+                break
         self._entries.insert(0, self._entries.pop(entryIndex))
 
 
@@ -1681,10 +1686,12 @@ def processDirect(cache, objectFile, compiler, cmdLine, sourceFile):
                 if entry.includesContentHash == includesContentHash:
                     cachekey = entry.objectHash
                     assert cachekey is not None
-                    # Move manifest entry to the top of the entries in the manifest
-                    #manifest.touchEntry(entryIndex)
-                    #with cache.manifestLockFor(manifestHash):
-                        #cache.setManifest(manifestHash, manifest)
+                    if entryIndex > 0:
+                        # Move manifest entry to the top of the entries in the manifest
+                        with cache.manifestLockFor(manifestHash):
+                            manifest = cache.getManifest(manifestHash) or Manifest()
+                            manifest.touchEntry(cachekey)
+                            cache.setManifest(manifestHash, manifest)
 
                     manifestHit = True
                     with cache.lockFor(cachekey):

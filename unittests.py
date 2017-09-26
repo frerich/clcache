@@ -973,7 +973,7 @@ class TestManifest(unittest.TestCase):
     def testTouchEntry(self):
         manifest = Manifest(TestManifest.entries)
         self.assertEqual(TestManifest.entry1, manifest.entries()[0])
-        manifest.touchEntry(1)
+        manifest.touchEntry("8771d7ebcf6c8bd57a3d6485f63e3a89")
         self.assertEqual(TestManifest.entry2, manifest.entries()[0])
 
 
