@@ -976,7 +976,7 @@ def copyOrLink(srcFilePath, dstFilePath):
     # lower the chances of corrupting it.
     tempDst = dstFilePath + '.tmp'
     copyfile(srcFilePath, tempDst)
-    os.rename(tempDst, dstFilePath)
+    atomicRename(tempDst, dstFilePath)
 
 
 def myExecutablePath():
