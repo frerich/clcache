@@ -1406,17 +1406,17 @@ clcache statistics:
 
 
 def resetStatistics(cache):
-    with cache.statistics as stats:
+    with cache.statistics.lock, cache.statistics as stats:
         stats.resetCounters()
 
 
 def cleanCache(cache):
-    with cache.statistics as stats, cache.configuration as cfg:
+    with cache.lock, cache.statistics as stats, cache.configuration as cfg:
         cache.clean(stats, cfg.maximumCacheSize())
 
 
 def clearCache(cache):
-    with cache.statistics as stats:
+    with cache.lock, cache.statistics as stats:
         cache.clean(stats, 0)
 
 
@@ -1522,25 +1522,21 @@ clcache.py v{}
     cache = Cache()
 
     if len(sys.argv) == 2 and sys.argv[1] == "-s":
-        with cache.lock:
-            printStatistics(cache)
+        printStatistics(cache)
         return 0
 
     if len(sys.argv) == 2 and sys.argv[1] == "-c":
-        with cache.lock:
-            cleanCache(cache)
+        cleanCache(cache)
         print('Cache cleaned')
         return 0
 
     if len(sys.argv) == 2 and sys.argv[1] == "-C":
-        with cache.lock:
-            clearCache(cache)
+        clearCache(cache)
         print('Cache cleared')
         return 0
 
     if len(sys.argv) == 2 and sys.argv[1] == "-z":
-        with cache.lock:
-            resetStatistics(cache)
+        resetStatistics(cache)
         print('Statistics reset')
         return 0
 
@@ -1652,8 +1648,7 @@ def scheduleJobs(cache, compiler, cmdLine, environment, sourceFiles, objectFiles
                 break
 
     if cleanupRequired:
-        with cache.lock:
-            cleanCache(cache)
+        cleanCache(cache)
 
     return exitCode
 
