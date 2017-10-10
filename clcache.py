@@ -163,11 +163,7 @@ class Manifest(object):
 
     def touchEntry(self, objectHash):
         """Moves entry in entryIndex position to the top of entries()"""
-        entryIndex = 0
-        for i, e in enumerate(self.entries()):
-            if e.objectHash == objectHash:
-                entryIndex = i
-                break
+        entryIndex = next((i for i, e in enumerate(self.entries()) if e.objectHash == objectHash), 0)
         self._entries.insert(0, self._entries.pop(entryIndex))
 
 
