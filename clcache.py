@@ -116,8 +116,12 @@ def normalizeBaseDir(baseDir):
         return None
 
 
-def atomicRename(tempFile, destFile):
-    os.replace(tempFile, destFile)
+@contextlib.contextmanager
+def atomicWrite(fileName):
+    tempFileName = fileName + '.new'
+    with open(tempFileName, 'w') as f:
+        yield f
+    os.replace(tempFileName, fileName)
 
 
 class IncludeNotFoundException(Exception):
@@ -182,13 +186,11 @@ class ManifestSection(object):
         manifestPath = self.manifestPath(manifestHash)
         printTraceStatement("Writing manifest with manifestHash = {} to {}".format(manifestHash, manifestPath))
         ensureDirectoryExists(self.manifestSectionDir)
-        tempManifest = manifestPath + ".new"
-        with open(tempManifest, 'w') as outFile:
+        with atomicWrite(manifestPath) as outFile:
             # Converting namedtuple to JSON via OrderedDict preserves key names and keys order
             entries = [e._asdict() for e in manifest.entries()]
             jsonobject = {'entries': entries}
             json.dump(jsonobject, outFile, sort_keys=True, indent=2)
-        atomicRename(tempManifest, manifestPath)
 
     def getManifest(self, manifestHash):
         fileName = self.manifestPath(manifestHash)
@@ -644,11 +646,8 @@ class PersistentJSONDict(object):
 
     def save(self):
         if self._dirty:
-            tempFileName = self._fileName + ".new"
-            with open(tempFileName, 'w') as f:
+            with atomicWrite(self._fileName) as f:
                 json.dump(self._dict, f, sort_keys=True, indent=4)
-            atomicRename(tempFileName, self._fileName)
-
 
     def __setitem__(self, key, value):
         self._dict[key] = value
@@ -977,7 +976,7 @@ def copyOrLink(srcFilePath, dstFilePath):
     # lower the chances of corrupting it.
     tempDst = dstFilePath + '.tmp'
     copyfile(srcFilePath, tempDst)
-    atomicRename(tempDst, dstFilePath)
+    os.replace(tempDst, dstFilePath)
 
 
 def myExecutablePath():
