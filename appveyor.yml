@@ -33,6 +33,9 @@ install:
   # Check Python version
   - python --version
 
+  # Check pip version
+  - pip --version
+
   # Install pytest
   - pip install pytest
 
