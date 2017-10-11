@@ -6,6 +6,7 @@ clcache changelog
  * Feature: Enable installation directly from GitHub via 'pip install'
  * Bugfix: Fixed potential corruption of cache in case clcache is terminated
    while writing a cache entry or updating the cache statistics.
+ * Internal: The automatic clcache tests are now executed with Python 3.6, too.
 
 ## clcache 4.1.0 (2017-05-23)
 
