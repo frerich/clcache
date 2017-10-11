@@ -11,6 +11,7 @@ environment:
     - PYTHON_INSTALL: "C:\\Python33"
     - PYTHON_INSTALL: "C:\\Python34"
     - PYTHON_INSTALL: "C:\\Python35"
+    - PYTHON_INSTALL: "C:\\Python36"
 
 install:
   - appveyor DownloadFile "http://s3.amazonaws.com/downloads.northscale.com/memcached-win64-1.4.4-14.zip" -FileName memcached.zip
