@@ -116,6 +116,14 @@ def normalizeBaseDir(baseDir):
         return None
 
 
+@contextlib.contextmanager
+def atomicWrite(fileName):
+    tempFileName = fileName + '.new'
+    with open(tempFileName, 'w') as f:
+        yield f
+    os.replace(tempFileName, fileName)
+
+
 class IncludeNotFoundException(Exception):
     pass
 
@@ -157,8 +165,9 @@ class Manifest(object):
         """Adds entry at the top of the entries"""
         self._entries.insert(0, entry)
 
-    def touchEntry(self, entryIndex):
+    def touchEntry(self, objectHash):
         """Moves entry in entryIndex position to the top of entries()"""
+        entryIndex = next((i for i, e in enumerate(self.entries()) if e.objectHash == objectHash), 0)
         self._entries.insert(0, self._entries.pop(entryIndex))
 
 
@@ -177,7 +186,7 @@ class ManifestSection(object):
         manifestPath = self.manifestPath(manifestHash)
         printTraceStatement("Writing manifest with manifestHash = {} to {}".format(manifestHash, manifestPath))
         ensureDirectoryExists(self.manifestSectionDir)
-        with open(manifestPath, 'w') as outFile:
+        with atomicWrite(manifestPath) as outFile:
             # Converting namedtuple to JSON via OrderedDict preserves key names and keys order
             entries = [e._asdict() for e in manifest.entries()]
             jsonobject = {'entries': entries}
@@ -637,7 +646,7 @@ class PersistentJSONDict(object):
 
     def save(self):
         if self._dirty:
-            with open(self._fileName, 'w') as f:
+            with atomicWrite(self._fileName) as f:
                 json.dump(self._dict, f, sort_keys=True, indent=4)
 
     def __setitem__(self, key, value):
@@ -967,7 +976,7 @@ def copyOrLink(srcFilePath, dstFilePath):
     # lower the chances of corrupting it.
     tempDst = dstFilePath + '.tmp'
     copyfile(srcFilePath, tempDst)
-    os.rename(tempDst, dstFilePath)
+    os.replace(tempDst, dstFilePath)
 
 
 def myExecutablePath():
@@ -1392,17 +1401,17 @@ clcache statistics:
 
 
 def resetStatistics(cache):
-    with cache.statistics as stats:
+    with cache.statistics.lock, cache.statistics as stats:
         stats.resetCounters()
 
 
 def cleanCache(cache):
-    with cache.statistics as stats, cache.configuration as cfg:
+    with cache.lock, cache.statistics as stats, cache.configuration as cfg:
         cache.clean(stats, cfg.maximumCacheSize())
 
 
 def clearCache(cache):
-    with cache.statistics as stats:
+    with cache.lock, cache.statistics as stats:
         cache.clean(stats, 0)
 
 
@@ -1508,25 +1517,21 @@ clcache.py v{}
     cache = Cache()
 
     if len(sys.argv) == 2 and sys.argv[1] == "-s":
-        with cache.lock:
-            printStatistics(cache)
+        printStatistics(cache)
         return 0
 
     if len(sys.argv) == 2 and sys.argv[1] == "-c":
-        with cache.lock:
-            cleanCache(cache)
+        cleanCache(cache)
         print('Cache cleaned')
         return 0
 
     if len(sys.argv) == 2 and sys.argv[1] == "-C":
-        with cache.lock:
-            clearCache(cache)
+        clearCache(cache)
         print('Cache cleared')
         return 0
 
     if len(sys.argv) == 2 and sys.argv[1] == "-z":
-        with cache.lock:
-            resetStatistics(cache)
+        resetStatistics(cache)
         print('Statistics reset')
         return 0
 
@@ -1638,8 +1643,7 @@ def scheduleJobs(cache, compiler, cmdLine, environment, sourceFiles, objectFiles
                 break
 
     if cleanupRequired:
-        with cache.lock:
-            cleanCache(cache)
+        cleanCache(cache)
 
     return exitCode
 
@@ -1661,33 +1665,35 @@ def processSingleSource(compiler, cmdLine, sourceFile, objectFile, environment):
 def processDirect(cache, objectFile, compiler, cmdLine, sourceFile):
     manifestHash = ManifestRepository.getManifestHash(compiler, cmdLine, sourceFile)
     manifestHit = None
-    with cache.manifestLockFor(manifestHash):
-        manifest = cache.getManifest(manifestHash)
-        if manifest:
-            for entryIndex, entry in enumerate(manifest.entries()):
-                # NOTE: command line options already included in hash for manifest name
-                try:
-                    includesContentHash = ManifestRepository.getIncludesContentHashForFiles(
-                        [expandBasedirPlaceholder(path) for path in entry.includeFiles])
+    manifest = cache.getManifest(manifestHash)
+    if manifest:
+        for entryIndex, entry in enumerate(manifest.entries()):
+            # NOTE: command line options already included in hash for manifest name
+            try:
+                includesContentHash = ManifestRepository.getIncludesContentHashForFiles(
+                    [expandBasedirPlaceholder(path) for path in entry.includeFiles])
 
-                    if entry.includesContentHash == includesContentHash:
-                        cachekey = entry.objectHash
-                        assert cachekey is not None
+                if entry.includesContentHash == includesContentHash:
+                    cachekey = entry.objectHash
+                    assert cachekey is not None
+                    if entryIndex > 0:
                         # Move manifest entry to the top of the entries in the manifest
-                        manifest.touchEntry(entryIndex)
-                        cache.setManifest(manifestHash, manifest)
+                        with cache.manifestLockFor(manifestHash):
+                            manifest = cache.getManifest(manifestHash) or Manifest()
+                            manifest.touchEntry(cachekey)
+                            cache.setManifest(manifestHash, manifest)
 
-                        manifestHit = True
-                        with cache.lockFor(cachekey):
-                            if cache.hasEntry(cachekey):
-                                return processCacheHit(cache, objectFile, cachekey)
+                    manifestHit = True
+                    with cache.lockFor(cachekey):
+                        if cache.hasEntry(cachekey):
+                            return processCacheHit(cache, objectFile, cachekey)
 
-                except IncludeNotFoundException:
-                    pass
+            except IncludeNotFoundException:
+                pass
 
-            unusableManifestMissReason = Statistics.registerHeaderChangedMiss
-        else:
-            unusableManifestMissReason = Statistics.registerSourceChangedMiss
+        unusableManifestMissReason = Statistics.registerHeaderChangedMiss
+    else:
+        unusableManifestMissReason = Statistics.registerSourceChangedMiss
 
     if manifestHit is None:
         stripIncludes = False
@@ -1700,22 +1706,21 @@ def processDirect(cache, objectFile, compiler, cmdLine, sourceFile):
         includePaths, compilerOutput = parseIncludesSet(compilerResult[1], sourceFile, stripIncludes)
         compilerResult = (compilerResult[0], compilerOutput, compilerResult[2])
 
-    with cache.manifestLockFor(manifestHash):
-        if manifestHit is not None:
-            return ensureArtifactsExist(cache, cachekey, unusableManifestMissReason,
-                                        objectFile, compilerResult)
+    if manifestHit is not None:
+        return ensureArtifactsExist(cache, cachekey, unusableManifestMissReason,
+                                    objectFile, compilerResult)
 
-        entry = createManifestEntry(manifestHash, includePaths)
-        cachekey = entry.objectHash
+    entry = createManifestEntry(manifestHash, includePaths)
+    cachekey = entry.objectHash
 
-        def addManifest():
-
+    def addManifest():
+        with cache.manifestLockFor(manifestHash):
             manifest = cache.getManifest(manifestHash) or Manifest()
             manifest.addEntry(entry)
             cache.setManifest(manifestHash, manifest)
 
-        return ensureArtifactsExist(cache, cachekey, unusableManifestMissReason,
-                                    objectFile, compilerResult, addManifest)
+    return ensureArtifactsExist(cache, cachekey, unusableManifestMissReason,
+                                objectFile, compilerResult, addManifest)
 
 
 def processNoDirect(cache, objectFile, compiler, cmdLine, environment):
