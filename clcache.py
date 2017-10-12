@@ -124,6 +124,17 @@ def atomicWrite(fileName):
     os.replace(tempFileName, fileName)
 
 
+def getCachedCompilerConsoleOutput(path):
+    try:
+        with open(path, 'rb') as f:
+            return f.read().decode(CACHE_COMPILER_OUTPUT_STORAGE_CODEC)
+    except IOError:
+        return ''
+
+def setCachedCompilerConsoleOutput(path, output):
+    with open(path, 'wb') as f:
+        f.write(output.encode(CACHE_COMPILER_OUTPUT_STORAGE_CODEC))
+
 class IncludeNotFoundException(Exception):
     pass
 
@@ -384,11 +395,11 @@ class CompilerArtifactsSection(object):
         if artifacts.objectFilePath is not None:
             copyOrLink(artifacts.objectFilePath,
                        os.path.join(tempEntryDir, CompilerArtifactsSection.OBJECT_FILE))
-        self._setCachedCompilerConsoleOutput(os.path.join(tempEntryDir, CompilerArtifactsSection.STDOUT_FILE),
-                                             artifacts.stdout)
+        setCachedCompilerConsoleOutput(os.path.join(tempEntryDir, CompilerArtifactsSection.STDOUT_FILE),
+                                       artifacts.stdout)
         if artifacts.stderr != '':
-            self._setCachedCompilerConsoleOutput(os.path.join(tempEntryDir, CompilerArtifactsSection.STDERR_FILE),
-                                                 artifacts.stderr)
+            setCachedCompilerConsoleOutput(os.path.join(tempEntryDir, CompilerArtifactsSection.STDERR_FILE),
+                                           artifacts.stderr)
         # Replace the full cache entry atomically
         os.replace(tempEntryDir, cacheEntryDir)
 
@@ -397,20 +408,9 @@ class CompilerArtifactsSection(object):
         cacheEntryDir = self.cacheEntryDir(key)
         return CompilerArtifacts(
             os.path.join(cacheEntryDir, CompilerArtifactsSection.OBJECT_FILE),
-            self._getCachedCompilerConsoleOutput(os.path.join(cacheEntryDir, CompilerArtifactsSection.STDOUT_FILE)),
-            self._getCachedCompilerConsoleOutput(os.path.join(cacheEntryDir, CompilerArtifactsSection.STDERR_FILE))
+            getCachedCompilerConsoleOutput(os.path.join(cacheEntryDir, CompilerArtifactsSection.STDOUT_FILE)),
+            getCachedCompilerConsoleOutput(os.path.join(cacheEntryDir, CompilerArtifactsSection.STDERR_FILE))
             )
-
-    def _getCachedCompilerConsoleOutput(self, path):
-        try:
-            with open(path, 'rb') as f:
-                return f.read().decode(CACHE_COMPILER_OUTPUT_STORAGE_CODEC)
-        except IOError:
-            return ''
-
-    def _setCachedCompilerConsoleOutput(self, path, output):
-        with open(path, 'wb') as f:
-            f.write(output.encode(CACHE_COMPILER_OUTPUT_STORAGE_CODEC))
 
 
 class CompilerArtifactsRepository(object):
