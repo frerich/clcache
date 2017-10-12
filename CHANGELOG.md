@@ -7,6 +7,8 @@ clcache changelog
  * Bugfix: Fixed potential corruption of cache in case clcache is terminated
    while writing a cache entry or updating the cache statistics.
  * Internal: The automatic clcache tests are now executed with Python 3.6, too.
+ * Bugfix: Fixed invoking the real compiler when using the `/Tc` or `/Tp`
+   switches (GH #289)
 
 ## clcache 4.1.0 (2017-05-23)
 
