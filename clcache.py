@@ -375,32 +375,32 @@ class CompilerArtifactsSection(object):
         return os.path.exists(self.cacheEntryDir(key))
 
     def setEntry(self, key, artifacts):
-        ensureDirectoryExists(self.cacheEntryDir(key))
+        cacheEntryDir = self.cacheEntryDir(key)
+        ensureDirectoryExists(cacheEntryDir)
         if artifacts.objectFilePath is not None:
-            copyOrLink(artifacts.objectFilePath, self.cachedObjectName(key))
-        self._setCachedCompilerConsoleOutput(key, CompilerArtifactsSection.STDOUT_FILE, artifacts.stdout)
+            copyOrLink(artifacts.objectFilePath, os.path.join(cacheEntryDir, CompilerArtifactsSection.OBJECT_FILE))
+        self._setCachedCompilerConsoleOutput(key, os.path.join(cacheEntryDir, CompilerArtifactsSection.STDOUT_FILE), artifacts.stdout)
         if artifacts.stderr != '':
-            self._setCachedCompilerConsoleOutput(key, CompilerArtifactsSection.STDERR_FILE, artifacts.stderr)
+            self._setCachedCompilerConsoleOutput(key, os.path.join(cacheEntryDir, CompilerArtifactsSection.STDERR_FILE), artifacts.stderr)
 
     def getEntry(self, key):
         assert self.hasEntry(key)
+        cacheEntryDir = self.cacheEntryDir(key)
         return CompilerArtifacts(
-            self.cachedObjectName(key),
-            self._getCachedCompilerConsoleOutput(key, CompilerArtifactsSection.STDOUT_FILE),
-            self._getCachedCompilerConsoleOutput(key, CompilerArtifactsSection.STDERR_FILE)
+            os.path.join(cacheEntryDir, CompilerArtifactsSection.OBJECT_FILE),
+            self._getCachedCompilerConsoleOutput(key, os.path.join(cacheEntryDir, CompilerArtifactsSection.STDOUT_FILE)),
+            self._getCachedCompilerConsoleOutput(key, os.path.join(cacheEntryDir, CompilerArtifactsSection.STDERR_FILE))
             )
 
-    def _getCachedCompilerConsoleOutput(self, key, fileName):
+    def _getCachedCompilerConsoleOutput(self, key, path):
         try:
-            outputFilePath = os.path.join(self.cacheEntryDir(key), fileName)
-            with open(outputFilePath, 'rb') as f:
+            with open(path, 'rb') as f:
                 return f.read().decode(CACHE_COMPILER_OUTPUT_STORAGE_CODEC)
         except IOError:
             return ''
 
-    def _setCachedCompilerConsoleOutput(self, key, fileName, output):
-        outputFilePath = os.path.join(self.cacheEntryDir(key), fileName)
-        with open(outputFilePath, 'wb') as f:
+    def _setCachedCompilerConsoleOutput(self, key, path, output):
+        with open(path, 'wb') as f:
             f.write(output.encode(CACHE_COMPILER_OUTPUT_STORAGE_CODEC))
 
 
