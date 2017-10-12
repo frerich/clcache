@@ -354,6 +354,10 @@ class CacheLock(object):
 
 
 class CompilerArtifactsSection(object):
+    OBJECT_FILE = 'object'
+    STDOUT_FILE = 'output.txt'
+    STDERR_FILE = 'stderr.txt'
+
     def __init__(self, compilerArtifactsSectionDir):
         self.compilerArtifactsSectionDir = compilerArtifactsSectionDir
         self.lock = CacheLock.forPath(self.compilerArtifactsSectionDir)
@@ -365,7 +369,7 @@ class CompilerArtifactsSection(object):
         return childDirectories(self.compilerArtifactsSectionDir, absolute=False)
 
     def cachedObjectName(self, key):
-        return os.path.join(self.cacheEntryDir(key), "object")
+        return os.path.join(self.cacheEntryDir(key), CompilerArtifactsSection.OBJECT_FILE)
 
     def hasEntry(self, key):
         return os.path.exists(self.cacheEntryDir(key))
@@ -374,16 +378,16 @@ class CompilerArtifactsSection(object):
         ensureDirectoryExists(self.cacheEntryDir(key))
         if artifacts.objectFilePath is not None:
             copyOrLink(artifacts.objectFilePath, self.cachedObjectName(key))
-        self._setCachedCompilerConsoleOutput(key, 'output.txt', artifacts.stdout)
+        self._setCachedCompilerConsoleOutput(key, CompilerArtifactsSection.STDOUT_FILE, artifacts.stdout)
         if artifacts.stderr != '':
-            self._setCachedCompilerConsoleOutput(key, 'stderr.txt', artifacts.stderr)
+            self._setCachedCompilerConsoleOutput(key, CompilerArtifactsSection.STDERR_FILE, artifacts.stderr)
 
     def getEntry(self, key):
         assert self.hasEntry(key)
         return CompilerArtifacts(
             self.cachedObjectName(key),
-            self._getCachedCompilerConsoleOutput(key, 'output.txt'),
-            self._getCachedCompilerConsoleOutput(key, 'stderr.txt')
+            self._getCachedCompilerConsoleOutput(key, CompilerArtifactsSection.STDOUT_FILE),
+            self._getCachedCompilerConsoleOutput(key, CompilerArtifactsSection.STDERR_FILE)
             )
 
     def _getCachedCompilerConsoleOutput(self, key, fileName):
