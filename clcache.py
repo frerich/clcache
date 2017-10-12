@@ -379,27 +379,27 @@ class CompilerArtifactsSection(object):
         ensureDirectoryExists(cacheEntryDir)
         if artifacts.objectFilePath is not None:
             copyOrLink(artifacts.objectFilePath, os.path.join(cacheEntryDir, CompilerArtifactsSection.OBJECT_FILE))
-        self._setCachedCompilerConsoleOutput(key, os.path.join(cacheEntryDir, CompilerArtifactsSection.STDOUT_FILE), artifacts.stdout)
+        self._setCachedCompilerConsoleOutput(os.path.join(cacheEntryDir, CompilerArtifactsSection.STDOUT_FILE), artifacts.stdout)
         if artifacts.stderr != '':
-            self._setCachedCompilerConsoleOutput(key, os.path.join(cacheEntryDir, CompilerArtifactsSection.STDERR_FILE), artifacts.stderr)
+            self._setCachedCompilerConsoleOutput(os.path.join(cacheEntryDir, CompilerArtifactsSection.STDERR_FILE), artifacts.stderr)
 
     def getEntry(self, key):
         assert self.hasEntry(key)
         cacheEntryDir = self.cacheEntryDir(key)
         return CompilerArtifacts(
             os.path.join(cacheEntryDir, CompilerArtifactsSection.OBJECT_FILE),
-            self._getCachedCompilerConsoleOutput(key, os.path.join(cacheEntryDir, CompilerArtifactsSection.STDOUT_FILE)),
-            self._getCachedCompilerConsoleOutput(key, os.path.join(cacheEntryDir, CompilerArtifactsSection.STDERR_FILE))
+            self._getCachedCompilerConsoleOutput(os.path.join(cacheEntryDir, CompilerArtifactsSection.STDOUT_FILE)),
+            self._getCachedCompilerConsoleOutput(os.path.join(cacheEntryDir, CompilerArtifactsSection.STDERR_FILE))
             )
 
-    def _getCachedCompilerConsoleOutput(self, key, path):
+    def _getCachedCompilerConsoleOutput(self, path):
         try:
             with open(path, 'rb') as f:
                 return f.read().decode(CACHE_COMPILER_OUTPUT_STORAGE_CODEC)
         except IOError:
             return ''
 
-    def _setCachedCompilerConsoleOutput(self, key, path, output):
+    def _setCachedCompilerConsoleOutput(self, path, output):
         with open(path, 'wb') as f:
             f.write(output.encode(CACHE_COMPILER_OUTPUT_STORAGE_CODEC))
 
