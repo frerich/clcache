@@ -218,7 +218,7 @@ class CacheFileWithMemcacheFallbackStrategy(object):
     def manifestLockFor(_):
         return CacheDummyLock()
 
-    @property
+    @property # type: ignore
     @contextlib.contextmanager
     def lock(self):
         with self.remoteCache.lock, self.localCache.lock:

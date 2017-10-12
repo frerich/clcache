@@ -25,6 +25,10 @@ import subprocess
 import sys
 import threading
 from tempfile import TemporaryFile
+try:
+    from typing import Any, Iterator, List, Tuple
+except ImportError:
+    pass
 
 VERSION = "4.1.0-dev"
 
@@ -511,7 +515,7 @@ class CacheFileStrategy(object):
     def __str__(self):
         return "Disk cache at {}".format(self.dir)
 
-    @property
+    @property # type: ignore
     @contextlib.contextmanager
     def lock(self):
         with allSectionsLocked(self.manifestRepository), \
@@ -1253,7 +1257,7 @@ class CommandLineAnalyzer(object):
 
     @staticmethod
     def analyze(cmdline):
-        # type: List[str] -> Tuple[List[Tuple[str, str]], List[str]]
+        # type: (List[str]) -> Tuple[List[Tuple[str, str]], List[str]]
         options, inputFiles = CommandLineAnalyzer.parseArgumentsAndInputFiles(cmdline)
         # Use an override pattern to shadow input files that have
         # already been specified in the function above
