@@ -378,12 +378,17 @@ class CompilerArtifactsSection(object):
         cacheEntryDir = self.cacheEntryDir(key)
         # Write new files to a temporary directory
         tempEntryDir = cacheEntryDir + '.new'
+        # Remove any possible left-over in tempEntryDir from previous executions
+        rmtree(tempEntryDir, ignore_errors=True)
         ensureDirectoryExists(tempEntryDir)
         if artifacts.objectFilePath is not None:
-            copyOrLink(artifacts.objectFilePath, os.path.join(tempEntryDir, CompilerArtifactsSection.OBJECT_FILE))
-        self._setCachedCompilerConsoleOutput(os.path.join(tempEntryDir, CompilerArtifactsSection.STDOUT_FILE), artifacts.stdout)
+            copyOrLink(artifacts.objectFilePath,
+                       os.path.join(tempEntryDir, CompilerArtifactsSection.OBJECT_FILE))
+        self._setCachedCompilerConsoleOutput(os.path.join(tempEntryDir, CompilerArtifactsSection.STDOUT_FILE),
+                                             artifacts.stdout)
         if artifacts.stderr != '':
-            self._setCachedCompilerConsoleOutput(os.path.join(tempEntryDir, CompilerArtifactsSection.STDERR_FILE), artifacts.stderr)
+            self._setCachedCompilerConsoleOutput(os.path.join(tempEntryDir, CompilerArtifactsSection.STDERR_FILE),
+                                                 artifacts.stderr)
         # Replace the full cache entry atomically
         os.replace(tempEntryDir, cacheEntryDir)
 
