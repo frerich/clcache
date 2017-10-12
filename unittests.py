@@ -488,6 +488,30 @@ class TestExpandCommandLine(unittest.TestCase):
         )
 
 
+class TestFilterSourceFiles(unittest.TestCase):
+    def _assertFiltered(self, cmdLine, files, filteredCmdLine):
+        # type: (List[str], List[Tuple[str, str]]) -> List[str]
+        files = clcache.filterSourceFiles(cmdLine, files)
+        self.assertEqual(list(files), filteredCmdLine)
+
+    def testFilterSourceFiles(self):
+        self._assertFiltered(
+            ['/c', '/EP', '/FoSome.obj', 'main.cpp'], [('main.cpp', '')],
+            ['/c', '/EP', '/FoSome.obj'])
+        self._assertFiltered(
+            ['/c', '/EP', '/FoSome.obj', 'main.cpp'], [('main.cpp', '/Tp')],
+            ['/c', '/EP', '/FoSome.obj'])
+        self._assertFiltered(
+            ['/c', '/EP', '/FoSome.obj', 'main.cpp'], [('main.cpp', '/Tc')],
+            ['/c', '/EP', '/FoSome.obj'])
+        self._assertFiltered(
+            ['/c', '/EP', '/FoSome.obj', '/Tcmain.cpp'], [('main.cpp', '')],
+            ['/c', '/EP', '/FoSome.obj'])
+        self._assertFiltered(
+            ['/c', '/EP', '/FoSome.obj', '/Tcmain.cpp'], [('main.cpp', '-Tc')],
+            ['/c', '/EP', '/FoSome.obj'])
+
+
 class TestAnalyzeCommandLine(unittest.TestCase):
     def _testSourceFilesOk(self, cmdLine):
         try:
@@ -504,13 +528,14 @@ class TestAnalyzeCommandLine(unittest.TestCase):
         self.assertRaises(expectedExceptionClass, lambda: CommandLineAnalyzer.analyze(cmdLine))
 
     def _testFull(self, cmdLine, expectedSourceFiles, expectedOutputFile):
+        # type: (List[str], List[Tuple[str, str]], List[str]) -> None
         sourceFiles, outputFile = CommandLineAnalyzer.analyze(cmdLine)
         self.assertEqual(sourceFiles, expectedSourceFiles)
         self.assertEqual(outputFile, expectedOutputFile)
 
     def _testFo(self, foArgument, expectedObjectFilepath):
         self._testFull(['/c', foArgument, 'main.cpp'],
-                       ["main.cpp"], [expectedObjectFilepath])
+                       [("main.cpp", '')], [expectedObjectFilepath])
 
     def _testFi(self, fiArgument):
         self._testPreprocessingOutfile(['/c', '/P', fiArgument, 'main.cpp'])
@@ -528,7 +553,7 @@ class TestAnalyzeCommandLine(unittest.TestCase):
         self._testFailure([], NoSourceFileError)
 
     def testSimple(self):
-        self._testFull(["/c", "main.cpp"], ["main.cpp"], ["main.obj"])
+        self._testFull(["/c", "main.cpp"], [("main.cpp", "")], ["main.obj"])
 
     def testNoSource(self):
         # No source file has priority over other errors, for consistency
@@ -547,7 +572,7 @@ class TestAnalyzeCommandLine(unittest.TestCase):
     def testOutputFileFromSourcefile(self):
         # For object file
         self._testFull(['/c', 'main.cpp'],
-                       ['main.cpp'], ['main.obj'])
+                       [('main.cpp', '')], ['main.obj'])
         # For preprocessor file
         self._testFailure(['/c', '/P', 'main.cpp'], CalledForPreprocessingError)
 
@@ -634,9 +659,9 @@ class TestAnalyzeCommandLine(unittest.TestCase):
     def testTpTcSimple(self):
         # clcache can handle /Tc or /Tp as long as there is only one of them
         self._testFull(['/c', '/TcMyCcProgram.c'],
-                       ['MyCcProgram.c'], ['MyCcProgram.obj'])
+                       [('MyCcProgram.c', '/Tc')], ['MyCcProgram.obj'])
         self._testFull(['/c', '/TpMyCxxProgram.cpp'],
-                       ['MyCxxProgram.cpp'], ['MyCxxProgram.obj'])
+                       [('MyCxxProgram.cpp', '/Tp')], ['MyCxxProgram.obj'])
 
     def testLink(self):
         self._testFailure(["main.cpp"], CalledForLinkError)

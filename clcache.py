@@ -1004,6 +1004,7 @@ def findCompilerBinary():
 
 
 def printTraceStatement(msg):
+    # type: (str) -> None
     if "CLCACHE_LOG" in os.environ:
         scriptDir = os.path.realpath(os.path.dirname(sys.argv[0]))
         with OUTPUT_LOCK:
@@ -1252,15 +1253,21 @@ class CommandLineAnalyzer(object):
 
     @staticmethod
     def analyze(cmdline):
+        # type: List[str] -> Tuple[List[Tuple[str, str]], List[str]]
         options, inputFiles = CommandLineAnalyzer.parseArgumentsAndInputFiles(cmdline)
+        # Use an override pattern to shadow input files that have
+        # already been specified in the function above
+        inputFiles = {inputFile: '' for inputFile in inputFiles}
         compl = False
         if 'Tp' in options:
-            inputFiles += options['Tp']
+            inputFiles.update({inputFile: '/Tp' for inputFile in options['Tp']})
             compl = True
         if 'Tc' in options:
-            inputFiles += options['Tc']
+            inputFiles.update({inputFile: '/Tc' for inputFile in options['Tc']})
             compl = True
 
+        # Now collect the inputFiles into the return format
+        inputFiles = list(inputFiles.items())
         if not inputFiles:
             raise NoSourceFileError()
 
@@ -1293,7 +1300,7 @@ class CommandLineAnalyzer(object):
                 objectFiles = [tmp]
         if objectFiles is None:
             # Generate from .c/.cpp filenames
-            objectFiles = [os.path.join(prefix, basenameWithoutExtension(f)) + '.obj' for f in inputFiles]
+            objectFiles = [os.path.join(prefix, basenameWithoutExtension(f)) + '.obj' for f, _ in inputFiles]
 
         printTraceStatement("Compiler source files: {}".format(inputFiles))
         printTraceStatement("Compiler object file: {}".format(objectFiles))
@@ -1617,19 +1624,26 @@ def processCompileRequest(cache, compiler, args):
     printOutAndErr(out, err)
     return exitCode
 
+def filterSourceFiles(cmdLine, sourceFiles):
+    # type: (List[str], List[Tuple[str, str]]) -> Iterator[str]
+    setOfSources = set(sourceFile for sourceFile, _ in sourceFiles)
+    skippedArgs = ('/Tc', '/Tp', '-Tp', '-Tc')
+    yield from (
+        arg for arg in cmdLine
+        if not (arg in setOfSources or arg.startswith(skippedArgs))
+    )
+
 def scheduleJobs(cache, compiler, cmdLine, environment, sourceFiles, objectFiles):
-    baseCmdLine = []
-    setOfSources = set(sourceFiles)
-    for arg in cmdLine:
-        if not (arg in setOfSources or arg.startswith("/MP")):
-            baseCmdLine.append(arg)
+    # type: (Any, str, List[str], Any, List[Tuple[str, str]], List[str]) -> int
+    # Filter out all source files from the command line to form baseCmdLine
+    baseCmdLine = [arg for arg in filterSourceFiles(cmdLine, sourceFiles) if not arg.startswith('/MP')]
 
     exitCode = 0
     cleanupRequired = False
     with concurrent.futures.ThreadPoolExecutor(max_workers=jobCount(cmdLine)) as executor:
         jobs = []
-        for srcFile, objFile in zip(sourceFiles, objectFiles):
-            jobCmdLine = baseCmdLine + [srcFile]
+        for (srcFile, srcLanguage), objFile in zip(sourceFiles, objectFiles):
+            jobCmdLine = baseCmdLine + [srcLanguage + srcFile]
             jobs.append(executor.submit(
                 processSingleSource,
                 compiler, jobCmdLine, srcFile, objFile, environment))
