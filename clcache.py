@@ -1379,7 +1379,7 @@ clcache statistics:
     called w/ multiple sources : {}
     called w/ PCH              : {}""".strip()
 
-    with cache.statistics as stats, cache.configuration as cfg:
+    with cache.statistics.lock, cache.statistics as stats, cache.configuration as cfg:
         print(template.format(
             str(cache),
             stats.currentCacheSize(),
@@ -1665,35 +1665,34 @@ def processSingleSource(compiler, cmdLine, sourceFile, objectFile, environment):
 def processDirect(cache, objectFile, compiler, cmdLine, sourceFile):
     manifestHash = ManifestRepository.getManifestHash(compiler, cmdLine, sourceFile)
     manifestHit = None
-    manifest = cache.getManifest(manifestHash)
-    if manifest:
-        for entryIndex, entry in enumerate(manifest.entries()):
-            # NOTE: command line options already included in hash for manifest name
-            try:
-                includesContentHash = ManifestRepository.getIncludesContentHashForFiles(
-                    [expandBasedirPlaceholder(path) for path in entry.includeFiles])
+    with cache.manifestLockFor(manifestHash):
+        manifest = cache.getManifest(manifestHash)
+        if manifest:
+            for entryIndex, entry in enumerate(manifest.entries()):
+                # NOTE: command line options already included in hash for manifest name
+                try:
+                    includesContentHash = ManifestRepository.getIncludesContentHashForFiles(
+                        [expandBasedirPlaceholder(path) for path in entry.includeFiles])
 
-                if entry.includesContentHash == includesContentHash:
-                    cachekey = entry.objectHash
-                    assert cachekey is not None
-                    if entryIndex > 0:
-                        # Move manifest entry to the top of the entries in the manifest
-                        with cache.manifestLockFor(manifestHash):
-                            manifest = cache.getManifest(manifestHash) or Manifest()
+                    if entry.includesContentHash == includesContentHash:
+                        cachekey = entry.objectHash
+                        assert cachekey is not None
+                        if entryIndex > 0:
+                            # Move manifest entry to the top of the entries in the manifest
                             manifest.touchEntry(cachekey)
                             cache.setManifest(manifestHash, manifest)
 
-                    manifestHit = True
-                    with cache.lockFor(cachekey):
-                        if cache.hasEntry(cachekey):
-                            return processCacheHit(cache, objectFile, cachekey)
+                        manifestHit = True
+                        with cache.lockFor(cachekey):
+                            if cache.hasEntry(cachekey):
+                                return processCacheHit(cache, objectFile, cachekey)
 
-            except IncludeNotFoundException:
-                pass
+                except IncludeNotFoundException:
+                    pass
 
-        unusableManifestMissReason = Statistics.registerHeaderChangedMiss
-    else:
-        unusableManifestMissReason = Statistics.registerSourceChangedMiss
+            unusableManifestMissReason = Statistics.registerHeaderChangedMiss
+        else:
+            unusableManifestMissReason = Statistics.registerSourceChangedMiss
 
     if manifestHit is None:
         stripIncludes = False
@@ -1706,21 +1705,21 @@ def processDirect(cache, objectFile, compiler, cmdLine, sourceFile):
         includePaths, compilerOutput = parseIncludesSet(compilerResult[1], sourceFile, stripIncludes)
         compilerResult = (compilerResult[0], compilerOutput, compilerResult[2])
 
-    if manifestHit is not None:
-        return ensureArtifactsExist(cache, cachekey, unusableManifestMissReason,
-                                    objectFile, compilerResult)
+    with cache.manifestLockFor(manifestHash):
+        if manifestHit is not None:
+            return ensureArtifactsExist(cache, cachekey, unusableManifestMissReason,
+                                        objectFile, compilerResult)
 
-    entry = createManifestEntry(manifestHash, includePaths)
-    cachekey = entry.objectHash
+        entry = createManifestEntry(manifestHash, includePaths)
+        cachekey = entry.objectHash
 
-    def addManifest():
-        with cache.manifestLockFor(manifestHash):
+        def addManifest():
             manifest = cache.getManifest(manifestHash) or Manifest()
             manifest.addEntry(entry)
             cache.setManifest(manifestHash, manifest)
 
-    return ensureArtifactsExist(cache, cachekey, unusableManifestMissReason,
-                                objectFile, compilerResult, addManifest)
+        return ensureArtifactsExist(cache, cachekey, unusableManifestMissReason,
+                                    objectFile, compilerResult, addManifest)
 
 
 def processNoDirect(cache, objectFile, compiler, cmdLine, environment):
