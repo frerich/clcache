@@ -376,12 +376,16 @@ class CompilerArtifactsSection(object):
 
     def setEntry(self, key, artifacts):
         cacheEntryDir = self.cacheEntryDir(key)
-        ensureDirectoryExists(cacheEntryDir)
+        # Write new files to a temporary directory
+        tempEntryDir = cacheEntryDir + '.new'
+        ensureDirectoryExists(tempEntryDir)
         if artifacts.objectFilePath is not None:
-            copyOrLink(artifacts.objectFilePath, os.path.join(cacheEntryDir, CompilerArtifactsSection.OBJECT_FILE))
-        self._setCachedCompilerConsoleOutput(os.path.join(cacheEntryDir, CompilerArtifactsSection.STDOUT_FILE), artifacts.stdout)
+            copyOrLink(artifacts.objectFilePath, os.path.join(tempEntryDir, CompilerArtifactsSection.OBJECT_FILE))
+        self._setCachedCompilerConsoleOutput(os.path.join(tempEntryDir, CompilerArtifactsSection.STDOUT_FILE), artifacts.stdout)
         if artifacts.stderr != '':
-            self._setCachedCompilerConsoleOutput(os.path.join(cacheEntryDir, CompilerArtifactsSection.STDERR_FILE), artifacts.stderr)
+            self._setCachedCompilerConsoleOutput(os.path.join(tempEntryDir, CompilerArtifactsSection.STDERR_FILE), artifacts.stderr)
+        # Replace the full cache entry atomically
+        os.replace(tempEntryDir, cacheEntryDir)
 
     def getEntry(self, key):
         assert self.hasEntry(key)
