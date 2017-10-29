@@ -34,6 +34,7 @@ install:
   - python --version
 
   # Check pip version
+  - python -m pip install --upgrade pip setuptools wheel
   - pip --version
 
   # Install pytest
@@ -47,7 +48,7 @@ install:
   - pip install pytest-cov
   
   # Install the package
-  - pip install .
+  - pip install -e .
 
   # Install tool for uploading coverage data to codecov.io
   - pip install codecov
@@ -65,22 +66,22 @@ cache:
 
 build_script:
   - clcache --help
-  - python clcache.py --help
-  - python clcache.py -s
-  - pylint --rcfile=.pylintrc clcache.py
-  - pylint --rcfile=.pylintrc storage.py
-  - pylint --rcfile=.pylintrc unittests.py
-  - pylint --rcfile=.pylintrc --disable=no-member integrationtests.py
-  - pylint --rcfile=.pylintrc performancetests.py
+  - clcache -s
+  # - python clcachesrv.py
+  - pylint --rcfile=.pylintrc clcache\__main__.py
+  - pylint --rcfile=.pylintrc clcache\storage.py
+  - pylint --rcfile=.pylintrc tests\test_unit.py
+  - pylint --rcfile=.pylintrc --disable=no-member tests\test_integration.py
+  - pylint --rcfile=.pylintrc tests\test_performance.py
 
   # Disable no-member test here to work around issue in Pylint 1.7.1
-  - pylint --rcfile=.pylintrc --disable=no-member server\clcachesrv.py
+  - pylint --rcfile=.pylintrc --disable=no-member clcache\server\__main__.py
 
 test_script:
   # Run test files via py.test and generate JUnit XML. Then push test results
   # to appveyor. The plugin pytest-cov takes care of coverage.
   - ps: |
-      & py.test --junitxml .\unittests.xml unittests.py --cov=clcache --cov=storage
+      & py.test --junitxml .\unittests.xml --cov
       $testsExitCode = $lastexitcode
       & coverage report
       & coverage xml
@@ -95,22 +96,9 @@ test_script:
   - coverage erase
   - del /Q coverage.xml
 
-  - ps: |
-      & py.test --junitxml .\integrationtests.xml integrationtests.py --cov=clcache
-      $testsExitCode = $lastexitcode
-      & coverage report
-      & coverage xml
-
-      $wc = New-Object 'System.Net.WebClient'
-      $wc.UploadFile("https://ci.appveyor.com/api/testresults/junit/$($env:APPVEYOR_JOB_ID)", (Resolve-Path .\integrationtests.xml))
-
-      & codecov --no-color -X gcov -F integrationtests -e PYTHON_INSTALL
-
-      if ($testsExitCode -ne 0) {exit $testsExitCode}
-
   - set CLCACHE_MEMCACHED=127.0.0.1:11211
   - ps: |
-      & py.test --junitxml .\integrationtests.xml integrationtests.py --cov=clcache --cov=storage
+      & py.test --junitxml .\integrationtests.xml --cov
       $testsExitCode = $lastexitcode
       & coverage report
       & coverage xml
@@ -132,11 +120,12 @@ on_finish:
 on_success:
   # Creates executable with PyInstaller
   - pip install pyinstaller pypiwin32
-  - pyinstaller clcache.py
+  - pyinstaller pyinstaller\clcache_main.py
   - for /F %%i in ('python -c "import clcache; print(clcache.VERSION)"') do set CLCACHE_VERSION=%%i
   - "echo Version: %CLCACHE_VERSION"
-  - move dist\clcache clcache-%CLCACHE_VERSION%
-  
+  - ps: mv dist\clcache_main\clcache_main.exe dist\clcache_main\clcache.exe
+  - move dist\clcache_main clcache-%CLCACHE_VERSION%
+
   # Build the Chocolatey package
   - sed -i "s/{VERSION}/%CLCACHE_VERSION%/g" clcache.nuspec
   - choco pack

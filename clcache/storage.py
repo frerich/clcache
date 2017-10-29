@@ -4,7 +4,7 @@ from pymemcache.client.base import Client
 from pymemcache.serde import (python_memcache_serializer,
                               python_memcache_deserializer)
 
-from clcache import CacheFileStrategy, getStringHash, printTraceStatement, CompilerArtifacts, \
+from .__main__ import CacheFileStrategy, getStringHash, printTraceStatement, CompilerArtifacts, \
     CACHE_COMPILER_OUTPUT_STORAGE_CODEC
 
 

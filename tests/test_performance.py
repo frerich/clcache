@@ -18,16 +18,16 @@ import tempfile
 import timeit
 import unittest
 
-import clcache
+from clcache import __main__ as clcache
 
 PYTHON_BINARY = sys.executable
-CLCACHE_SCRIPT = os.path.join(os.path.dirname(os.path.realpath(__file__)), "clcache.py")
-ASSETS_DIR = os.path.join("tests", "performancetests")
+CLCACHE_SCRIPT = os.path.join(os.path.dirname(os.path.dirname(os.path.realpath(__file__))), "clcache", "clcache.py")
+ASSETS_DIR = os.path.join(os.path.join(os.path.dirname(__file__), "performancetests"))
 
 if "CLCACHE_CMD" in os.environ:
     CLCACHE_CMD = os.environ['CLCACHE_CMD'].split()
 else:
-    CLCACHE_CMD = [PYTHON_BINARY, CLCACHE_SCRIPT]
+    CLCACHE_CMD = ['clcache']
 
 def takeTime(code):
     start = timeit.default_timer()

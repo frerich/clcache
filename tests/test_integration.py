@@ -20,19 +20,18 @@ import tempfile
 import unittest
 import time
 
-import clcache
+from clcache import __main__ as clcache
 import pytest
 
 PYTHON_BINARY = sys.executable
-CLCACHE_SCRIPT = os.path.join(os.path.dirname(os.path.realpath(__file__)), "clcache.py")
-ASSETS_DIR = os.path.join(os.path.dirname(os.path.realpath(__file__)), "tests", "integrationtests")
+ASSETS_DIR = os.path.join(os.path.dirname(os.path.realpath(__file__)), "integrationtests")
 
 # pytest-cov note: subprocesses are coverage tested by default with some limitations
 #   "For subprocess measurement environment variables must make it from the main process to the
 #   subprocess. The python used by the subprocess must have pytest-cov installed. The subprocess
 #   must do normal site initialisation so that the environment variables can be detected and
 #   coverage started."
-CLCACHE_CMD = [PYTHON_BINARY, CLCACHE_SCRIPT]
+CLCACHE_CMD = ['clcache']
 
 
 @contextmanager

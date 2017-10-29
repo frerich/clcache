@@ -1,6 +1,8 @@
 [run]
 branch = True
-include = clcache.py
+include = */clcache/*
+omit =
+    tests/*
 
 # pytest-cov:
 #   "Note that this plugin controls some options and setting the option in the

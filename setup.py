@@ -13,10 +13,15 @@ setup(
     packages=find_packages(),
     platforms='any',
     keywords=[],
-    py_modules=['clcache'],
+    install_requires=[
+        'typing; python_version < "3.5"',
+        'pymemcache',
+        'pyuv',
+    ],
     entry_points={
           'console_scripts': [
-              'clcache = clcache:main'
+              'clcache = clcache.__main__:main',
+              'clcache-server = clcache.server.__main__:main',
           ]
     },
     setup_requires=[

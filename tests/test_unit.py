@@ -15,8 +15,9 @@ import os
 import unittest
 import tempfile
 
-import clcache
-from clcache import (
+from clcache import __main__ as clcache
+
+from clcache.__main__ import (
     CommandLineAnalyzer,
     CompilerArtifactsRepository,
     Configuration,
@@ -25,7 +26,7 @@ from clcache import (
     ManifestRepository,
     Statistics,
 )
-from clcache import (
+from clcache.__main__ import (
     AnalysisError,
     CalledForLinkError,
     CalledForPreprocessingError,
@@ -34,9 +35,9 @@ from clcache import (
     NoSourceFileError,
     PersistentJSONDict,
 )
-from storage import CacheMemcacheStrategy
+from clcache.storage import CacheMemcacheStrategy
 
-ASSETS_DIR = os.path.join("tests", "unittests")
+ASSETS_DIR = os.path.join(os.path.dirname(__file__), "unittests")
 
 
 @contextmanager
@@ -1054,7 +1055,7 @@ class TestPersistentJSONDict(unittest.TestCase):
 class TestMemcacheStrategy(unittest.TestCase):
     def testSetGet(self):
         from pymemcache.test.utils import MockMemcacheClient
-        from clcache import CompilerArtifacts, getStringHash
+        from clcache.__main__ import CompilerArtifacts, getStringHash
 
         with tempfile.TemporaryDirectory() as tempDir:
             memcache = CacheMemcacheStrategy("localhost", cacheDirectory=tempDir)
