@@ -38,7 +38,6 @@ class CacheMemcacheStrategy(object):
         else:
             from pymemcache.client.hash import HashClient
             clientClass = HashClient
-            server = server
         self.client = clientClass(server, ignore_exc=True,
                                   serializer=python_memcache_serializer,
                                   deserializer=python_memcache_deserializer,
