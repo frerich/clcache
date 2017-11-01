@@ -25,6 +25,7 @@ import subprocess
 import sys
 import threading
 from tempfile import TemporaryFile
+from typing import Any, List, Tuple, Iterator
 
 VERSION = "4.1.0-dev"
 
@@ -524,7 +525,7 @@ class CacheFileStrategy(object):
     def __str__(self):
         return "Disk cache at {}".format(self.dir)
 
-    @property
+    @property # type: ignore
     @contextlib.contextmanager
     def lock(self):
         with allSectionsLocked(self.manifestRepository), \
@@ -1016,8 +1017,7 @@ def findCompilerBinary():
     return None
 
 
-def printTraceStatement(msg):
-    # type: (str) -> None
+def printTraceStatement(msg: str) -> None:
     if "CLCACHE_LOG" in os.environ:
         scriptDir = os.path.realpath(os.path.dirname(sys.argv[0]))
         with OUTPUT_LOCK:
@@ -1265,8 +1265,7 @@ class CommandLineAnalyzer(object):
         return dict(arguments), inputFiles
 
     @staticmethod
-    def analyze(cmdline):
-        # type: List[str] -> Tuple[List[Tuple[str, str]], List[str]]
+    def analyze(cmdline: List[str]) -> Tuple[List[Tuple[str, str]], List[str]]:
         options, inputFiles = CommandLineAnalyzer.parseArgumentsAndInputFiles(cmdline)
         # Use an override pattern to shadow input files that have
         # already been specified in the function above
@@ -1637,8 +1636,7 @@ def processCompileRequest(cache, compiler, args):
     printOutAndErr(out, err)
     return exitCode
 
-def filterSourceFiles(cmdLine, sourceFiles):
-    # type: (List[str], List[Tuple[str, str]]) -> Iterator[str]
+def filterSourceFiles(cmdLine: List[str], sourceFiles: List[Tuple[str, str]]) -> Iterator[str]:
     setOfSources = set(sourceFile for sourceFile, _ in sourceFiles)
     skippedArgs = ('/Tc', '/Tp', '-Tp', '-Tc')
     yield from (
@@ -1646,8 +1644,8 @@ def filterSourceFiles(cmdLine, sourceFiles):
         if not (arg in setOfSources or arg.startswith(skippedArgs))
     )
 
-def scheduleJobs(cache, compiler, cmdLine, environment, sourceFiles, objectFiles):
-    # type: (Any, str, List[str], Any, List[Tuple[str, str]], List[str]) -> int
+def scheduleJobs(cache: Any, compiler: str, cmdLine: List[str], environment: Any,
+                 sourceFiles: List[Tuple[str, str]], objectFiles: List[str]) -> int:
     # Filter out all source files from the command line to form baseCmdLine
     baseCmdLine = [arg for arg in filterSourceFiles(cmdLine, sourceFiles) if not arg.startswith('/MP')]
 

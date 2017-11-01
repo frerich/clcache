@@ -38,6 +38,9 @@ install:
 
   # Install pytest
   - pip install pytest
+  
+  # Install mypy
+  - pip install mypy
 
   # Install pylint (installs pylint.exe in %PYTHON_INSTALL%\Scripts)
   - pip install pylint
@@ -75,6 +78,8 @@ build_script:
 
   # Disable no-member test here to work around issue in Pylint 1.7.1
   - pylint --rcfile=.pylintrc --disable=no-member clcache\server\__main__.py
+  
+  - mypy --ignore-missing-imports .
 
 test_script:
   # Run test files via py.test and generate JUnit XML. Then push test results
