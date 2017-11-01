@@ -55,7 +55,10 @@ CLCACHE_DIR::
 CLCACHE_CL::
     Can be set to the actual 'cl.exe' executable to use. If this variable is
     not set, the 'clcache.py' script will scan the directories listed in the
-    +PATH+ environment variable for 'cl.exe'.
+    +PATH+ environment variable for 'cl.exe'. In case this is just a file name
+    (as opposed to an absolute path), 'clcache.py' will scan the directories
+    mentioned by the `%PATH%` environment variable to compute the absolute
+    path.
 CLCACHE_LOG::
     If this variable is set, a bit of diagnostic information is printed which
     can help with debugging cache problems.

@@ -10,6 +10,8 @@ clcache changelog
  * Internal: Support for Python 3.3 has been dropped.
  * Bugfix: Fixed invoking the real compiler when using the `/Tc` or `/Tp`
    switches (GH #289)
+ * Feature: Allow specifying just a file name via `CLCACHE_CL`, the absolute
+   path will be computed automatically by scanning the `PATH`.
 
 ## clcache 4.1.0 (2017-05-23)
 
