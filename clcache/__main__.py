@@ -8,7 +8,7 @@
 #
 from collections import defaultdict, namedtuple
 from ctypes import windll, wintypes
-from shutil import copyfile, rmtree
+from shutil import copyfile, rmtree, which
 import cProfile
 import codecs
 import concurrent.futures
@@ -1001,6 +1001,9 @@ def myExecutablePath():
 def findCompilerBinary():
     if "CLCACHE_CL" in os.environ:
         path = os.environ["CLCACHE_CL"]
+        if os.path.basename(path) == path:
+            path = which(path)
+
         return path if os.path.exists(path) else None
 
     frozenByPy2Exe = hasattr(sys, "frozen")
