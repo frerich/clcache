@@ -15,6 +15,7 @@ setup(
     keywords=[],
     install_requires=[
         'typing; python_version < "3.5"',
+        'subprocess.run; python_version < "3.5"',
         'pymemcache',
         'pyuv',
     ],
@@ -26,5 +27,8 @@ setup(
     },
     setup_requires=[
         'setuptools_scm',
+    ],
+    data_files=[
+        ('', ('clcache.pth',)),
     ],
     use_scm_version=True)

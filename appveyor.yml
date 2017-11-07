@@ -31,6 +31,9 @@ install:
 
   # Check Python version
   - python --version
+  
+  # Upgrade the Python build tools
+  - pip install -U pip setuptools wheel
 
   # Check pip version
   - python -m pip install --upgrade pip setuptools wheel
@@ -50,7 +53,7 @@ install:
   - pip install pytest-cov
   
   # Install the package
-  - pip install -e .
+  - pip install .
 
   # Install tool for uploading coverage data to codecov.io
   - pip install codecov

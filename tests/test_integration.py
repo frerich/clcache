@@ -25,6 +25,9 @@ import pytest
 
 PYTHON_BINARY = sys.executable
 ASSETS_DIR = os.path.join(os.path.dirname(os.path.realpath(__file__)), "integrationtests")
+DISTUTILS_DIR = os.path.join(os.path.dirname(os.path.realpath(__file__)), "distutils")
+CLCACHE_MEMCACHED = "CLCACHE_MEMCACHED" in os.environ
+MONKEY_LOADED = "clcache.monkey" in sys.modules
 
 # pytest-cov note: subprocesses are coverage tested by default with some limitations
 #   "For subprocess measurement environment variables must make it from the main process to the
@@ -70,6 +73,24 @@ class TestCommandLineArguments(unittest.TestCase):
                 subprocess.call(cmd, env=customEnv),
                 0,
                 "Command must be able to print statistics")
+
+class TestDistutils(unittest.TestCase):
+    @pytest.mark.skipif(not MONKEY_LOADED, reason="Monkeypatch not loaded")
+    @pytest.mark.skipif(CLCACHE_MEMCACHED, reason="Fails with memcached")
+    def testBasicCompileCc(self):
+        with cd(DISTUTILS_DIR):
+            customEnv = dict(os.environ, USE_CLCACHE="1")
+            try:
+                output = subprocess.check_output(
+                    [sys.executable, 'setup.py', 'build'],
+                    env=customEnv,
+                    stderr=subprocess.STDOUT)
+            except subprocess.CalledProcessError as processError:
+                output = processError.output
+            output = output.decode("utf-8")
+
+            print(output)
+            assert "__main__.py" in output
 
 
 class TestCompileRuns(unittest.TestCase):

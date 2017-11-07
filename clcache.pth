@@ -1,0 +1,1 @@
+import sys; import site; sys.path.extend(site.getsitepackages()); import clcache.monkey; clcache.monkey.main()
