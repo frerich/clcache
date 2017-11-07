@@ -16,6 +16,8 @@ clcache changelog
    (GH #261).
  * Bugfix: Fixed some cases in which clcache might have written corrupted cache
    entries in case it gets terminated in the middle of copying a file (GH #263).
+ * Feature: Added 'monkey' script to simplify integrating clcache with distutils-based
+   workflows (GH #284).
 
 ## clcache 4.1.0 (2017-05-23)
 
