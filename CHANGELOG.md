@@ -12,6 +12,10 @@ clcache changelog
    switches (GH #289)
  * Feature: Allow specifying just a file name via `CLCACHE_CL`, the absolute
    path will be computed automatically by scanning the `PATH`.
+ * Bugfix: clcache correctly honours termination signals such as Ctrl+C again
+   (GH #261).
+ * Bugfix: Fixed some cases in which clcache might have written corrupted cache
+   entries in case it gets terminated in the middle of copying a file (GH #263).
 
 ## clcache 4.1.0 (2017-05-23)
 
