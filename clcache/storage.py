@@ -146,6 +146,7 @@ class CacheMemcacheStrategy(object):
                 printTraceStatement("Could not set {} in memcache {}".format(key, self.server()))
                 return None
             raise
+        return None
 
     def getManifest(self, manifestHash):
         return self.client.get((self.manifestPrefix + manifestHash).encode("UTF-8"))
