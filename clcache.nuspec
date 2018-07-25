@@ -27,6 +27,6 @@ Copyright (c)
     <requireLicenseAcceptance>false</requireLicenseAcceptance>
   </metadata>
   <files>
-    <file src="clcache-{VERSION}\**" target="clcache-{VERSION}" />
+    <file src="clcache-{VERSION}\**" target="clcache" />
   </files>  
 </package>
