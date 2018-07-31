@@ -42,7 +42,7 @@ try:
 except ImportError:
     WALK = os.walk
     try:
-        LIST = os.scandir # pylint: disable=no-name-in-module
+        LIST = os.scandir # type: ignore # pylint: disable=no-name-in-module
     except AttributeError:
         LIST = os.listdir
 
