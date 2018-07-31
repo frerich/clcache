@@ -19,9 +19,9 @@ import sys
 import tempfile
 import unittest
 import time
+import pytest
 
 from clcache import __main__ as clcache
-import pytest
 
 PYTHON_BINARY = sys.executable
 ASSETS_DIR = os.path.join(os.path.dirname(os.path.realpath(__file__)), "integrationtests")

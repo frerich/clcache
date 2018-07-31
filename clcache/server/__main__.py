@@ -10,7 +10,7 @@ import re
 
 import pyuv
 
-class HashCache(object):
+class HashCache:
     def __init__(self, loop, excludePatterns, disableWatching):
         self._loop = loop
         self._watchedDirectories = {}
@@ -66,7 +66,7 @@ class HashCache(object):
         return excluded
 
 
-class Connection(object):
+class Connection:
     def __init__(self, pipe, cache, onCloseCallback):
         self._readBuffer = b''
         self._pipe = pipe
@@ -92,7 +92,7 @@ class Connection(object):
         self._onCloseCallback(self)
 
 
-class PipeServer(object):
+class PipeServer:
     def __init__(self, loop, address, cache):
         self._pipeServer = pyuv.Pipe(loop)
         self._pipeServer.bind(address)

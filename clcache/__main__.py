@@ -94,7 +94,7 @@ def filesBeneath(baseDir):
 
 
 def childDirectories(path, absolute=True):
-    supportsScandir = (LIST != os.listdir)
+    supportsScandir = (LIST != os.listdir) # pylint: disable=comparison-with-callable
     for entry in LIST(path):
         if supportsScandir:
             if entry.is_dir():
@@ -163,7 +163,7 @@ class LogicException(Exception):
         return repr(self.message)
 
 
-class Manifest(object):
+class Manifest:
     def __init__(self, entries=None):
         if entries is None:
             entries = []
@@ -182,7 +182,7 @@ class Manifest(object):
         self._entries.insert(0, self._entries.pop(entryIndex))
 
 
-class ManifestSection(object):
+class ManifestSection:
     def __init__(self, manifestSectionDir):
         self.manifestSectionDir = manifestSectionDir
         self.lock = CacheLock.forPath(self.manifestSectionDir)
@@ -231,7 +231,7 @@ def allSectionsLocked(repository):
             section.lock.release()
 
 
-class ManifestRepository(object):
+class ManifestRepository:
     # Bump this counter whenever the current manifest file format changes.
     # E.g. changing the file format from {'oldkey': ...} to {'newkey': ...} requires
     # invalidation, such that a manifest that was stored using the old format is not
@@ -308,7 +308,7 @@ class ManifestRepository(object):
         return HashAlgorithm(','.join(listOfHashes).encode()).hexdigest()
 
 
-class CacheLock(object):
+class CacheLock:
     """ Implements a lock for the object cache which
     can be used in 'with' statements. """
     INFINITE = 0xFFFFFFFF
@@ -364,7 +364,7 @@ class CacheLock(object):
         return CacheLock(lockName, timeoutMs)
 
 
-class CompilerArtifactsSection(object):
+class CompilerArtifactsSection:
     OBJECT_FILE = 'object'
     STDOUT_FILE = 'output.txt'
     STDERR_FILE = 'stderr.txt'
@@ -413,7 +413,7 @@ class CompilerArtifactsSection(object):
             )
 
 
-class CompilerArtifactsRepository(object):
+class CompilerArtifactsRepository:
     def __init__(self, compilerArtifactsRootDir):
         self._compilerArtifactsRootDir = compilerArtifactsRootDir
 
@@ -501,7 +501,7 @@ class CompilerArtifactsRepository(object):
         return [arg for arg in cmdline
                 if not (arg[0] in "/-" and arg[1:].startswith(argsToStrip))]
 
-class CacheFileStrategy(object):
+class CacheFileStrategy:
     def __init__(self, cacheDirectory=None):
         self.dir = cacheDirectory
         if not self.dir:
@@ -591,7 +591,7 @@ class CacheFileStrategy(object):
         stats.setNumCacheEntries(currentCompilerArtifactsCount)
 
 
-class Cache(object):
+class Cache:
     def __init__(self, cacheDirectory=None):
         if os.environ.get("CLCACHE_MEMCACHED"):
             from .storage import CacheFileWithMemcacheFallbackStrategy
@@ -644,7 +644,7 @@ class Cache(object):
         return self.strategy.getManifest(manifestHash)
 
 
-class PersistentJSONDict(object):
+class PersistentJSONDict:
     def __init__(self, fileName):
         self._dirty = False
         self._dict = {}
@@ -676,7 +676,7 @@ class PersistentJSONDict(object):
         return type(self) is type(other) and self.__dict__ == other.__dict__
 
 
-class Configuration(object):
+class Configuration:
     _defaultValues = {"MaximumCacheSize": 1073741824} # 1 GiB
 
     def __init__(self, configurationFile):
@@ -701,7 +701,7 @@ class Configuration(object):
         self._cfg["MaximumCacheSize"] = size
 
 
-class Statistics(object):
+class Statistics:
     CALLS_WITH_INVALID_ARGUMENT = "CallsWithInvalidArgument"
     CALLS_WITHOUT_SOURCE_FILE = "CallsWithoutSourceFile"
     CALLS_WITH_MULTIPLE_SOURCE_FILES = "CallsWithMultipleSourceFiles"
@@ -1026,7 +1026,7 @@ def printTraceStatement(msg: str) -> None:
             print(os.path.join(scriptDir, "clcache.py") + " " + msg)
 
 
-class CommandLineTokenizer(object):
+class CommandLineTokenizer:
     def __init__(self, content):
         self.argv = []
         self._content = content
@@ -1154,7 +1154,7 @@ def extendCommandLineFromEnvironment(cmdLine, environment):
     return cmdLine, remainingEnvironment
 
 
-class Argument(object):
+class Argument:
     def __init__(self, name):
         self.name = name
 
@@ -1192,7 +1192,7 @@ class ArgumentT4(Argument):
     pass
 
 
-class CommandLineAnalyzer(object):
+class CommandLineAnalyzer:
 
     @staticmethod
     def _getParameterizedArgumentType(cmdLineArgument):
