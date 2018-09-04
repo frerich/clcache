@@ -54,8 +54,10 @@ install:
   # Install the package
   - pip install .
 
-  # Install tool for uploading coverage data to codecov.io
-  - pip install codecov
+  # Install tool for uploading coverage data to codecov.io; select version
+  # 2.0.10 specifically since later versions seem to have a bug due to
+  # which calling 'codecov' in a PowerShell script fails.
+  - pip install https://github.com/codecov/codecov-python/tarball/v2.0.10
   - coverage --version
 
   # Install dependencies for clcachesrv such that we can lint the source code
