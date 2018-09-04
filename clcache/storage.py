@@ -8,7 +8,7 @@ from .__main__ import CacheFileStrategy, getStringHash, printTraceStatement, Com
     CACHE_COMPILER_OUTPUT_STORAGE_CODEC
 
 
-class CacheDummyLock(object):
+class CacheDummyLock:
     def __enter__(self):
         pass
 
@@ -16,7 +16,7 @@ class CacheDummyLock(object):
         pass
 
 
-class CacheMemcacheStrategy(object):
+class CacheMemcacheStrategy:
     def __init__(self, server, cacheDirectory=None, manifestPrefix='manifests_', objectPrefix='objects_'):
         self.fileStrategy = CacheFileStrategy(cacheDirectory=cacheDirectory)
         # XX Memcache Strategy should be independent
@@ -156,7 +156,7 @@ class CacheMemcacheStrategy(object):
                                 maximumSize)
 
 
-class CacheFileWithMemcacheFallbackStrategy(object):
+class CacheFileWithMemcacheFallbackStrategy:
     def __init__(self, server, cacheDirectory=None, manifestPrefix='manifests_', objectPrefix='objects_'):
         self.localCache = CacheFileStrategy(cacheDirectory=cacheDirectory)
         self.remoteCache = CacheMemcacheStrategy(server, cacheDirectory=cacheDirectory,
