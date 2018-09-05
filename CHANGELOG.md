@@ -18,6 +18,8 @@ clcache changelog
    entries in case it gets terminated in the middle of copying a file (GH #263).
  * Feature: Added 'monkey' script to simplify integrating clcache with distutils-based
    workflows (GH #284).
+ * Feature: Drop version in directory structure of chocolatey (nuget) target
+   package (GH #318).
 
 ## clcache 4.1.0 (2017-05-23)
 
