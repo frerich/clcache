@@ -26,7 +26,7 @@ import threading
 from tempfile import TemporaryFile
 from typing import Any, List, Tuple, Iterator
 
-VERSION = "4.1.0-dev"
+VERSION = "4.2.0"
 
 HashAlgorithm = hashlib.md5
 
