@@ -8,12 +8,13 @@
 #
 from collections import defaultdict, namedtuple
 from ctypes import windll, wintypes
-from shutil import copyfile, rmtree, which
+from shutil import copyfile, copyfileobj, rmtree, which
 import cProfile
 import codecs
 import concurrent.futures
 import contextlib
 import errno
+import gzip
 import hashlib
 import json
 import multiprocessing
@@ -393,8 +394,9 @@ class CompilerArtifactsSection:
         rmtree(tempEntryDir, ignore_errors=True)
         ensureDirectoryExists(tempEntryDir)
         if artifacts.objectFilePath is not None:
-            copyOrLink(artifacts.objectFilePath,
-                       os.path.join(tempEntryDir, CompilerArtifactsSection.OBJECT_FILE))
+            dstFilePath = os.path.join(tempEntryDir, CompilerArtifactsSection.OBJECT_FILE)
+            copyOrLink(artifacts.objectFilePath, dstFilePath, True)
+            size = os.path.getsize(dstFilePath)
         setCachedCompilerConsoleOutput(os.path.join(tempEntryDir, CompilerArtifactsSection.STDOUT_FILE),
                                        artifacts.stdout)
         if artifacts.stderr != '':
@@ -402,6 +404,7 @@ class CompilerArtifactsSection:
                                            artifacts.stderr)
         # Replace the full cache entry atomically
         os.replace(tempEntryDir, cacheEntryDir)
+        return size
 
     def getEntry(self, key):
         assert self.hasEntry(key)
@@ -543,7 +546,7 @@ class CacheFileStrategy:
         return self.compilerArtifactsRepository.section(key).getEntry(key)
 
     def setEntry(self, key, value):
-        self.compilerArtifactsRepository.section(key).setEntry(key, value)
+        return self.compilerArtifactsRepository.section(key).setEntry(key, value)
 
     def pathForObject(self, key):
         return self.compilerArtifactsRepository.section(key).cachedObjectName(key)
@@ -632,7 +635,7 @@ class Cache:
         return self.strategy.getEntry(key)
 
     def setEntry(self, key, value):
-        self.strategy.setEntry(key, value)
+        return self.strategy.setEntry(key, value)
 
     def hasEntry(self, cachekey):
         return self.strategy.hasEntry(cachekey)
@@ -969,7 +972,7 @@ def ensureDirectoryExists(path):
             raise
 
 
-def copyOrLink(srcFilePath, dstFilePath):
+def copyOrLink(srcFilePath, dstFilePath, writeCache=False):
     ensureDirectoryExists(os.path.dirname(os.path.abspath(dstFilePath)))
 
     if "CLCACHE_HARDLINK" in os.environ:
@@ -988,7 +991,21 @@ def copyOrLink(srcFilePath, dstFilePath):
     # fall back to moving bytes around. Always to a temporary path first to
     # lower the chances of corrupting it.
     tempDst = dstFilePath + '.tmp'
-    copyfile(srcFilePath, tempDst)
+
+    if "CLCACHE_COMPRESS" in os.environ:
+        if "CLCACHE_COMPRESSLEVEL" in os.environ:
+            compress = int(os.environ["CLCACHE_COMPRESSLEVEL"])
+        else:
+            compress = 6
+
+        if writeCache is True:
+            with open(srcFilePath, 'rb') as fileIn, gzip.open(tempDst, 'wb', compress) as fileOut:
+                copyfileobj(fileIn, fileOut)
+        else:
+            with gzip.open(srcFilePath, 'rb', compress) as fileIn, open(tempDst, 'wb') as fileOut:
+                copyfileobj(fileIn, fileOut)
+    else:
+        copyfile(srcFilePath, tempDst)
     os.replace(tempDst, dstFilePath)
 
 
@@ -1480,8 +1497,10 @@ def addObjectToCache(stats, cache, cachekey, artifacts):
     # already and also saves them
     printTraceStatement("Adding file {} to cache using key {}".format(artifacts.objectFilePath, cachekey))
 
-    cache.setEntry(cachekey, artifacts)
-    stats.registerCacheEntry(os.path.getsize(artifacts.objectFilePath))
+    size = cache.setEntry(cachekey, artifacts)
+    if size is None:
+        size = os.path.getsize(artifacts.objectFilePath)
+    stats.registerCacheEntry(size)
 
     with cache.configuration as cfg:
         return stats.currentCacheSize() >= cfg.maximumCacheSize()

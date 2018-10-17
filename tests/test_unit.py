@@ -14,6 +14,7 @@ import multiprocessing
 import os
 import unittest
 import tempfile
+import shutil
 
 from clcache import __main__ as clcache
 
@@ -1111,6 +1112,57 @@ class TestMemcacheStrategy(unittest.TestCase):
             CacheMemcacheStrategy.splitHosts("localhost.local,12345:")
         with self.assertRaises(ValueError):
             CacheMemcacheStrategy.splitHosts("localhost.local;12345:")
+
+
+class TestCompression(unittest.TestCase):
+    def setUp(self):
+        # Create a temporary directory
+        self.testDir = tempfile.mkdtemp()
+
+    def tearDown(self):
+        # Remove the directory after the test
+        shutil.rmtree(self.testDir)
+        os.environ.clear()
+
+    def assertEntrySizeIsCorrect(self, expectedSize):
+        from clcache.__main__ import copyOrLink
+
+        with cd(self.testDir):
+            srcFilePath = os.path.join(self.testDir, "src")
+            dstFilePath = os.path.join(self.testDir, "dst")
+            with open(srcFilePath, "wb") as f:
+                for i in range(0, 999):
+                    f.write(b"%d" % i)
+            copyOrLink(srcFilePath, dstFilePath, True)
+            size = os.path.getsize(dstFilePath)
+            self.assertEqual(size, expectedSize)
+
+    def testCompression(self):
+        os.environ["CLCACHE_COMPRESS"] = "1"
+        self.assertEntrySizeIsCorrect(1481)
+
+    def testCompressionLevel(self):
+        os.environ["CLCACHE_COMPRESS"] = "1"
+        os.environ["CLCACHE_COMPRESSLEVEL"] = "1"
+        self.assertEntrySizeIsCorrect(1536)
+
+    def testNoCompression(self):
+        self.assertEntrySizeIsCorrect(2887)
+
+    def testDecompression(self):
+        from clcache.__main__ import copyOrLink
+
+        os.environ["CLCACHE_COMPRESS"] = "1"
+        with cd(self.testDir):
+            srcFilePath = os.path.join(self.testDir, "src")
+            tmpFilePath = os.path.join(self.testDir, "tmp")
+            dstFilePath = os.path.join(self.testDir, "dst")
+            with open(srcFilePath, "wb") as f:
+                f.write(b"Content")
+            copyOrLink(srcFilePath, tmpFilePath, True)
+            copyOrLink(tmpFilePath, dstFilePath)
+            self.assertNotEqual(os.path.getsize(srcFilePath), os.path.getsize(tmpFilePath))
+            self.assertEqual(os.path.getsize(srcFilePath), os.path.getsize(dstFilePath))
 
 
 if __name__ == '__main__':
