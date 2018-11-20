@@ -71,6 +71,15 @@ CLCACHE_HARDLINK::
     will be created. This is more efficient (faster, and uses less disk space)
     but doesn't work if the cache directory is on a different drive than the
     build directory.
+CLCACHE_COMPRESS::
+    If true, clcache will compress object files it puts in the cache. If the cache
+    was filled without compression it can't be used with compression and vice versa
+    (i.e. you have to clear the cache when changing this setting). The default is false.
+CLCACHE_COMPRESSLEVEL::
+    This setting determines the level at which clcache will compress object files.
+    It only has effect if compression is enabled. The value defaults to 6, and
+    must be no lower than 1 (fastest, worst compression) and no higher than 9
+    (slowest, best compression).
 CLCACHE_NODIRECT::
     Disable direct mode. If this variable is set, clcache will always run
     preprocessor on source file and will hash preprocessor output to get cache
