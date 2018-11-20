@@ -3,7 +3,8 @@ clcache changelog
 
 ## Upcoming release
 
- * Nothing yet!
+ * Feature: Allow compressing cache content via new `CLCACHE_COMPRESS` and
+   `CLCACHE_COMPRESSLEVEL` environment variables. (GH #328)
 
 ## clcache 4.2.0 (2018-09-06)
 
