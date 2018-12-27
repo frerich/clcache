@@ -124,7 +124,7 @@ How clcache works
 ~~~~~~~~~~~~~~~~~
 
 clcache.py was designed to intercept calls to the actual cl.exe compiler
-binary. Once an invocationw as intercepted, the command line is analyzed for
+binary. Once an invocation has been intercepted, the command line is analyzed for
 whether its a command line which just compiles a single source file into an
 object file. This means that all of the following requirements on the command
 line must be true:
