@@ -6,6 +6,7 @@
 # full text of which is available in the accompanying LICENSE file at the
 # root directory of this project.
 #
+from atomicwrites import atomic_write
 from collections import defaultdict, namedtuple
 from ctypes import windll, wintypes
 from shutil import copyfile, copyfileobj, rmtree, which
@@ -117,14 +118,6 @@ def normalizeBaseDir(baseDir):
         return None
 
 
-@contextlib.contextmanager
-def atomicWrite(fileName):
-    tempFileName = fileName + '.new'
-    with open(tempFileName, 'w') as f:
-        yield f
-    os.replace(tempFileName, fileName)
-
-
 def getCachedCompilerConsoleOutput(path):
     try:
         with open(path, 'rb') as f:
@@ -198,7 +191,7 @@ class ManifestSection:
         manifestPath = self.manifestPath(manifestHash)
         printTraceStatement("Writing manifest with manifestHash = {} to {}".format(manifestHash, manifestPath))
         ensureDirectoryExists(self.manifestSectionDir)
-        with atomicWrite(manifestPath) as outFile:
+        with atomic_write(manifestPath, overwrite=True) as outFile:
             # Converting namedtuple to JSON via OrderedDict preserves key names and keys order
             entries = [e._asdict() for e in manifest.entries()]
             jsonobject = {'entries': entries}
@@ -662,7 +655,7 @@ class PersistentJSONDict:
 
     def save(self):
         if self._dirty:
-            with atomicWrite(self._fileName) as f:
+            with atomic_write(self._fileName, overwrite=True) as f:
                 json.dump(self._dict, f, sort_keys=True, indent=4)
 
     def __setitem__(self, key, value):
