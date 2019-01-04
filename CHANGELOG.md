@@ -5,6 +5,9 @@ clcache changelog
 
  * Feature: Allow compressing cache content via new `CLCACHE_COMPRESS` and
    `CLCACHE_COMPRESSLEVEL` environment variables. (GH #328)
+ * Bugfix: Fixed a race condition resulting in clcache to fail with an error
+   message like `PermissionError: [WinError 5] Access is denied:
+   'XXXX\\stats.txt.new' -> 'XXXX\\stats.txt'` (GH #334)
 
 ## clcache 4.2.0 (2018-09-06)
 
