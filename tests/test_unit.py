@@ -433,10 +433,10 @@ class TestSplitCommandsFile(unittest.TestCase):
         self._genericTest(r'/c /Fo"C:\out dir\" /nologo', ['/c', r'/FoC:\out dir" /nologo'])
 
         # Sane cases of escaping the backslash correctly.
-        self._genericTest(r'/Fo"C:\out dir\\"', [r'/FoC:\out dir' '\\'])
-        self._genericTest(r'/c /Fo"C:\out dir\\"', ['/c', r'/FoC:\out dir' '\\'])
-        self._genericTest(r'/Fo"C:\out dir\\" /nologo', [r'/FoC:\out dir' '\\', r'/nologo'])
-        self._genericTest(r'/c /Fo"C:\out dir\\" /nologo', ['/c', r'/FoC:\out dir' '\\', r'/nologo'])
+        self._genericTest(r'/Fo"C:\out dir\\"', [r'/FoC:\out dir\\'])
+        self._genericTest(r'/c /Fo"C:\out dir\\"', ['/c', r'/FoC:\out dir\\'])
+        self._genericTest(r'/Fo"C:\out dir\\" /nologo', [r'/FoC:\out dir\\', r'/nologo'])
+        self._genericTest(r'/c /Fo"C:\out dir\\" /nologo', ['/c', r'/FoC:\out dir\\', r'/nologo'])
 
     def testVyachselavCase(self):
         self._genericTest(
