@@ -16,6 +16,7 @@ setup(
     install_requires=[
         'typing; python_version < "3.5"',
         'subprocess.run; python_version < "3.5"',
+        'atomicwrites',
         'pymemcache',
         'pyuv',
     ],
