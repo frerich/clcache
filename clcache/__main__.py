@@ -6,7 +6,6 @@
 # full text of which is available in the accompanying LICENSE file at the
 # root directory of this project.
 #
-from atomicwrites import atomic_write
 from collections import defaultdict, namedtuple
 from ctypes import windll, wintypes
 from shutil import copyfile, copyfileobj, rmtree, which
@@ -27,6 +26,7 @@ import sys
 import threading
 from tempfile import TemporaryFile
 from typing import Any, List, Tuple, Iterator
+from atomicwrites import atomic_write
 
 VERSION = "4.2.0-dev"
 
