@@ -240,6 +240,19 @@ class TestCompileRuns(unittest.TestCase):
                                         'Output has no CRLF.\nCommand: {}\nOutput: {}'.format(
                                             command['cmd'], debugLinebreaks(output)))
 
+    def testBasicCompileCcSpecifiedCompiler(self):
+        clCommand = clcache.findCompilerBinary()
+        self.assertIsNotNone(clCommand, "Could not locate cl.exe")
+        self.assertTrue(clCommand.endswith(".exe"), "Compiler executable is not an exe file")
+        cmd = CLCACHE_CMD + [clCommand, "/nologo", "/c", os.path.join(ASSETS_DIR, "fibonacci.c")]
+        subprocess.check_call(cmd)
+
+    def testBasicCompileCppSpecifiedCompiler(self):
+        clCommand = clcache.findCompilerBinary()
+        self.assertIsNotNone(clCommand, "Could not locate cl.exe")
+        self.assertTrue(clCommand.endswith(".exe"), "Compiler executable is not an exe file")
+        cmd = CLCACHE_CMD + [clCommand, "/nologo", "/EHsc", "/c", os.path.join(ASSETS_DIR, "fibonacci.cpp")]
+        subprocess.check_call(cmd)
 
 class TestCompilerEncoding(unittest.TestCase):
     def testNonAsciiMessage(self):

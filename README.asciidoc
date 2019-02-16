@@ -46,6 +46,11 @@ Options
     Sets the maximum size of the cache in bytes.
     The default value is 1073741824 (1 GiB).
 
+compiler::
+    It is, optionally, possible to specify the full path to the compiler as the
+    first argument on the command line, in the style of ccache, instead of using
+    the CLCACHE_CL environment variable or searching the path for cl.exe   
+
 Environment Variables
 ~~~~~~~~~~~~~~~~~~~~~
 
@@ -125,7 +130,7 @@ How clcache works
 
 clcache.py was designed to intercept calls to the actual cl.exe compiler
 binary. Once an invocation has been intercepted, the command line is analyzed for
-whether its a command line which just compiles a single source file into an
+whether it is a command line which just compiles a single source file into an
 object file. This means that all of the following requirements on the command
 line must be true:
 
@@ -150,9 +155,9 @@ The `normalized' command line is the given command line minus all switches
 which either don't influence the generated object file (such as +/Fo+) or
 which have already been covered otherwise. For instance, all switches which
 merely influence the preprocessor can be skipped since their effect is already
-implicitely contained in the preprocessed source code.
+implicitly contained in the preprocessed source code.
 
-Once the hash sum was computed, it is used as a key (actually, a directory
+Once the hash sum is computed, it is used as a key (actually, a directory
 name) in the cache (which is a directory itself). If the cache entry exists
 already, it is supposed to contain a file with the stdout output of the
 compiler as well as the previously generated object file. clcache will
@@ -160,7 +165,7 @@ copy the previously generated object file to the designated output path and
 then print the contents of the stdout text file. That way, the script
 behaves as if the actual compiler was invoked.
 
-If the hash sum was not yet used in the cache, clcache will forward the
+If the hash sum is not yet used in the cache, clcache will forward the
 invocation to the actual compiler. Once the real compiler successfully
 finished its work, the generated object file (as well as the output printed
 by the compiler) is copied to the cache.
