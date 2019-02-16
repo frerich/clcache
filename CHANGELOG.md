@@ -10,6 +10,7 @@ clcache changelog
    'XXXX\\stats.txt.new' -> 'XXXX\\stats.txt'` (GH #334)
  * The path to the compiler executable can optionally be specified on the
    command line, instead of with an environment variable, or searching the PATH. 
+ * Added support for clang-cl
 
 ## clcache 4.2.0 (2018-09-06)
 

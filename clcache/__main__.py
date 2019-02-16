@@ -1204,29 +1204,31 @@ class ArgumentT4(Argument):
 
 
 class CommandLineAnalyzer:
+    argumentsWithParameter = {
+        # /NAMEparameter
+        ArgumentT1('Ob'), ArgumentT1('Yl'), ArgumentT1('Zm'),
+        # /NAME[parameter]
+        ArgumentT2('doc'), ArgumentT2('FA'), ArgumentT2('FR'), ArgumentT2('Fr'),
+        ArgumentT2('Gs'), ArgumentT2('MP'), ArgumentT2('Yc'), ArgumentT2('Yu'),
+        ArgumentT2('Zp'), ArgumentT2('Fa'), ArgumentT2('Fd'), ArgumentT2('Fe'),
+        ArgumentT2('Fi'), ArgumentT2('Fm'), ArgumentT2('Fo'), ArgumentT2('Fp'),
+        ArgumentT2('Wv'),
+        # /NAME[ ]parameter
+        ArgumentT3('AI'), ArgumentT3('D'), ArgumentT3('Tc'), ArgumentT3('Tp'),
+        ArgumentT3('FI'), ArgumentT3('U'), ArgumentT3('I'), ArgumentT3('F'),
+        ArgumentT3('FU'), ArgumentT3('w1'), ArgumentT3('w2'), ArgumentT3('w3'),
+        ArgumentT3('w4'), ArgumentT3('wd'), ArgumentT3('we'), ArgumentT3('wo'),
+        ArgumentT3('V'),
+        ArgumentT3('imsvc'),
+        # /NAME parameter
+        ArgumentT4("Xclang"),
+    }
+    argumentsWithParameterSorted = sorted(argumentsWithParameter, key=len, reverse=True)
 
     @staticmethod
     def _getParameterizedArgumentType(cmdLineArgument):
-        argumentsWithParameter = {
-            # /NAMEparameter
-            ArgumentT1('Ob'), ArgumentT1('Yl'), ArgumentT1('Zm'),
-            # /NAME[parameter]
-            ArgumentT2('doc'), ArgumentT2('FA'), ArgumentT2('FR'), ArgumentT2('Fr'),
-            ArgumentT2('Gs'), ArgumentT2('MP'), ArgumentT2('Yc'), ArgumentT2('Yu'),
-            ArgumentT2('Zp'), ArgumentT2('Fa'), ArgumentT2('Fd'), ArgumentT2('Fe'),
-            ArgumentT2('Fi'), ArgumentT2('Fm'), ArgumentT2('Fo'), ArgumentT2('Fp'),
-            ArgumentT2('Wv'),
-            # /NAME[ ]parameter
-            ArgumentT3('AI'), ArgumentT3('D'), ArgumentT3('Tc'), ArgumentT3('Tp'),
-            ArgumentT3('FI'), ArgumentT3('U'), ArgumentT3('I'), ArgumentT3('F'),
-            ArgumentT3('FU'), ArgumentT3('w1'), ArgumentT3('w2'), ArgumentT3('w3'),
-            ArgumentT3('w4'), ArgumentT3('wd'), ArgumentT3('we'), ArgumentT3('wo'),
-            ArgumentT3('V'),
-            # /NAME parameter
-        }
         # Sort by length to handle prefixes
-        argumentsWithParameterSorted = sorted(argumentsWithParameter, key=len, reverse=True)
-        for arg in argumentsWithParameterSorted:
+        for arg in CommandLineAnalyzer.argumentsWithParameterSorted:
             if cmdLineArgument.startswith(arg.name, 1):
                 return arg
         return None
