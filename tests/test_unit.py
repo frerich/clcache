@@ -700,6 +700,8 @@ class TestAnalyzeCommandLine(unittest.TestCase):
 
         # Type 4 (/NAME parameter) - Forced space
         # Some documented, but non implemented
+        self._testFailure(["/c", "/Xclang", "main.cpp"], NoSourceFileError)
+        self._testSourceFilesOk(["/c", "/Xclang", "foo", "main.cpp"])
 
         # Documented as type 1 (/NAMEparmeter) but work as type 2 (/NAME[parameter])
         self._testSourceFilesOk(["/c", "/Fa", "main.cpp"])
